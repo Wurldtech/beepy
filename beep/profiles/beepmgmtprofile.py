@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.13 2002/10/18 06:41:32 jpwarren Exp $
-# $Revision: 1.13 $
+# $Id: beepmgmtprofile.py,v 1.14 2002/10/23 07:07:28 jpwarren Exp $
+# $Revision: 1.14 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -138,6 +138,9 @@ class BEEPManagementProfile(profile.Profile):
 					return
 				else:
 					raise profile.TerminalProfileException("Malformed Message: %s" % e)
+
+			except profile.TerminalProfileException:
+				raise
 
 			except:
 				self.log.logmsg(logging.LOG_DEBUG, "Unhandled exception in BEEP management profile")

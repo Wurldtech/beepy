@@ -1,5 +1,5 @@
-# $Id: CHANGES,v 1.11 2003/01/08 06:16:07 jpwarren Exp $
-# $Revision: 1.11 $
+# $Id: CHANGES,v 1.12 2003/01/08 07:14:02 jpwarren Exp $
+# $Revision: 1.12 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -27,6 +27,10 @@
 - Cleaner inheritance model
 - tracebacks appear in logfiles for ease in debugging. These occur
   when major Exceptions go off to make it easier to bugfix.
+- SessionListeners can be tuned to deny connections of more than
+  a certain threshold of Sessions are currently connected. They
+  automatically start accepting connections again if the number
+  of connections drops below the threshold.
 
 0.2a -> 0.3
 ------------

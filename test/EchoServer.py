@@ -1,5 +1,5 @@
-# $Id: EchoServer.py,v 1.4 2003/01/06 07:19:07 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: EchoServer.py,v 1.5 2003/01/08 07:13:38 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -49,7 +49,7 @@ if __name__ == '__main__':
 	def cleanup():
 		server.close()
 		while server.isActive():
-			pass
+			time.sleep(0.25)
 
 	sys.exitfunc = cleanup
 

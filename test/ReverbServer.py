@@ -1,5 +1,5 @@
-# $Id: ReverbServer.py,v 1.1 2003/01/03 02:39:11 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: ReverbServer.py,v 1.2 2003/01/08 07:13:38 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -50,12 +50,12 @@ if __name__ == '__main__':
 	def cleanup():
 		server.close()
 		while server.isActive():
-			pass
+			time.sleep(0.25)
 
 	sys.exitfunc = cleanup
 
 	while(1):
-		pass
+		time.sleep(0.25)
 
 else:
 	print "You're not supposed to load this as a module."

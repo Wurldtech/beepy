@@ -1,5 +1,5 @@
-# $Id: test_tlsprofile.py,v 1.3 2003/01/07 07:40:00 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: test_tlsprofile.py,v 1.4 2003/01/08 07:13:38 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -51,6 +51,8 @@ class TLSProfileTest(unittest.TestCase):
 		self.certFile = 'TLSClientCert.pem'
 		self.passphrase = 'TeSt'
 
+		sys.exit()
+
 	def test_createTLSSession(self):
 		"""Test TLS """
 		pdict1 = profile.ProfileDict()
@@ -59,7 +61,7 @@ class TLSProfileTest(unittest.TestCase):
 		sess = tcpsession.TCPSessionListener(self.log, pdict1, 'localhost', 1976)
 
 		while sess.currentState != 'ACTIVE':
-			pass
+			time.sleep(0.25)
 
 		# create and connect an initiator
 		pdict2 = profile.ProfileDict()
@@ -67,7 +69,7 @@ class TLSProfileTest(unittest.TestCase):
 		pdict2[echoprofile.uri] = echoprofile
 		clientmgr = tcpsession.TCPInitiatorSessionManager(self.log, pdict2)
 		while not clientmgr.isActive():
-			pass
+			time.sleep(0.25)
 
 		client = clientmgr.connectInitiator('localhost', 1976)
 		clientid = client.ID
@@ -75,13 +77,13 @@ class TLSProfileTest(unittest.TestCase):
 			if client.isExited():
 				self.log.logmsg(logging.LOG_ERR, "Erk! Channel isn't active!")
 				exit(1)
-			pass
+			time.sleep(0.25)
 
 		# Start a channel using TLS
 		profileList = [[tlsprofile.uri,None,None]]
 		channelnum = client.startChannel(profileList)
 		while not client.isChannelActive(channelnum):
-			pass
+			time.sleep(0.25)
 
 		channel = client.getActiveChannel(channelnum)
 		if not channel:
@@ -92,39 +94,39 @@ class TLSProfileTest(unittest.TestCase):
 		channel.profile.configureClient(self.keyFile, self.certFile, self.passphrase)
 
 		while client.isAlive():
-			pass
+			time.sleep(0.25)
 
 		# old client will have exited, so get the new client
 		# for the same connection, as it has the same id
 		client = clientmgr.getSessionById(clientid)
 
 		while not client.isActive():
-			pass
+			time.sleep(0.25)
 
 		# Create a channel on the new, authenticated, session
 		# using the echo profile
 		profileList = [[echoprofile.uri,None,None]]
 		channelnum = client.startChannel(profileList)
 		while not client.isChannelActive(channelnum):
-			pass
+			time.sleep(0.25)
 		channel = client.getActiveChannel(channelnum)
 
 		# send a message
 		msgno = channel.sendMessage('Hello!')
 		while channel.isMessageOutstanding():
-			pass
+			time.sleep(0.25)
 
 		client.close()
 		while not client.isExited():
-			pass
+			time.sleep(0.25)
 
 		clientmgr.close()
 		while not clientmgr.isExited():
-			pass
+			time.sleep(0.25)
 
 		sess.close()
 		while not sess.isExited():
-			pass
+			time.sleep(0.25)
 
 
 if __name__ == '__main__':

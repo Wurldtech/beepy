@@ -1,5 +1,5 @@
-# $Id: test_initiator.py,v 1.3 2003/01/07 07:40:00 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: test_initiator.py,v 1.4 2003/01/08 07:13:38 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -54,14 +54,14 @@ class TCPInitatorSessionTest(unittest.TestCase):
 		pdict1[echoprofile.uri] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict1, 'localhost', 1976)
 		while not sess.isActive():
-			pass
+			time.sleep(0.25)
 
 		# create and connect an initiator
 		pdict2 = profile.ProfileDict()
 		pdict2[echoprofile.uri] = echoprofile
 		clientmgr = tcpsession.TCPInitiatorSessionManager(self.log, pdict2)
 		while not clientmgr.isActive():
-			pass
+			time.sleep(0.25)
 
 		client = clientmgr.connectInitiator('localhost', 1976)
 		clientid = client.ID
@@ -69,20 +69,20 @@ class TCPInitatorSessionTest(unittest.TestCase):
 			if client.isExited():
 				print "Cannot connect to server."
 				exit(1)
-			pass
+			time.sleep(0.25)
 
 		# close all
 		client.close()
 		while client.isAlive():
-			pass
+			time.sleep(0.25)
 
 		clientmgr.close()
 		while clientmgr.isAlive():
-			pass
+			time.sleep(0.25)
 
 		sess.close()
 		while sess.isAlive():
-			pass
+			time.sleep(0.25)
 
 	def test_startChannel(self):
 		"""Test start of a channel
@@ -91,14 +91,14 @@ class TCPInitatorSessionTest(unittest.TestCase):
 		pdict1[echoprofile.uri] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict1, 'localhost', 1976)
 		while sess.currentState != 'ACTIVE':
-			pass
+			time.sleep(0.25)
 
 		# create and connect an initiator
 		pdict2 = profile.ProfileDict()
 		pdict2[echoprofile.uri] = echoprofile
 		clientmgr = tcpsession.TCPInitiatorSessionManager(self.log, pdict2)
 		while not clientmgr.isActive():
-			pass
+			time.sleep(0.25)
 
 		client = clientmgr.connectInitiator('localhost', 1976)
 		clientid = client.ID
@@ -106,28 +106,28 @@ class TCPInitatorSessionTest(unittest.TestCase):
 			if client.isExited():
 				print "Cannot connect to server."
 				exit(1)
-			pass
+			time.sleep(0.25)
 
 		profileList = [[echoprofile.uri,None,None]]
 		channelnum = client.startChannel(profileList)
 		while not client.isChannelActive(channelnum):
-			pass
+			time.sleep(0.25)
 
 		client.closeChannel(channelnum)
 		while client.isChannelActive(channelnum):
-			pass
+			time.sleep(0.25)
 
 		client.close()
 		while client.isAlive():
-			pass
+			time.sleep(0.25)
 
 		clientmgr.close()
 		while clientmgr.isAlive():
-			pass
+			time.sleep(0.25)
 
 		sess.close()
 		while sess.isAlive():
-			pass
+			time.sleep(0.25)
 
 if __name__ == '__main__':
 

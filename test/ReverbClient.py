@@ -1,5 +1,5 @@
-# $Id: ReverbClient.py,v 1.1 2003/01/03 02:39:11 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: ReverbClient.py,v 1.2 2003/01/08 07:13:38 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -37,7 +37,7 @@ except ImportError:
 def quit():
 	client.close()
 	while client.isActive():
-		pass
+		time.sleep(0.25)
 
 sys.exitfunc = quit
 
@@ -55,7 +55,7 @@ profileList = [[reverbprofile.uri, None, None]]
 log.logmsg(LOG_INFO, "Connecting to server...")
 clientmgr = tcpsession.TCPInitiatorSessionManager(log, profileDict)
 while not clientmgr.isActive():
-	pass
+	time.sleep(0.25)
 
 client = clientmgr.connectInitiator('localhost', 1976)
 
@@ -63,12 +63,12 @@ while not client.isActive():
 	if client.isExited():
 		log.logmsg(LOG_ERR, "Client connection failed.")
 		sys.exit()
-	pass
+	time.sleep(0.25)
 clientid = client.ID
 # Create a channel using ECHO and wait for it to become active
 channelnum = client.startChannel(profileList)
 while not client.isChannelActive(channelnum):
-	pass
+	time.sleep(0.25)
 
 # Channel is now active and working, so let's try sending
 # some messages over it.
@@ -80,12 +80,12 @@ if not channel:
 msgno = channel.sendMessage('2 5 Hello!\n')
 # Any replies should be handled by the profile
 while channel.isMessageOutstanding(msgno):
-	pass
+	time.sleep(0.25)
 
 #client.closeChannel(channelnum)
 #while client.isChannelActive(channelnum):
-#	pass
+#	time.sleep(0.25)
 
 client.close()
 while client.isAlive():
-	pass
+	time.sleep(0.25)

@@ -1,5 +1,5 @@
-# $Id: TODO,v 1.14 2003/01/08 06:16:07 jpwarren Exp $
-# $Revision: 1.14 $
+# $Id: TODO,v 1.15 2003/01/08 07:14:02 jpwarren Exp $
+# $Revision: 1.15 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -56,4 +56,8 @@
 - Go through code and remove unused methods after threading re-organisation.
 - Investigate clean exiting on CTRL-C in unittests, just in case something
   dies. It's a pain to have to CTRL-Z and kill the job when debugging.
-
+- Add a Stress and Volume test to the test suite to see how the library
+  performs under load. This will probably have to wait a little while until
+  the library is a little bit more stable.
+- The max_concurrent processing section of TCPSession should be moved into
+  core.session and apply to both InitiatorManagers and ListenerManagers.

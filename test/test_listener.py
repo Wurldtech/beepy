@@ -1,5 +1,5 @@
-# $Id: test_listener.py,v 1.3 2003/01/07 07:40:00 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: test_listener.py,v 1.4 2003/01/08 07:13:38 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -53,14 +53,14 @@ class ServerTest(unittest.TestCase):
 		self.listener = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
 		# wait for it to become active
 		while not self.listener.isActive():
-			pass
+			time.sleep(0.25)
 		self.client = dummyclient.DummyClient()
 
 	def tearDown(self):
 		self.client.terminate()
 		self.listener.close()
 		while not self.listener.isExited():
-			pass
+			time.sleep(0.25)
 
 	def test_2311000_validGreeting(self):
 		"""Test valid greeting"""

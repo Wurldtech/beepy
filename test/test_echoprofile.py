@@ -1,5 +1,5 @@
-# $Id: test_echoprofile.py,v 1.4 2003/01/08 05:38:12 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: test_echoprofile.py,v 1.5 2003/01/08 07:13:38 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -59,7 +59,7 @@ class EchoProfileTest(unittest.TestCase):
 		self.listener = tcpsession.TCPSessionListener(self.serverlog, pdict, 'localhost', 1976)
 		# wait for it to become active
 		while not self.listener.isActive():
-			pass
+			time.sleep(0.25)
 		self.clientlog.logmsg(logging.LOG_DEBUG, "Listener is active.")
 		self.client = dummyclient.DummyClient()
 
@@ -67,7 +67,7 @@ class EchoProfileTest(unittest.TestCase):
 		self.client.terminate()
 		self.listener.close()
 		while not self.listener.isExited():
-			pass
+			time.sleep(0.25)
 
 	def test_createEchoChannel(self):
 		"""Test creation of a channel with the Echo profile"""

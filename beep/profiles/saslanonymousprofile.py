@@ -1,5 +1,5 @@
-# $Id: saslanonymousprofile.py,v 1.3 2002/08/08 06:52:56 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: saslanonymousprofile.py,v 1.4 2002/08/13 06:29:21 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,70 +23,60 @@
 # It should be inherited from to implement particular
 # SASL mechanisms
 
-import profile
+import saslprofile
 from beep.core import logging
+from beep.core import constants
+from beep.transports import sasltcpsession
 
-import re
-import base64
+__profileClass__ = "SASLAnonymousProfile"
 
-__profileClass__ = "SASL_ANONYMOUS_Profile"
-
-class SASL_ANONYMOUS_Profile:
-	data = []
-	status = ''
-	authentid = ''
-	userid = ''
-	locked = 0
-
-	def __init__(self, data, status=None, authenid=None, userid=None, locked=0):
-		try:
-			self.data = self.decodeBlob(data)
-		except SASLProfileException:
-			try:
-				self.data = data
-				self.status = self.parseStatus(data)
-			except SASLProfileException:
-				raise SASLProfileException("Invalid blob format in data")
-
-class SASLProfile(profile.Profile):
-	""" This is an abstract class to provide the core SASL Profile API
+class SASLAnonymousProfile(saslprofile.SASLProfile):
+	"""A SASLAnonymousProfile is a SASL Profile that implements
+	   the ANONYMOUS mechanism for anonymous authentication.
 	"""
-	uri = "http://www.eigenmagic.com/beep/SASL"
+	tuning = 0
+
+	def __init__(self, log, session, profileInit=None):
+		saslprofile.SASLProfile.__init__(self, log, session)
+		self.log.logmsg(logging.LOG_DEBUG, "initstring: %s" % profileInit)
+		self.tuning = 0
 
 	def doProcessing(self):
-		"""doProcessing() isn't defined by the abstract SASLProfile.
-		   Make sure you overload this in the subclass.
+		"""All doProcessing should do is move the session from
+		   non-authenticated to authenticated.
 		"""
-		raise NotImplementedError
+		if self.tuning:
+			# get the connection
+			conn = self.session.connection
+			client_address = self.session.client_address
+			sessmgr = self.session.server
+			# reset old session
+			# migrate connection to new session
+			newsess = sasltcpsession.SASLTCPListenerSession(conn, client_address, sessmgr, authentid)
+			sessmgr.addSession(newsess)
 
-	def decodeBlob(self, data):
-		"""decodeBlob() extracts the data from the <blob> section of
-		   the payload data and decodes it from base64.
-		   It's really XML, but I don't think using a full parser
-		   is warranted here.
-		"""
-		blobPattern = r'<blob>.*</blob>'
-		blobRE = re.compile(blobPattern)
-
-		match = re.search(blobRE, data)
-		if match:
-			decoded_data = base64.decodestring(match)
-			return decoded_data
 		else:
-			raise SASLProfileException("No blob to decode in datablock")
+			theframe = self.channel.recv()
+			if theframe:
+				status = self.parseStatus(theframe.payload)
+				if status:
+					# do status code processing
+					pass
+				else:
+					authentid = self.decodeBlob(theframe.payload)
+					if authentid:
+						self.log.logmsg(logging.LOG_DEBUG, "authentid: %s" % authentid)
+						# after sending a success confirmation, we do a tuning reset.
+						data = '<blob status="complete">'
+						self.channel.sendReply(theframe.msgno, data)
 
-	def parseStatus(self, data):
-		"""parseStatus() extracts the status code from the <blob> block
-		"""
-		blobStatusPattern = r'<blob\sstatus=['"](.*)['"]\s/>'
-		blobStatusRE = re.compile(blobStatusPattern)
+						# get the connection
+						conn = self.session.connection
+						client_address = self.session.client_address
+						sessmgr = self.session.server
+						# reset old session
+						self.session.reset()
+						# migrate connection to new session
+						newsess = sasltcpsession.SASLTCPListenerSession(conn, client_address, sessmgr, self, authentid)
+#						sessmgr.addSession(newsess)
 
-		match = re.search(blobStatusRE, data)
-		if match:
-			return match.group(1)
-		else:
-			raise SASLProfileException("No status in blob")
-
-class SASLProfileException(profile.ProfileException):
-	def __init__(self, args):
-		self.args = args

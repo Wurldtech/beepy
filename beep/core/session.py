@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: session.py,v 1.3 2002/08/13 06:29:21 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -147,7 +147,7 @@ class Session:
 		newchan = channel.Channel(self.log, channelnum, profile)
 		self.channels[channelnum] = newchan
 
-	def createChannelFromURIList(self, channelnum, uriList):
+	def createChannelFromURIList(self, channelnum, uriList, profileInit=None):
 		# First, check requested profile(s) are available
 		myURIList = self.profileDict.getURIList()
 		if not myURIList:
@@ -162,7 +162,7 @@ class Session:
 				# Attempt to instanciate the profile
 				profileClassName = self.profileDict[uri].__profileClass__
 				if profileClassName in self.profileDict[uri].__dict__.keys():
-					profile = self.profileDict[uri].__dict__[profileClassName](self.log, self)
+					profile = self.profileDict[uri].__dict__[profileClassName](self.log, self, profileInit)
 				else:
 					self.log.logmsg(logging.LOG_ERR, "__profileClass__ doesn't contain the name of the Class to instanciate for uri: %s" % uri)
 					raise SessionException("__profileClass__ doesn't contain correct Class name")
@@ -260,14 +260,21 @@ class Session:
 		before closing down the session itself.
 		"""
 		if self.state < constants.SESSION_CLOSING:
+			self.state = constants.SESSION_CLOSING
 			try:
 				chanlist = self.channels.keys()
 				for chan in chanlist:
+					chan.close()
 					self.deleteChannel(chan)
 
-				self.state = constants.SESSION_CLOSING
 			except Exception, e:
 				raise SessionException('Unable to close Session: %s' % e)
+
+	def reset(self):
+		"""reset() does a tuning reset which closes all channels and
+		   terminates the session.
+		"""
+		pass
 
 	def startChannel(self, profileList):
 		"""startChannel() attempts to start a new channel for communication.
@@ -301,7 +308,6 @@ class SessionManager:
 
 	def removeSession(self, sessionInst):
 		if sessionInst in self.sessionList:
-			sessionInst.close()
 			self.sessionList.remove(sessionInst)
 
 	def deleteAllSessions(self):

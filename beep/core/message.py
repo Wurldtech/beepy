@@ -1,5 +1,5 @@
-# $Id: message.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: message.py,v 1.3 2002/08/13 06:29:21 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -107,6 +107,18 @@ class Message:
 			uriList.append(node.getAttribute('uri'))
 		return uriList
 
+	def getStartProfileBlob(self):
+		"""getStartProfileBlob() gets the contents of the CDATA
+		   element within a <start> message profile, which should
+		   be a <blob></blob> section to be passed to the profile.
+		"""
+		if not self.isStart():
+			raise MessageException("Message isn't a start message")
+
+		nodelist = self.doc.childNodes[0].getElementsByTagName('*')
+		if nodelist[0].hasChildNodes():
+			return nodelist[0].childNodes[0].nodeValue
+
 	# This is a hack because I can't be bothered integrating
 	# a validating XML parser into the core just yet. Maybe later.
 	# All this does is validate the message against the
@@ -148,15 +160,22 @@ class Message:
 			if not currentNode.hasAttribute('number'):
 				raise MessageInvalid('start tag has no number attribute')
 
-			nodelist = currentNode.getElementsByTagName('*')
-			foundProfile = 0
-			for node in nodelist:
+			for node in currentNode.childNodes:
 				if node.nodeName == 'profile':
 					foundProfile = 1
 					if not node.hasAttribute('uri'):
 						raise MessageInvalid('start tag profile has no uri attribute')
+
+					# verify that if start profile contains an element
+					# it must be a CDATA section. Nothing else is
+					# permitted.
+					nodelist2 = node.getElementsByTagName('*')
+					for node2 in nodelist2:
+						if node2.nodeName != '#text' and node.nodeName != '#cdata-section':
+							raise MessageInvalid('Invalid start profile content')
 				else:
 					raise MessageInvalid('start tag contains non profile element')
+
 			if not foundProfile:
 				raise MessageInvalid('start tag has no profile element')
 			return 1
@@ -212,6 +231,13 @@ class Message:
 
 		# If I make it this far, it's not valid
 		raise MessageInvalid('Invalid BEEP Message')
+
+	def __repr__(self):
+		for node in self.doc.childNodes:
+			print "%s (parent: %s)" % (node, node.parentNode)
+			if node.childNodes:
+				for child in node.childNodes:
+					print "--%s (parent: %s)" % (child, child.parentNode)
 
 class MessageException ( errors.BEEPException ):
 	def __init__(self, args=None):

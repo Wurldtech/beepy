@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.4 2002/08/08 02:38:59 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: tcpsession.py,v 1.5 2002/08/13 06:29:21 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -89,7 +89,7 @@ class TCPSessionListener(SocketServer.TCPServer, session.SessionListener, thread
 		self.removeSession(request)
 
 	def close(self):
-		session.SessionManager.close(self)
+		session.SessionListener.close(self)
 		self.socket.close()
 
 class TCPCommsMixin:
@@ -293,21 +293,34 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 #		self.log.logmsg( logging.LOG_DEBUG, "%s -> SESSION_CLOSING" % self )
 
 	def finish(self):
-		# I'm exiting if I get here
-		self.state = constants.SESSION_EXITING
-#		self.log.logmsg( logging.LOG_DEBUG, "%s -> SESSION_EXITING" % self)
-
-		self.connection.close()
-		self.request.close()
-		SocketServer.StreamRequestHandler.finish(self)
-
-		self.server.removeSession(self)
-		self.state = constants.SESSION_EXITED
-		self.log.logmsg(logging.LOG_INFO, "Session from %s[%s] finished." % self.client_address)
+		if self.state == constants.SESSION_TUNING:
+			self.log.logmsg(logging.LOG_INFO, "Closing old session due to tuning reset." )
+		else:
+			self.state = constants.SESSION_EXITING
+			SocketServer.StreamRequestHandler.finish(self)
+			self.server.removeSession(self)
+			self.state = constants.SESSION_EXITED
+			self.log.logmsg(logging.LOG_INFO, "Session from %s[%s] finished." % self.client_address)
 
 	# Need to deal with SEQ frames
 	def processSEQFrame(self):
 		raise NotImplementedError
+
+	def close(self):
+		session.Session.close(self)
+		self.log.logmsg(logging.LOG_DEBUG, "%s: closing connection in tcpsession.py line 311." % self)
+
+		self.connection.close()
+		self.request.close()
+
+	def reset(self):
+		self.state = constants.SESSION_TUNING
+		# close all channels
+		session.Session.close(self)
+		# flush pending frames
+
+		while not self.outbound.empty():
+			self.sendPendingFrame()
 
 class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMixin):
 

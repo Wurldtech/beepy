@@ -1,5 +1,5 @@
-# $Id: constants.py,v 1.3 2002/08/08 02:38:59 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: constants.py,v 1.4 2002/08/13 06:29:21 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -90,9 +90,10 @@ SESSION_INITIALIZED = 1
 SESSION_ACTIVE = 2
 SESSION_PROCESSING = 3
 SESSION_CLOSING = 4
-SESSION_CLOSED = 5
-SESSION_EXITING = 6
-SESSION_EXITED = 7
+SESSION_TUNING = 5
+SESSION_CLOSED = 6
+SESSION_EXITING = 7
+SESSION_EXITED = 8
 
 # The Channel finite state machine
 CHANNEL_STOPPED = 0

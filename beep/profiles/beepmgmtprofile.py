@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.5 2002/08/08 02:38:59 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: beepmgmtprofile.py,v 1.6 2002/08/13 06:29:21 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -174,11 +174,13 @@ class BEEPManagementProfile(profile.Profile):
 			errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
 			self.channel.sendError(theframe.msgno, errmsg)
 		else:
+			# Check to see if start message has a CDATA section
+			cdata = msg.getStartProfileBlob()
 			# create a new channel with this number
 			self.log.logmsg(logging.LOG_NOTICE, "Creating new channel, number: %d" % reqChannel)
 
 			try:
-				uri = self.session.createChannelFromURIList(reqChannel, msg.getProfileURIList())
+				uri = self.session.createChannelFromURIList(reqChannel, msg.getProfileURIList(), cdata)
 				# Finally, inform client of success, and which profile was used.
 				self.log.logmsg(logging.LOG_DEBUG, "uri: %s" % uri)
 				msg = self.mgmtCreator.createStartReplyMessage(uri)

@@ -1,5 +1,5 @@
-# $Id: mgmtparser.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: mgmtparser.py,v 1.3 2002/08/13 06:29:21 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -38,6 +38,7 @@ import logging
 import types
 import xml.dom.minidom
 import xml.parsers.expat
+import re
 
 class Parser:
 	log = None
@@ -131,10 +132,13 @@ class Parser:
 	# know if we're within a CDATA section. Since a CDATA
 	# section isn't a container, we only need a boolean type flag.
 	def dataHandler(self, data):
-#		self.log.logmsg(logging.LOG_DEBUG, "found data: %s" % data)
 		# ignore nothing but whitespace
-#		if data == '\r\n':
-#			return
+		whitespace = re.compile(r'^\s*$')
+
+#		print self.log.logmsg(logging.LOG_DEBUG, "data >%s<" % data)
+		match = re.search(whitespace, data)
+		if match:
+			return
 		# check to see if we're in a CDATA section
 		if self.withinCdataSection:
 			element = self.doc.createCDATASection(data)
@@ -149,6 +153,7 @@ class Parser:
 			raise ParserException("CDATA found outside outermost tags")
 		else:
 			parent = self.elementStack.pop()
+#			self.log.logmsg(logging.LOG_DEBUG, "parser: parent for CDATA: %s" % parent)
 			parent.appendChild(element)
 			self.elementStack.append(parent)
 

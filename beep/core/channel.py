@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: channel.py,v 1.3 2002/08/13 06:29:21 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -320,6 +320,10 @@ class Channel:
 		"""
 		if self.allocatedMsgnos[0]:
 			raise ChannelMessagesOutstanding
+
+		del self.inbound
+		del self.outbound
+		del self.profile
 
 	def transition(self, newstate):
 		"""transition() attempts to move the Channel to the

@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.3 2002/08/08 02:38:59 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: profile.py,v 1.4 2002/08/13 06:29:21 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -46,7 +46,7 @@ class Profile:
 	encoding = None		# track the current message's encoding
 
 	# Create a new Profile object
-	def __init__(self, log, session):
+	def __init__(self, log, session, profileInit=None):
 		"""Subclasses of Profile should call this method from their
 		__init__() methods.
 		"""

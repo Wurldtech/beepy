@@ -1,5 +1,5 @@
-# $Id: TODO,v 1.5 2002/08/08 06:52:56 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: TODO,v 1.6 2002/08/13 06:29:21 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -59,3 +59,10 @@
   moved over to the new Session, the current Profile would exit and
   the other session would just kick off as if it'd just been started.
   Easy.
+- Add profile priorities for when a client might ask to start a channel
+  and give a list of profiles. The server will then pick the one that it
+  knows about that has the highest priority. This allows the server to
+  prefer SASL/OTP over SASL/ANONYMOUS, for example.
+- Need to fix state machine and synchronisations so that on a tuning
+  reset the new session doesn't become active until after the old one
+  has exitted. Probably need some form of thread synchro via join().

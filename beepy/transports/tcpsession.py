@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.5 2003/01/08 06:16:06 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: tcpsession.py,v 1.6 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -53,7 +53,6 @@ class TCPDataEnqueuer(util.DataEnqueuer):
 		self.SEQFramePattern = re.compile(SEQFrameRE)
 
 		self.read_timeout = read_timeout
-
 
 		# Initialise as a DataEnqueuer
 		util.DataEnqueuer.__init__(self, dataq, errEvent, name)
@@ -286,12 +285,12 @@ class TCPTerminalError(TCPError):
 	"""
 
 class TCPSessionTerminated(TCPError):
-	"""This gets set when a ListenerSession or InitiatorSession
+	"""This gets set when a Listener or Initiator
 	   terminates. It passes back to the Monitor to let it
 	   know that this thread has exited.
 	"""
 
-class TCPListenerSession(session.ListenerSession, util.isMonitored):
+class TCPListener(session.Listener, util.isMonitored):
 
 	def __init__(self, sock, client_address, sessmgr, read_timeout=1):
 		self.sock = sock
@@ -307,7 +306,7 @@ class TCPListenerSession(session.ListenerSession, util.isMonitored):
 		# and their TCP I/O threads (Dataqueuers)
 		util.isMonitored.__init__(self, sessmgr.monitorEvent, name="server: %s[%s]" % client_address)
 
-		session.ListenerSession.__init__(self, sessmgr.log, sessmgr.profileDict)
+		session.Listener.__init__(self, sessmgr.log, sessmgr.profileDict)
 
 		self.log.logmsg(logging.LOG_INFO, "Handling session from: %s[%s]" % self.client_address)
 		self.log.logmsg(logging.LOG_DEBUG, "Started thread: %s" % self)
@@ -390,7 +389,7 @@ class TCPListenerSession(session.ListenerSession, util.isMonitored):
 		self.sessmgr.monitor.stopMonitoring(self.inputDataQueue)
 		self.sessmgr.monitor.stopMonitoring(self.outputDataQueue)
 		self.sessmgr.monitor.stopMonitoring(self)
-		self.sessmgr.removeSession(self.ID)
+		self.sessmgr.deleteSession(self.ID)
 
 		self.log.logmsg(logging.LOG_INFO, "Session from %s[%s] finished." % self.client_address)
 		self.log.logmsg(logging.LOG_DEBUG, "Stopped thread: %s" % self)
@@ -425,11 +424,11 @@ class TCPListenerSession(session.ListenerSession, util.isMonitored):
 	def close(self):
 		self.stop()
 
-class TCPInitiatorSession(session.InitiatorSession, util.isMonitored):
+class TCPInitiator(session.Initiator, util.isMonitored):
 
 	def __init__(self, log, profileDict, server_address, sessmgr, read_timeout=1):
 
-		session.InitiatorSession.__init__(self, log, profileDict)
+		session.Initiator.__init__(self, log, profileDict)
 		util.isMonitored.__init__(self, sessmgr.monitorEvent, name="client: %s[%s]" % server_address)
 		self.server_address = server_address
 		self.sessmgr = sessmgr
@@ -527,7 +526,7 @@ class TCPInitiatorSession(session.InitiatorSession, util.isMonitored):
 		self.sessmgr.monitor.stopMonitoring(self.inputDataQueue)
 		self.sessmgr.monitor.stopMonitoring(self.outputDataQueue)
 		self.sessmgr.monitor.stopMonitoring(self)
-		self.sessmgr.removeSession(self.ID)
+		self.sessmgr.deleteSession(self.ID)
 
 		self.log.logmsg(logging.LOG_NOTICE, "Session to %s[%s] exited." % self.server_address)
 		self.log.logmsg(logging.LOG_DEBUG, "Stopped thread: %s" % self)
@@ -562,14 +561,14 @@ class TCPInitiatorSession(session.InitiatorSession, util.isMonitored):
 	def close(self):
 		self.stop()
 
-class TCPSessionListener(session.SessionListener, util.LoopingThread):
+class TCPListenerManager(session.ListenerManager, util.LoopingThread):
 
 	def __init__(self, log, profileDict, host, port, daemon=0, max_connect=5, max_concurrent=50, accept_timeout=1, read_timeout=1, name=None ):
 
 
 		self.address = (host, port)
 
-		session.SessionListener.__init__(self, log, profileDict)
+		session.ListenerManager.__init__(self, log, profileDict)
 		self.addState('PAUSED', self._statePAUSED)
 		self.addTransition('ACTIVE', 'pause', 'PAUSED')
 		self.addTransition('PAUSED', 'ok', 'ACTIVE')
@@ -614,7 +613,7 @@ class TCPSessionListener(session.SessionListener, util.LoopingThread):
 				# This means an incoming connection has come in
 				client, addr = self.sock.accept()
 				self.log.logmsg(logging.LOG_INFO, "Connection from %s[%s]" % addr)
-				newSession = TCPListenerSession(client, addr, self, self.read_timeout)
+				newSession = TCPListener(client, addr, self, self.read_timeout)
 				self.addSession(newSession)
 				self.monitor.startMonitoring(newSession)
 
@@ -646,16 +645,10 @@ class TCPSessionListener(session.SessionListener, util.LoopingThread):
 		time.sleep(5)
 
 	def _stateCLOSING(self):
-		self.log.logmsg(logging.LOG_INFO, "Closing all ListenerSessions...")
+		self.log.logmsg(logging.LOG_INFO, "Closing all Listeners...")
 		while self.sessionList:
-			for sessId in self.sessionList.keys():
-				sess = self.sessionList[sessId]
-				self.log.logmsg(logging.LOG_DEBUG, "Closing sessId: %s..." % sessId)
-				sess.stop()
-				sess.join()
-				self.monitor.stopMonitoring(sess)
-				self.removeSession(sessId)
-		self.log.logmsg(logging.LOG_INFO, "All ListenerSessions have exited." )
+			self.closeAllSessions()
+		self.log.logmsg(logging.LOG_INFO, "All Listeners have exited." )
 
 		self.transition('ok')
 
@@ -667,10 +660,6 @@ class TCPSessionListener(session.SessionListener, util.LoopingThread):
 		self.log.logmsg(logging.LOG_DEBUG, "Stopped thread: %s" % self)
 		self.transition('ok')
 
-	def removeSession(self, sessId):
-		self.log.logmsg(logging.LOG_DEBUG, 'Removing session: %d.' % sessId )
-		session.SessionListener.removeSession(self, sessId)
-
 	def start_socket(self):
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.sock.setblocking(0)
@@ -678,10 +667,19 @@ class TCPSessionListener(session.SessionListener, util.LoopingThread):
 		self.sock.bind(self.address)
 		self.sock.listen(self.max_concurrent)
 
+	def closeSession(self, sessionId ):
+		""" overrides base function due to threading
+		"""
+		sessionInst = self.getSessionById(sessionId)
+
+		sessionInst.close()
+		sessionInst.join()
+		self.deleteSession(sessionInst.ID)
+
 	def close(self):
 		self.stop()
 
-class TCPInitiatorSessionManager(session.InitiatorManager, util.LoopingThread):
+class TCPInitiatorManager(session.InitiatorManager, util.LoopingThread):
 
 	def __init__(self, log, profileDict, daemon=1, timeout=1, name=None):
 		util.LoopingThread.__init__(self, name=name)
@@ -698,7 +696,7 @@ class TCPInitiatorSessionManager(session.InitiatorManager, util.LoopingThread):
 		self.start()
 
 	def _stateINIT(self):
-		self.log.logmsg(logging.LOG_INFO, "InitiatorSessionManager initialised.")
+		self.log.logmsg(logging.LOG_INFO, "InitiatorManager initialised.")
 		self.transition('ok')
 
 	def _stateACTIVE(self):
@@ -708,12 +706,7 @@ class TCPInitiatorSessionManager(session.InitiatorManager, util.LoopingThread):
 
 	def _stateCLOSING(self):
 		while self.sessionList:
-			for sessId in self.sessionList.keys():
-				sess = self.sessionList[sessId]
-				self.log.logmsg(logging.LOG_DEBUG, "InitiatorManager closing %s..." % sess)
-				sess.stop()
-				sess.join()
-				self.removeSession(sessId)
+			self.closeAllSessions()
 
 		self.transition('ok')
 
@@ -726,9 +719,18 @@ class TCPInitiatorSessionManager(session.InitiatorManager, util.LoopingThread):
 	def connectInitiator(self, host, port, profileDict=None):
 		if not profileDict:
 			profileDict = self.profileDict
-		client = TCPInitiatorSession(self.log, profileDict, (host, port), self)
+		client = TCPInitiator(self.log, profileDict, (host, port), self)
 		self.addSession(client)
 		return client
+
+	def closeSession(self, sessionId ):
+		""" overrides base function due to threading
+		"""
+		sessionInst = self.getSessionById(sessionId)
+
+		sessionInst.close()
+		sessionInst.join()
+		self.deleteSession(sessionInst.ID)
 
 	def close(self):
 		self.stop()

@@ -1,5 +1,5 @@
-# $Id: EchoClient.py,v 1.5 2003/01/08 07:13:38 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: EchoClient.py,v 1.6 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -54,7 +54,7 @@ profileList = [['http://www.eigenmagic.com/beep/ECHO', None, None]]
 
 # Create the client and wait for it to become active
 log.logmsg(LOG_INFO, "Connecting to server...")
-clientmgr = beepy.transports.tcpsession.TCPInitiatorSessionManager(log, profileDict)
+clientmgr = beepy.transports.tcpsession.TCPInitiatorManager(log, profileDict)
 while not clientmgr.isActive():
 	time.sleep(0.25)
 

@@ -1,5 +1,5 @@
-# $Id: test_saslotpprofile.py,v 1.7 2003/01/08 07:13:38 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: test_saslotpprofile.py,v 1.8 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -69,7 +69,7 @@ class SASLOTPProfileTest(unittest.TestCase):
 		pdict1 = profile.ProfileDict()
 		pdict1[saslotpprofile.uri] = saslotpprofile
 		pdict1[echoprofile.uri] = echoprofile
-		sess = tcpsession.TCPSessionListener(self.serverlog, pdict1, 'localhost', 1976)
+		sess = tcpsession.TCPListenerManager(self.serverlog, pdict1, 'localhost', 1976)
 
 		while sess.currentState != 'ACTIVE':
 			time.sleep(0.25)
@@ -78,7 +78,7 @@ class SASLOTPProfileTest(unittest.TestCase):
 		pdict2 = profile.ProfileDict()
 		pdict2[saslotpprofile.uri] = saslotpprofile
 		pdict2[echoprofile.uri] = echoprofile
-		clientmgr = tcpsession.TCPInitiatorSessionManager(self.clientlog, pdict2)
+		clientmgr = tcpsession.TCPInitiatorManager(self.clientlog, pdict2)
 		while not clientmgr.isActive():
 			time.sleep(0.25)
 

@@ -1,5 +1,5 @@
-# $Id: ReverbClient.py,v 1.2 2003/01/08 07:13:38 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: ReverbClient.py,v 1.3 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -53,7 +53,7 @@ profileList = [[reverbprofile.uri, None, None]]
 
 # Create the client and wait for it to become active
 log.logmsg(LOG_INFO, "Connecting to server...")
-clientmgr = tcpsession.TCPInitiatorSessionManager(log, profileDict)
+clientmgr = tcpsession.TCPInitiatorManager(log, profileDict)
 while not clientmgr.isActive():
 	time.sleep(0.25)
 

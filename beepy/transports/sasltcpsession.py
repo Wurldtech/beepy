@@ -1,5 +1,5 @@
-# $Id: sasltcpsession.py,v 1.2 2003/01/07 07:39:59 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: sasltcpsession.py,v 1.3 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -28,7 +28,7 @@ from beepy.core import saslsession
 
 import tcpsession
 
-class SASLTCPListenerSession(tcpsession.TCPListenerSession, saslsession.SASLSession):
+class SASLTCPListener(tcpsession.TCPListener, saslsession.SASLSession):
 
 	def __init__(self, sock, client_address, sessmgr, oldsession, authentid, userid=None, read_timeout=1):
 
@@ -36,7 +36,7 @@ class SASLTCPListenerSession(tcpsession.TCPListenerSession, saslsession.SASLSess
 		self.sessmgr = sessmgr
 
 		saslsession.SASLSession.__init__(self, authentid, userid)
-		tcpsession.TCPListenerSession.__init__(self, sock, client_address, sessmgr, read_timeout)
+		tcpsession.TCPListener.__init__(self, sock, client_address, sessmgr, read_timeout)
 
 		self.sessmgr.replaceSession(oldsession.ID, self)
 
@@ -46,10 +46,10 @@ class SASLTCPListenerSession(tcpsession.TCPListenerSession, saslsession.SASLSess
 		self.log.logmsg(logging.LOG_DEBUG, "Waiting on old Session Thread to exit: %s" % self.oldsession )
 		self.oldsession.join()
 		self.log.logmsg(logging.LOG_INFO, "Tuning reset: reconnected to %s[%s]." % self.client_address )
-		tcpsession.TCPListenerSession._stateINIT(self)
+		tcpsession.TCPListener._stateINIT(self)
 		self.transition('ok')
 
-class SASLTCPInitiatorSession(tcpsession.TCPInitiatorSession, saslsession.SASLSession):
+class SASLTCPInitiator(tcpsession.TCPInitiator, saslsession.SASLSession):
 
 	def __init__(self, sock, server_address, sessmgr, oldsession, authentid, userid=None, read_timeout=1):
 
@@ -58,7 +58,7 @@ class SASLTCPInitiatorSession(tcpsession.TCPInitiatorSession, saslsession.SASLSe
 		self.sock = sock
 
 		saslsession.SASLSession.__init__(self, authentid, userid)
-		tcpsession.TCPInitiatorSession.__init__(self, sessmgr.log, sessmgr.profileDict, server_address, sessmgr, read_timeout)
+		tcpsession.TCPInitiator.__init__(self, sessmgr.log, sessmgr.profileDict, server_address, sessmgr, read_timeout)
 
 		self.sessmgr.replaceSession(oldsession.ID, self)
 

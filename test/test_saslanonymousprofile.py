@@ -1,5 +1,5 @@
-# $Id: test_saslanonymousprofile.py,v 1.4 2003/01/08 05:38:12 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: test_saslanonymousprofile.py,v 1.5 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -59,9 +59,9 @@ class SASLAnonymousProfileTest(unittest.TestCase):
 		"""Test SASL Anonymous with Initiator"""
 		# Create a server
 		pdict1 = profile.ProfileDict()
-		pdict1[saslanonymousprofile.uri] = saslanonymousprofile
-		pdict1[echoprofile.uri] = echoprofile
-		sess = tcpsession.TCPSessionListener(self.serverlog, pdict1, 'localhost', 1976, name="servermgr: localhost[1976]")
+		pdict1.addProfile(saslanonymousprofile)
+		pdict1.addProfile(echoprofile)
+		sess = tcpsession.TCPListenerManager(self.serverlog, pdict1, 'localhost', 1976, name="servermgr: localhost[1976]")
 		while not sess.isActive():
 			time.sleep(0.25)
 
@@ -69,7 +69,7 @@ class SASLAnonymousProfileTest(unittest.TestCase):
 		pdict2 = profile.ProfileDict()
 		pdict2[saslanonymousprofile.uri] = saslanonymousprofile
 		pdict2[echoprofile.uri] = echoprofile
-		clientmgr = tcpsession.TCPInitiatorSessionManager(self.clientlog, pdict2, name="clientmgr")
+		clientmgr = tcpsession.TCPInitiatorManager(self.clientlog, pdict2, name="clientmgr")
 		while not clientmgr.isActive():
 			time.sleep(0.25)
 

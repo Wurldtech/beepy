@@ -1,5 +1,5 @@
-# $Id: start_server.py,v 1.5 2003/01/07 07:40:00 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: start_server.py,v 1.6 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -42,7 +42,7 @@ if __name__ == '__main__':
 	# create the server
 	pdict = profile.ProfileDict()
 	pdict['http://www.eigenmagic.com/beep/ECHO'] = 'echoprofile'
-	listener = tcpsession.TCPSessionListener(log, pdict, 'localhost', 1976)
+	listener = tcpsession.TCPListenerManager(log, pdict, 'localhost', 1976)
 
 	def quit():
 		listener.close()

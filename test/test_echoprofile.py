@@ -1,5 +1,5 @@
-# $Id: test_echoprofile.py,v 1.5 2003/01/08 07:13:38 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: test_echoprofile.py,v 1.6 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -56,7 +56,7 @@ class EchoProfileTest(unittest.TestCase):
 		# create a listener
 		pdict = profile.ProfileDict()
 		pdict[echoprofile.uri] = echoprofile
-		self.listener = tcpsession.TCPSessionListener(self.serverlog, pdict, 'localhost', 1976)
+		self.listener = tcpsession.TCPListenerManager(self.serverlog, pdict, 'localhost', 1976)
 		# wait for it to become active
 		while not self.listener.isActive():
 			time.sleep(0.25)

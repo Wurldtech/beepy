@@ -1,5 +1,5 @@
-# $Id: tlstcpsession.py,v 1.7 2003/01/08 06:16:07 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: tlstcpsession.py,v 1.8 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -80,11 +80,11 @@ class TLSTCPDataDequeuer(tcpsession.TCPDataDequeuer):
 		"""
 		return self.sock.write(data)
 
-class TLSTCPListenerSession(tcpsession.TCPListenerSession):
+class TLSTCPListener(tcpsession.TCPListener):
 
 	def __init__(self, conn, client_address, sessmgr, oldsession, keyFile, certFile, passphrase, read_timeout=1):
 
-		tcpsession.TCPListenerSession.__init__(self, conn, client_address, sessmgr, read_timeout)
+		tcpsession.TCPListener.__init__(self, conn, client_address, sessmgr, read_timeout)
 
 		kfd = open( keyFile, 'r' )
 		cfd = open( certFile, 'r' )
@@ -155,13 +155,13 @@ class TLSTCPListenerSession(tcpsession.TCPListenerSession):
 		self.outputDataQueue.start()
 		self.log.logmsg(logging.LOG_DEBUG, "Started outputDataQueue: %s" % self.outputDataQueue)
 
-class TLSTCPInitiatorSession(tcpsession.TCPInitiatorSession):
+class TLSTCPInitiator(tcpsession.TCPInitiator):
 
 	def __init__(self, sock, server_address, sessmgr, oldsession, keyFile, certFile, passphrase, read_timeout=1 ):
 
 		self.sock = sock
 
-		tcpsession.TCPInitiatorSession.__init__(self, sessmgr.log, sessmgr.profileDict, server_address, sessmgr, read_timeout)
+		tcpsession.TCPInitiator.__init__(self, sessmgr.log, sessmgr.profileDict, server_address, sessmgr, read_timeout)
 
 		# Read in the TLS key
 		md5 = POW.Digest( POW.MD5_DIGEST )

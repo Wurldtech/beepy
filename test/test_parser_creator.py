@@ -1,5 +1,5 @@
-# $Id: test_parser_creator.py,v 1.4 2003/01/08 07:13:38 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: test_parser_creator.py,v 1.5 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -35,52 +35,45 @@ except ImportError:
 	from beepy.core import mgmtparser
 	from beepy.core import mgmtcreator
 
-class ParserTest(unittest.TestCase):
+class ParserCreatorTest(unittest.TestCase):
 
 	def setUp(self):
 		# Set up logging
-		self.log = logging.Log()
+		self.parserlog = logging.Log(prefix="parser: ")
+		self.creatorlog = logging.Log(prefix="creator: ")
+		self.parser = mgmtparser.Parser(self.parserlog)
+		self.creator = mgmtcreator.Creator(self.creatorlog)
 
 	def test_parseGreeting(self):
 		"""Parse empty greeting"""
-		parser = mgmtparser.Parser(self.log)
-		creator = mgmtcreator.Creator(self.log)
-		msg = creator.createGreetingMessage()
-		message = parser.parse(msg)
+		msg = self.creator.createGreetingMessage()
+		message = self.parser.parse(msg)
 		self.assertEqual( message.type, 'greeting' )
 
 	def test_parseGreetingSingleProfile(self):
 		"""Parse single profile greeting"""
-		parser = mgmtparser.Parser(self.log)
 		profileURIList = ['http://eigenmagic.com/beep']
-		creator = mgmtcreator.Creator(self.log)
-		msg = creator.createGreetingMessage(profileURIList)
-		message = parser.parse(msg)
+		msg = self.creator.createGreetingMessage(profileURIList)
+		message = self.parser.parse(msg)
 		self.assertEqual( message.type, 'greeting' )
 
 	def test_parseGreetingMultipleProfile(self):
 		"""Parse multiple profile greeting"""
-		parser = mgmtparser.Parser(self.log)
 		profileURIList = ['http://eigenmagic.com/beep', 'http://iana.org/beep/TLS', 'http://iana.org/beep/TLS/OTP']
-		creator = mgmtcreator.Creator(self.log)
-		msg = creator.createGreetingMessage(profileURIList)
-		message = parser.parse(msg)
+		msg = self.creator.createGreetingMessage(profileURIList)
+		message = self.parser.parse(msg)
 		self.assertEqual( message.type, 'greeting' )
 
 	def test_parseClose(self):
 		"""Parse close"""
-		parser = mgmtparser.Parser(self.log)
-		creator = mgmtcreator.Creator(self.log)
-		msg = creator.createCloseMessage('1', '220')
-		message = parser.parse(msg)
+		msg = self.creator.createCloseMessage('1', '220')
+		message = self.parser.parse(msg)
 		self.assertEqual( message.type, 'close' )
 
 	def test_parseOK(self):
 		"""Parse ok"""
-		parser = mgmtparser.Parser(self.log)
-		creator = mgmtcreator.Creator(self.log)
-		msg = creator.createOKMessage()
-		message = parser.parse(msg)
+		msg = self.creator.createOKMessage()
+		message = self.parser.parse(msg)
 		self.assertEqual( message.type, 'ok' )
 
 if __name__ == '__main__':

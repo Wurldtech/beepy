@@ -1,5 +1,5 @@
-# $Id: tlssession.py,v 1.1 2003/01/04 00:10:31 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: tlssession.py,v 1.2 2003/01/09 00:20:53 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -25,14 +25,14 @@ class TLSSession(session.Session):
 	"""A TLSSession is a specialised type of Session
 	"""
 
-class TLSListenerSession(session.ListenerSession, TLSSession):
-	"""A TLSListenerSession is a ListenerSession that uses
+class TLSListener(session.Listener, TLSSession):
+	"""A TLSListener is a Listener that uses
 	   TLS for transport security.
 	"""
 
 
-class TLSInitiatorSession(session.InitiatorSession, TLSSession):
-	"""A TLSInitiatorSession is an InitiatorSession that uses
+class TLSInitiator(session.Initiator, TLSSession):
+	"""A TLSInitiator is an Initiator that uses
 	   TLS for transport security.
 	"""
 

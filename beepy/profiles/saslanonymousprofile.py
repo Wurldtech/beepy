@@ -1,5 +1,5 @@
-# $Id: saslanonymousprofile.py,v 1.2 2003/01/07 07:39:59 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: saslanonymousprofile.py,v 1.3 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -66,7 +66,7 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
 					read_timeout = self.session.read_timeout
 
 					self.log.logmsg(logging.LOG_DEBUG, "Creating new session...")
-					newsess = sasltcpsession.SASLTCPInitiatorSession(sock, server_address, sessmgr, self.session, self.authentid, self.authid, read_timeout)
+					newsess = sasltcpsession.SASLTCPInitiator(sock, server_address, sessmgr, self.session, self.authentid, self.authid, read_timeout)
 					self.log.logmsg(logging.LOG_DEBUG, "Raising tuning reset...")
 					raise TuningReset("SASL ANONYMOUS authentication succeeded")
 
@@ -96,7 +96,7 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
 
 					# Session object should wait for this session thread to exit before
 					# going to ACTIVE state.
-					newsess = sasltcpsession.SASLTCPListenerSession(sock, client_address, sessmgr, self.session, self.authentid, self.authid, read_timeout)
+					newsess = sasltcpsession.SASLTCPListener(sock, client_address, sessmgr, self.session, self.authentid, self.authid, read_timeout)
 					data = '<blob status="complete"/>'
 					self.channel.sendReply(theframe.msgno, data)
 					self.log.logmsg(logging.LOG_DEBUG, "Queued success message")

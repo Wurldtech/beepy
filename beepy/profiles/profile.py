@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.5 2003/01/08 06:16:06 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: profile.py,v 1.6 2003/01/09 00:20:54 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -210,6 +210,9 @@ class ProfileDict:
 	def getURIList(self):
 		if self._profiles:
 			return self._profiles.keys()
+
+	def addProfile(self, profileModule):
+		self._profiles[profileModule.uri] = profileModule
 
 class ProfileDictException(errors.BEEPException):
 	def __init__(self, args):

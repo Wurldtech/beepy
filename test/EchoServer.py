@@ -1,5 +1,5 @@
-# $Id: EchoServer.py,v 1.5 2003/01/08 07:13:38 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: EchoServer.py,v 1.6 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
 	profileDict = beepy.profiles.profile.ProfileDict()
 	profileDict['http://www.eigenmagic.com/beep/ECHO'] = beepy.profiles.echoprofile
-	server = beepy.transports.tcpsession.TCPSessionListener(log, profileDict, 'localhost', 1976)
+	server = beepy.transports.tcpsession.TCPListenerManager(log, profileDict, 'localhost', 1976)
 
 	def cleanup():
 		server.close()

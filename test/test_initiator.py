@@ -1,5 +1,5 @@
-# $Id: test_initiator.py,v 1.4 2003/01/08 07:13:38 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: test_initiator.py,v 1.5 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -45,25 +45,38 @@ class TCPInitatorSessionTest(unittest.TestCase):
 
 	def setUp(self):
 		# Set up logging
-		self.log = logging.Log()
+		self.serverlog = logging.Log(prefix="server: ")
+		self.clientlog = logging.Log(prefix="client: ")
+
+		# create and start a listenermgr
+		pdict1 = profile.ProfileDict()
+		pdict1[echoprofile.uri] = echoprofile
+		self.listenermgr = tcpsession.TCPListenerManager(self.serverlog, pdict1, 'localhost', 1976)
+		while not self.listenermgr.isActive():
+			time.sleep(0.25)
+
+		# create and connect an initiatormgr
+		pdict2 = profile.ProfileDict()
+		pdict2[echoprofile.uri] = echoprofile
+		self.clientmgr = tcpsession.TCPInitiatorManager(self.clientlog, pdict2)
+		while not self.clientmgr.isActive():
+			time.sleep(0.25)
+
+	def tearDown(self):
+
+		self.clientmgr.close()
+		while self.clientmgr.isAlive():
+			time.sleep(0.25)
+
+		self.listenermgr.close()
+		while self.listenermgr.isAlive():
+			time.sleep(0.25)
 
 	def test_connect(self):
 		"""Test connection of Initiator to server
 		"""
-		pdict1 = profile.ProfileDict()
-		pdict1[echoprofile.uri] = echoprofile
-		sess = tcpsession.TCPSessionListener(self.log, pdict1, 'localhost', 1976)
-		while not sess.isActive():
-			time.sleep(0.25)
 
-		# create and connect an initiator
-		pdict2 = profile.ProfileDict()
-		pdict2[echoprofile.uri] = echoprofile
-		clientmgr = tcpsession.TCPInitiatorSessionManager(self.log, pdict2)
-		while not clientmgr.isActive():
-			time.sleep(0.25)
-
-		client = clientmgr.connectInitiator('localhost', 1976)
+		client = self.clientmgr.connectInitiator('localhost', 1976)
 		clientid = client.ID
 		while not client.isActive():
 			if client.isExited():
@@ -76,31 +89,11 @@ class TCPInitatorSessionTest(unittest.TestCase):
 		while client.isAlive():
 			time.sleep(0.25)
 
-		clientmgr.close()
-		while clientmgr.isAlive():
-			time.sleep(0.25)
-
-		sess.close()
-		while sess.isAlive():
-			time.sleep(0.25)
-
 	def test_startChannel(self):
 		"""Test start of a channel
 		"""
-		pdict1 = profile.ProfileDict()
-		pdict1[echoprofile.uri] = echoprofile
-		sess = tcpsession.TCPSessionListener(self.log, pdict1, 'localhost', 1976)
-		while sess.currentState != 'ACTIVE':
-			time.sleep(0.25)
 
-		# create and connect an initiator
-		pdict2 = profile.ProfileDict()
-		pdict2[echoprofile.uri] = echoprofile
-		clientmgr = tcpsession.TCPInitiatorSessionManager(self.log, pdict2)
-		while not clientmgr.isActive():
-			time.sleep(0.25)
-
-		client = clientmgr.connectInitiator('localhost', 1976)
+		client = self.clientmgr.connectInitiator('localhost', 1976)
 		clientid = client.ID
 		while not client.isActive():
 			if client.isExited():
@@ -119,14 +112,6 @@ class TCPInitatorSessionTest(unittest.TestCase):
 
 		client.close()
 		while client.isAlive():
-			time.sleep(0.25)
-
-		clientmgr.close()
-		while clientmgr.isAlive():
-			time.sleep(0.25)
-
-		sess.close()
-		while sess.isAlive():
 			time.sleep(0.25)
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
-# $Id: saslotpprofile.py,v 1.3 2003/01/08 06:16:06 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: saslotpprofile.py,v 1.4 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -75,7 +75,7 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 				if status == 'complete':
 					# Server completed authentication, so we do a tuning reset
 					self.log.logmsg(logging.LOG_DEBUG, "Creating new session...")
-					newsess = sasltcpsession.SASLTCPInitiatorSession(self.session.sock, self.session.server_address, self.session.sessmgr, self.session, self.authentid, self.authid, self.session.read_timeout)
+					newsess = sasltcpsession.SASLTCPInitiator(self.session.sock, self.session.server_address, self.session.sessmgr, self.session, self.authentid, self.authid, self.session.read_timeout)
 					self.log.logmsg(logging.LOG_DEBUG, "Raising tuning reset...")
 					raise TuningReset("SASL OTP authentication succeeded")
 
@@ -104,7 +104,7 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 					# ok, here is where we need to do different things
 					# if we're a client or a server.
 					self.log.logmsg(logging.LOG_DEBUG, "my session: %s" % self.session.__class__)
-					if isinstance(self.session, session.ListenerSession):
+					if isinstance(self.session, session.Listener):
 						# Do listener stuff
 						self.log.logmsg(logging.LOG_DEBUG, "OTP session is listener")
 						if self.sentchallenge:
@@ -116,7 +116,7 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 
 								# Session object should wait for this session thread to exit before
 								# going to ACTIVE state.
-								newsess = sasltcpsession.SASLTCPListenerSession(self.session.sock, self.session.client_address, self.session.sessmgr, self.session, self.authentid, self.authid, self.session.read_timeout)
+								newsess = sasltcpsession.SASLTCPListener(self.session.sock, self.session.client_address, self.session.sessmgr, self.session, self.authentid, self.authid, self.session.read_timeout)
 								data = '<blob status="complete"/>'
 								self.channel.sendReply(theframe.msgno, data)
 								self.log.logmsg(logging.LOG_DEBUG, "Queued success message.")

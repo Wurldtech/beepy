@@ -1,5 +1,5 @@
-# $Id: test_listener.py,v 1.4 2003/01/08 07:13:38 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: test_listener.py,v 1.5 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -45,12 +45,12 @@ class ServerTest(unittest.TestCase):
 
 	def setUp(self):
 		# Set up logging
-		self.log = logging.Log()
+		self.log = logging.Log(prefix="server: ")
 
 		# create a listener
 		pdict = profile.ProfileDict()
 		pdict[echoprofile.uri] = echoprofile
-		self.listener = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
+		self.listener = tcpsession.TCPListenerManager(self.log, pdict, 'localhost', 1976)
 		# wait for it to become active
 		while not self.listener.isActive():
 			time.sleep(0.25)

@@ -1,5 +1,5 @@
-# $Id: test_creator.py,v 1.3 2003/01/07 07:40:00 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: test_creator.py,v 1.4 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -31,11 +31,11 @@ except ImportError:
 	from beepy.core import mgmtcreator
 	from beepy.core import logging
 
-class ParserTest(unittest.TestCase):
+class CreatorTest(unittest.TestCase):
 
 	def setUp(self):
 		# Set up logging
-		self.log = logging.Log()
+		self.log = logging.Log(prefix="creator: ")
 
 	def test_createGreeting(self):
 		"""Create empty greeting"""

@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.3 2003/01/07 07:39:59 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: beepmgmtprofile.py,v 1.4 2003/01/09 00:20:54 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -320,7 +320,7 @@ class BEEPManagementProfile(profile.Profile):
 		"""
 		# If the session I'm managing is a Listener, then I send
 		# a URI list as part of my greeting.
-		if isinstance(self.session, beepy.core.session.ListenerSession):
+		if isinstance(self.session, beepy.core.session.Listener):
 			profileDict = self.session.getProfileDict()
 			uriList = profileDict.getURIList()
 			msg = self.mgmtCreator.createGreetingMessage(uriList)

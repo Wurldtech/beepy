@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.5 2003/01/08 06:16:05 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: session.py,v 1.6 2003/01/09 00:20:53 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -498,7 +498,8 @@ class SessionManager(statemachine.StateMachine):
 #		self.log.logmsg(logging.LOG_DEBUG, "Allocated sessId: %d to %s" % (sessId, sessionInst))
 		return sessId
 
-	def removeSession(self, sessId):
+	def deleteSession(self, sessId):
+		self.log.logmsg(logging.LOG_DEBUG, "Removing session: %d..." % sessId)
 		if sessId in self.sessionIds:
 			del self.sessionList[sessId]
 			self.sessionIds.remove(sessId)
@@ -509,13 +510,27 @@ class SessionManager(statemachine.StateMachine):
 
 	def deleteAllSessions(self):
 		for sessId in self.sessionIds:
-			self.removeSession(sessId)
+			self.deleteSession(sessId)
 
 	def getSessionById(self, sessId):
 		self.log.logmsg(logging.LOG_DEBUG, "Seeking session %d: in: %s" % (sessId, self.sessionList) ) 
 		sess = self.sessionList[sessId]
 		self.log.logmsg(logging.LOG_DEBUG, "Found session %d: %s" % (sessId, sess) ) 
 		return sess
+
+	def closeSession(self, sessionId):
+		""" shutdown a given Session that is managed by this
+		    SessionManager.
+		"""
+		sessionInst = self.getSessionById(sessionId)
+		sessionInst.close()
+		self.deleteSession(sessionInst.ID)
+
+	def closeAllSessions(self):
+		""" shutdown all Sessions managed by this SessionManager.
+		"""
+		for sessionId in self.sessionIds:
+			self.closeSession(sessionId)
 
 	def close(self):
 		raise NotImplementedError
@@ -525,21 +540,21 @@ class SessionManager(statemachine.StateMachine):
 		for var in self.__dict__.keys():
 			self.log.logmsg(logging.LOG_DEBUG, "%s: %s" % (var, self.__dict__[var]))
 
-# A SessionListener is a special type of SessionManager that listens for
+# A ListenerManager is a special type of SessionManager that listens for
 # incoming connections and creates Sessions to handle them.
 # It is an abstract class.
-class SessionListener(SessionManager):
+class ListenerManager(SessionManager):
 
 	def __init__(self, log, profileDict):
 		SessionManager.__init__(self, log, profileDict)
 
-# A ListenerSession is a special kind of Session for handling
+# A Listener is a special kind of Session for handling
 # Sessions initiated by a client, rather than as an Initiator
 # on this side.
-class ListenerSession(Session):
-	"""A ListenerSession is a Session that is the result of
-	a connection to a SessionListener. It is the server side
-	of a client/server connection. An InitiatorSession would
+class Listener(Session):
+	"""A Listener is a Session that is the result of
+	a connection to a ListenerManager. It is the server side
+	of a client/server connection. An Initiator would
 	form the client side.
 	"""
 
@@ -553,10 +568,10 @@ class InitiatorManager(SessionManager):
 	def __init__(self, log, profileDict):
 		SessionManager.__init__(self, log, profileDict)
 
-class InitiatorSession(Session):
-	"""An InitiatorSession is a Session that initiates a connection
-	to a SessionListener and then communicates with the resulting
-	ListenerSession. It forms the client side of a client/server
+class Initiator(Session):
+	"""An Initiator is a Session that initiates a connection
+	to a ListenerManager and then communicates with the resulting
+	Listener. It forms the client side of a client/server
 	connection.
 	"""
 	def __init__(self, log, profileDict):

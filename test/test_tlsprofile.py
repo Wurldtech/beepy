@@ -1,5 +1,5 @@
-# $Id: test_tlsprofile.py,v 1.4 2003/01/08 07:13:38 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: test_tlsprofile.py,v 1.5 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -44,34 +44,46 @@ import dummyclient
 class TLSProfileTest(unittest.TestCase):
 
 	def setUp(self):
+
+		sys.exit()
+
 		# Set up logging
-		self.log = logging.Log()
+		self.serverlog = logging.Log(prefix="server: ")
+		self.clientlog = logging.Log(prefix="client: ")
 
 		self.keyFile = 'TLSClientPrivate.key'
 		self.certFile = 'TLSClientCert.pem'
 		self.passphrase = 'TeSt'
 
-		sys.exit()
-
-	def test_createTLSSession(self):
-		"""Test TLS """
 		pdict1 = profile.ProfileDict()
 		pdict1[tlsprofile.uri] = tlsprofile
 		pdict1[echoprofile.uri] = echoprofile
-		sess = tcpsession.TCPSessionListener(self.log, pdict1, 'localhost', 1976)
+		self.listenermgr = tcpsession.TCPListenerManager(self.serverlog, pdict1, 'localhost', 1976)
 
-		while sess.currentState != 'ACTIVE':
+		while not self.listenermgr.isActive():
 			time.sleep(0.25)
 
 		# create and connect an initiator
 		pdict2 = profile.ProfileDict()
 		pdict2[tlsprofile.uri] = tlsprofile
 		pdict2[echoprofile.uri] = echoprofile
-		clientmgr = tcpsession.TCPInitiatorSessionManager(self.log, pdict2)
-		while not clientmgr.isActive():
+		self.clientmgr = tcpsession.TCPInitiatorManager(self.clientlog, pdict2)
+		while not self.clientmgr.isActive():
 			time.sleep(0.25)
 
-		client = clientmgr.connectInitiator('localhost', 1976)
+	def tearDown(self):
+		self.clientmgr.close()
+		while not self.clientmgr.isExited():
+			time.sleep(0.25)
+
+		self.listenermgr.close()
+		while not self.listenermgr.isExited():
+			time.sleep(0.25)
+
+	def test_createTLSSession(self):
+		"""Test TLS """
+
+		client = self.clientmgr.connectInitiator('localhost', 1976)
 		clientid = client.ID
 		while not client.isActive():
 			if client.isExited():
@@ -98,7 +110,7 @@ class TLSProfileTest(unittest.TestCase):
 
 		# old client will have exited, so get the new client
 		# for the same connection, as it has the same id
-		client = clientmgr.getSessionById(clientid)
+		client = self.clientmgr.getSessionById(clientid)
 
 		while not client.isActive():
 			time.sleep(0.25)
@@ -120,13 +132,6 @@ class TLSProfileTest(unittest.TestCase):
 		while not client.isExited():
 			time.sleep(0.25)
 
-		clientmgr.close()
-		while not clientmgr.isExited():
-			time.sleep(0.25)
-
-		sess.close()
-		while not sess.isExited():
-			time.sleep(0.25)
 
 
 if __name__ == '__main__':

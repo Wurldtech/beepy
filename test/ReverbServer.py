@@ -1,5 +1,5 @@
-# $Id: ReverbServer.py,v 1.2 2003/01/08 07:13:38 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: ReverbServer.py,v 1.3 2003/01/09 00:20:55 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
 	profileDict = profile.ProfileDict()
 	profileDict[reverbprofile.uri] = reverbprofile
-	server = tcpsession.TCPSessionListener(log, profileDict, 'localhost', 1976)
+	server = tcpsession.TCPListenerManager(log, profileDict, 'localhost', 1976)
 
 	def cleanup():
 		server.close()

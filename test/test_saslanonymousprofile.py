@@ -1,5 +1,5 @@
-# $Id: test_saslanonymousprofile.py,v 1.1 2002/12/28 06:16:08 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: test_saslanonymousprofile.py,v 1.2 2003/01/01 23:37:39 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,13 +23,21 @@ import unittest
 import sys
 import time
 
-sys.path.append('../../')
-from beep.core import constants
-from beep.core import logging
-from beep.transports import tcpsession
-from beep.profiles import profile
-from beep.profiles import saslanonymousprofile
-from beep.profiles import echoprofile
+try:
+	from beepy.core import constants
+	from beepy.core import logging
+	from beepy.transports import tcpsession
+	from beepy.profiles import profile
+	from beepy.profiles import saslanonymousprofile
+	from beepy.profiles import echoprofile
+except ImportError:
+	sys.path.append('../')
+	from beepy.core import constants
+	from beepy.core import logging
+	from beepy.transports import tcpsession
+	from beepy.profiles import profile
+	from beepy.profiles import saslanonymousprofile
+	from beepy.profiles import echoprofile
 
 import dummyclient
 

@@ -1,5 +1,5 @@
-# $Id: EchoServer.py,v 1.1 2002/12/28 06:16:08 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: EchoServer.py,v 1.2 2003/01/01 23:37:39 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -25,13 +25,17 @@
 # the sender as a RPY to the MSG.
 
 import sys
-sys.path.append('../../')
-
-from beep.core.logging import *
-import beep.profiles.profile
-import beep.transports.tcpsession
-
-import beep.profiles.echoprofile
+try:
+	from beep.core.logging import *
+	import beep.profiles.profile
+	import beep.transports.tcpsession
+	import beep.profiles.echoprofile
+except ImportError:
+	sys.path.append('../')
+	from beep.core.logging import *
+	import beep.profiles.profile
+	import beep.transports.tcpsession
+	import beep.profiles.echoprofile
 
 if __name__ == '__main__':
 	log = Log()

@@ -1,5 +1,5 @@
-# $Id: saslprofile.py,v 1.7 2002/10/18 06:41:32 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: saslprofile.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
+# $Revision: 1.1 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -24,7 +24,7 @@
 # SASL mechanisms
 
 import profile
-from beep.core import logging
+from beepy.core import logging
 
 import re
 import base64

@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.15 2002/10/23 07:05:40 jpwarren Exp $
-# $Revision: 1.15 $
+# $Id: tcpsession.py,v 1.1 2003/01/01 23:37:38 jpwarren Exp $
+# $Revision: 1.1 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -21,10 +21,10 @@
 # 
 # This class implements a DataStream object that communicates via TCP
 
-from beep.core import constants
-from beep.core import logging
-from beep.core import session
-from beep.core import frame
+from beepy.core import constants
+from beepy.core import logging
+from beepy.core import session
+from beepy.core import frame
 
 import sys
 import re
@@ -32,6 +32,7 @@ import errno
 import exceptions
 import socket, select
 import string
+import time
 import threading
 import SocketServer
 
@@ -47,7 +48,7 @@ import SocketServer
 
 class TCPSessionListener(SocketServer.TCPServer, session.SessionListener, threading.Thread):
 
-	def __init__(self, log, profileDict, host, port, daemon=0):
+	def __init__(self, log, profileDict, host, port, daemon=0 ):
 
 		session.SessionListener.__init__(self, log, profileDict)
 

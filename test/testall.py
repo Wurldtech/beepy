@@ -1,5 +1,5 @@
-# $Id: testall.py,v 1.1 2002/12/28 06:16:08 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: testall.py,v 1.2 2003/01/01 23:37:39 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -25,7 +25,6 @@
 # in the code for py-beep
 
 import sys, os, re, unittest
-sys.path.append('../')
 
 def unitTest():
 	path = os.path.abspath(os.path.split(sys.argv[0])[0])

@@ -1,5 +1,5 @@
-# $Id: __init__.py,v 1.3 2002/10/07 05:52:04 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: __init__.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
+# $Revision: 1.1 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -18,6 +18,7 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-__version__ = "$Revision: 1.3 $".split()[1]
+__version__ = "$Revision 0.1 $".split()[1]
 
-__all__ = ['sasltcpsession', 'tcpsession', 'tlstcpsession']
+__all__ = ['core', 'profiles', 'transports']
+

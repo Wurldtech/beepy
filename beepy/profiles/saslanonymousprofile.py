@@ -1,5 +1,5 @@
-# $Id: saslanonymousprofile.py,v 1.8 2002/10/18 06:41:32 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: saslanonymousprofile.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
+# $Revision: 1.1 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -25,9 +25,9 @@
 
 import saslprofile
 from profile import TuningReset
-from beep.core import logging
-from beep.core import constants
-from beep.transports import sasltcpsession
+from beepy.core import logging
+from beepy.core import constants
+from beepy.transports import sasltcpsession
 
 __profileClass__ = "SASLAnonymousProfile"
 uri = "http://iana.org/beep/SASL/ANONYMOUS"

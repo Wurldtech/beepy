@@ -1,5 +1,5 @@
-# $Id: start_server.py,v 1.2 2003/01/01 23:37:39 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: errors.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
+# $Revision
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -18,38 +18,14 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
+#
+# Exceptions used by beepy BEEP core
 
-import unittest
-import sys
-import time
+import exceptions
 
-import md5
+class BEEPException(exceptions.Exception):
+	def __init__(self, args=None):
+		self.args = args
 
-try:
-	from beep.core import constants
-	from beep.core import logging
-	from beep.transports import tcpsession
-	from beep.profiles import profile
-except ImportError:
-	sys.path.append('../')
-	from beep.core import constants
-	from beep.core import logging
-	from beep.transports import tcpsession
-	from beep.profiles import profile
-
-if __name__ == '__main__':
-
-	log = logging.Log()
-	log.debuglevel = logging.LOG_DEBUG
-
-	# create the server
-	pdict = profile.ProfileDict()
-	pdict['http://www.eigenmagic.com/beep/ECHO'] = 'echoprofile'
-	listener = tcpsession.TCPSessionListener(log, pdict, 'localhost', 1976)
-	# run forever
-	while(1):
-		pass
-else:
-	print "This isn't a module you should import, dude."
-
-
+	def __repr__(self):
+		return `self.args`

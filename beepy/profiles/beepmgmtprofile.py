@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.14 2002/10/23 07:07:28 jpwarren Exp $
-# $Revision: 1.14 $
+# $Id: beepmgmtprofile.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
+# $Revision: 1.1 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,12 +23,14 @@
 # This Profile is used to manage BEEP Sessions
 
 import profile
-from beep.core import constants
-from beep.core import logging
-from beep.core import mgmtparser 
-from beep.core import mgmtcreator
-from beep.core import message
-import beep.core.session		# Have to do it this way, as beep.core.session imports
+from beepy.core import constants
+from beepy.core import logging
+from beepy.core import mgmtparser 
+from beepy.core import mgmtcreator
+from beepy.core import message
+#from beepy.core import session
+
+import beepy.core.session		# Have to do it this way, as beep.core.session imports
 					# this file.
 
 
@@ -53,7 +55,7 @@ class BEEPManagementProfile(profile.Profile):
 		theframe = self.channel.recv()
 		if theframe:
 #			self.log.logmsg(logging.LOG_DEBUG, "MGMT: processing frame: %s" % theframe)
-			if isinstance(self.session, beep.core.session.ListenerSession):
+			if isinstance(self.session, beepy.core.session.ListenerSession):
 				self.log.logmsg(logging.LOG_DEBUG, "--Listener MGMT Session--")
 			else:
 				self.log.logmsg(logging.LOG_DEBUG, "--Initiator MGMT Session--")
@@ -181,7 +183,7 @@ class BEEPManagementProfile(profile.Profile):
 			self.session.createChannelFromURIList(channelnum, msg.getProfileURIList())
 
 			self.log.logmsg( logging.LOG_DEBUG, "Channel %s created successfully." % channelnum )
-		except beep.core.session.SessionException, e:
+		except beepy.core.session.SessionException, e:
 			# If we get here, something very wrong happened.
 			# Being here means we requested a channel be started
 			# for a profile that is supported by the remote end,
@@ -226,7 +228,7 @@ class BEEPManagementProfile(profile.Profile):
 				msg = self.mimeEncode(msg, self.CONTENT_TYPE)
 				self.channel.sendReply(theframe.msgno, msg)
 
-		except beep.core.session.SessionException, e:
+		except beepy.core.session.SessionException, e:
 			self.log.logmsg(logging.LOG_DEBUG, "Cannot start channel: %s" % e)
 			errmsg = self.mgmtCreator.createErrorMessage('504', constants.ReplyCodes['504'])
 			errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
@@ -316,7 +318,7 @@ class BEEPManagementProfile(profile.Profile):
 		"""
 		# If the session I'm managing is a Listener, then I send
 		# a URI list as part of my greeting.
-		if isinstance(self.session, beep.core.session.ListenerSession):
+		if isinstance(self.session, beepy.core.session.ListenerSession):
 			profileDict = self.session.getProfileDict()
 			uriList = profileDict.getURIList()
 			msg = self.mgmtCreator.createGreetingMessage(uriList)

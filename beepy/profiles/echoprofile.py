@@ -1,5 +1,5 @@
-# $Id: __init__.py,v 1.3 2002/09/19 04:32:34 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: echoprofile.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
+# $Revision: 1.1 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -18,7 +18,29 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-__version__ = "$Revision: 1.3 $".split()[1]
+#
+# EchoProfile implements an example profile that simply
+# echoes back whatever the content of a frame is.
+# It sends a Reply to each Message it receives.
 
-__all__ = ['profile', 'beepmgmtprofile', 'echoprofile', 'saslprofile', 
-	'saslanonymousprofile']
+import profile
+from beepy.core import logging
+
+__profileClass__ = "EchoProfile"
+uri = "http://www.eigenmagic.com/beep/ECHO"
+
+class EchoProfile(profile.Profile):
+
+	def doProcessing(self):
+		theframe = self.channel.recv()
+		if theframe:
+			self.log.logmsg(logging.LOG_DEBUG, "EchoProfile: processing frame: %s" % theframe)
+			try:
+				if theframe.isMSG():
+					self.channel.sendReply(theframe.msgno, theframe.payload)
+
+				if theframe.isRPY():
+					self.channel.deallocateMsgno(theframe.msgno)
+
+			except Exception, e:
+				raise profile.TerminalProfileException("Exception echoing: %s" % e)

@@ -1,5 +1,5 @@
-# $Id: EchoClient.py,v 1.1 2002/12/28 06:16:08 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: EchoClient.py,v 1.2 2003/01/01 23:37:39 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -22,13 +22,17 @@
 
 import sys
 import time
-sys.path.append('../../')
-
-from beep.core.logging import *
-import beep.profiles.profile
-import beep.transports.tcpsession
-
-import beep.profiles.echoprofile
+try:
+	from beep.core.logging import *
+	import beep.profiles.profile
+	import beep.transports.tcpsession
+	import beep.profiles.echoprofile
+except ImportError:
+	sys.path.append('../')
+	from beep.core.logging import *
+	import beep.profiles.profile
+	import beep.transports.tcpsession
+	import beep.profiles.echoprofile
 
 def quit():
 	client.close()

@@ -1,5 +1,5 @@
-# $Id: sasltcpsession.py,v 1.5 2002/10/23 07:05:39 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: sasltcpsession.py,v 1.1 2003/01/01 23:37:38 jpwarren Exp $
+# $Revision: 1.1 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -21,11 +21,11 @@
 # 
 # This class implements a DataStream object that communicates via TCP
 
-from beep.core import constants
-from beep.core import logging
-from beep.core import frame
-from beep.core import session
-from beep.core import saslsession
+from beepy.core import constants
+from beepy.core import logging
+from beepy.core import frame
+from beepy.core import session
+from beepy.core import saslsession
 
 import tcpsession
 import threading

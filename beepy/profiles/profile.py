@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.10 2002/10/16 03:09:07 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: profile.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
+# $Revision: 1.1 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,9 +23,9 @@
 # This is an abstract class that should be inherited from to implement
 # an actual profile.
 
-from beep.core import constants
-from beep.core import errors
-from beep.core import logging
+from beepy.core import constants
+from beepy.core import errors
+from beepy.core import logging
 
 # All payloads are expected to be MIME structured, so we include the
 # library here.

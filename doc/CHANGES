@@ -1,5 +1,5 @@
-# $Id: CHANGES,v 1.7 2002/12/28 05:19:01 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: CHANGES,v 1.8 2003/01/01 23:37:39 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -39,8 +39,10 @@
   profile. Walkthrough of how to use the library in doc/HOWTO uses it as
   an example.
 
-0.2a -> 0.3a
+0.2a -> 0.3
 ------------
+- distutils now used for build and install.
+- Test scripts moved to top level directory.
 - Fixed bugs in SASL/ANONYMOUS with client/server interaction and 
   channel/session closure.
 - Fixed a bug in tcpsession.py so that if a frame is received and

@@ -1,4 +1,4 @@
-# $Id: tlstcpsession.py,v 1.1 2002/08/08 06:52:56 jpwarren Exp $
+# $Id: tlstcpsession.py,v 1.1 2003/01/01 23:37:39 jpwarren Exp $
 # $Revision: 1.1 $
 #
 #    BEEPy - A Python BEEP Library
@@ -23,9 +23,9 @@
 # of encryption. The encryption parameters are negotiated by the corresponding
 # TLS profile in beep/profiles
 
-from beep.core import constants
-from beep.core import logging
-from beep.core import frame
+from beepy.core import constants
+from beepy.core import logging
+from beepy.core import frame
 
 import tcpsession
 

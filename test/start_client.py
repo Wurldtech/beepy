@@ -1,5 +1,5 @@
-# $Id: start_client.py,v 1.1 2002/12/28 06:16:08 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: start_client.py,v 1.2 2003/01/01 23:37:39 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,11 +23,17 @@ import unittest
 import sys
 import time
 
-sys.path.append('../../')
-from beep.core import constants
-from beep.core import logging
-from beep.transports import tcpsession
-from beep.profiles import profile
+try:
+	from beep.core import constants
+	from beep.core import logging
+	from beep.transports import tcpsession
+	from beep.profiles import profile
+except ImportError:
+	sys.path.append('../')
+	from beep.core import constants
+	from beep.core import logging
+	from beep.transports import tcpsession
+	from beep.profiles import profile
 
 class StartClient(unittest.TestCase):
 # A sleeptime is required between shutting down one session listener

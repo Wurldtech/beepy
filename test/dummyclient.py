@@ -1,5 +1,5 @@
-# $Id: dummyclient.py,v 1.1 2002/12/28 06:16:08 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: dummyclient.py,v 1.2 2003/01/01 23:37:39 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -57,8 +57,11 @@ class DummyClient:
 			try:
 				data = self.sock.recv(self.bufsize)
 				return data
+
 			except Exception, e:
-				print "Exception occurred: %s" % e
+				print "Exception occurred in dummyclient: %s: %s" % (e.__class__, e)
+				raise
+
 		else:
 			self.sock.setblocking(0)
 			return self._getdata()

@@ -1,5 +1,5 @@
-# $Id: saslotpprofile.py,v 1.4 2002/10/18 06:41:32 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: saslotpprofile.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
+# $Revision: 1.1 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,11 +23,11 @@
 #
 
 import saslprofile
-from beep.core import logging
-from beep.core import constants
-from beep.core import session
+from beepy.core import logging
+from beepy.core import constants
+from beepy.core import session
 from profile import ProfileException,TuningReset
-from beep.transports import sasltcpsession
+from beepy.transports import sasltcpsession
 
 import md5, sha
 import re
@@ -99,10 +99,12 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 
 					# First we need to make sure we have the authentid
 					if not self.authentid:
+						self.log.logmsg(logging.LOG_DEBUG, "obtaining authentid...")
 						(self.authentid, self.authid) = self.splitAuth(blob)
 
 					# ok, here is where we need to do different things
 					# if we're a client or a server.
+					self.log.logmsg(logging.LOG_DEBUG, "my session: %s" % self.session.__class__)
 					if isinstance(self.session, session.ListenerSession):
 						# Do listener stuff
 						self.log.logmsg(logging.LOG_DEBUG, "OTP session is listener")
@@ -134,6 +136,7 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 								data = '<error code="535">Authentication Failed</error>'
 								self.channel.sendError(theframe.msgno, data)
 						else:
+							self.log.logmsg(logging.LOG_DEBUG, "sending OTP challenge...")
 							self.sendChallenge(theframe.msgno)
 
 					else:
@@ -153,6 +156,8 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 		self.log.logmsg(logging.LOG_DEBUG, "Responding to challenge...")
 		# The challenge string should be 4 tokens
 		parts = string.split(challenge, ' ')
+		if len(parts) != 4:
+			raise ProfileException('Challenge (%s) has %d tokens, not 4' % (challenge, len(parts) ) )
 		# First part is the algorithm
 		algo = parts[0][4:]
 		sequence = string.atoi(parts[1])

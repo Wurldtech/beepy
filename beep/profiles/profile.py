@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.4 2002/08/13 06:29:21 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: profile.py,v 1.5 2002/08/13 14:37:35 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -134,6 +134,10 @@ class Profile:
 		return msg
 
 class ProfileException(errors.BEEPException):
+	def __init__(self, args):
+		self.args = args
+
+class TuningReset(ProfileException):
 	def __init__(self, args):
 		self.args = args
 

@@ -1,5 +1,5 @@
-# $Id: saslanonymousprofile.py,v 1.4 2002/08/13 06:29:21 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: saslanonymousprofile.py,v 1.5 2002/08/13 14:37:35 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -24,6 +24,7 @@
 # SASL mechanisms
 
 import saslprofile
+from profile import TuningReset
 from beep.core import logging
 from beep.core import constants
 from beep.transports import sasltcpsession
@@ -45,38 +46,29 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
 		"""All doProcessing should do is move the session from
 		   non-authenticated to authenticated.
 		"""
-		if self.tuning:
-			# get the connection
-			conn = self.session.connection
-			client_address = self.session.client_address
-			sessmgr = self.session.server
-			# reset old session
-			# migrate connection to new session
-			newsess = sasltcpsession.SASLTCPListenerSession(conn, client_address, sessmgr, authentid)
-			sessmgr.addSession(newsess)
+		theframe = self.channel.recv()
+		if theframe:
+			status = self.parseStatus(theframe.payload)
+			if status:
+				# do status code processing
+				raise NotImplementedError("status processing not implemented")
+			else:
+				authentid = self.decodeBlob(theframe.payload)
+				if authentid:
+					self.log.logmsg(logging.LOG_DEBUG, "authentid: %s" % authentid)
 
-		else:
-			theframe = self.channel.recv()
-			if theframe:
-				status = self.parseStatus(theframe.payload)
-				if status:
-					# do status code processing
-					pass
-				else:
-					authentid = self.decodeBlob(theframe.payload)
-					if authentid:
-						self.log.logmsg(logging.LOG_DEBUG, "authentid: %s" % authentid)
-						# after sending a success confirmation, we do a tuning reset.
-						data = '<blob status="complete">'
-						self.channel.sendReply(theframe.msgno, data)
+					# Ok, start setting up for a tuning reset
+					# copy connection to new session object
+					conn = self.session.connection
+					client_address = self.session.client_address
+					sessmgr = self.session.server
 
-						# get the connection
-						conn = self.session.connection
-						client_address = self.session.client_address
-						sessmgr = self.session.server
-						# reset old session
-						self.session.reset()
-						# migrate connection to new session
-						newsess = sasltcpsession.SASLTCPListenerSession(conn, client_address, sessmgr, self, authentid)
-#						sessmgr.addSession(newsess)
+					# Session object should wait for this session thread to exit before
+					# going to ACTIVE state.
+					newsess = sasltcpsession.SASLTCPListenerSession(conn, client_address, sessmgr, self.session, authentid)
+					data = '<blob status="complete">'
+					self.channel.sendReply(theframe.msgno, data)
+					self.log.logmsg(logging.LOG_DEBUG, "Queued success message")
+					# finally, reset Session
+					raise TuningReset("SASL ANONYMOUS authentication succeeded")
 

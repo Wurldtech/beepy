@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.4 2002/08/13 13:08:23 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: session.py,v 1.5 2002/08/13 14:37:35 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -132,29 +132,21 @@ class Session(statemachine.StateMachine):
 			try:
 				self.channels[channelnum].processFrames()
 
+			except profile.TuningReset, e:
+				raise TuningReset("Profile Tuning Reset: %s" % e)
+
 			except profile.ProfileException, e:
 				raise TerminateException(e)
-
-			# This occurs if a channel is deleted by
-			# another thread/process halfway through
-			# a processing run. We just silently ignore it
-			# since it has no affect.
-			except KeyError:
-				pass
 
 #			except Exception, e:
 #				self.log.logmsg(logging.LOG_INFO, "Exception in channel %i processMessages(): %s" % (channelnum, e))
 			# Now that that's over, get a pending frame and
 			# prepare it for sending over the wire
-			try:
-				theframe = self.channels[channelnum].pull()
-				if( theframe ):
-					self.log.logmsg(logging.LOG_DEBUG, "sending data on channel %i: %s" % (channelnum, theframe) )
-					self.sendFrame(theframe)
-					del theframe
-			# Same as above, ignore KeyErrors
-			except KeyError:
-				pass
+			theframe = self.channels[channelnum].pull()
+			if( theframe ):
+				self.log.logmsg(logging.LOG_DEBUG, "sending data on channel %i: %s" % (channelnum, theframe) )
+				self.sendFrame(theframe)
+				del theframe
 
 	# method to un-encapsulate frames recv'd from transport
 	def unplex(self, theframe):
@@ -236,6 +228,11 @@ class Session(statemachine.StateMachine):
 		else:
 			raise SessionException('No such channel')
 
+	def deleteAllChannels(self):
+		chanlist = self.channels.keys()
+		for channelnum in chanlist:
+			del self.channels[channelnum]
+
 	def createChannelZero(self):
 		"""Create the Channel 0 for the Session.
 		Should only get called once when a Session initialises
@@ -247,6 +244,20 @@ class Session(statemachine.StateMachine):
 		else:
 			profile = beepmgmtprofile.BEEPManagementProfile(self.log, self)
 			self.createChannel(0, profile)
+
+	def flushChannelOutbound(self):
+		"""This method gets all pending messages from all channels
+		   one at a time and places them on the Session Outbound Queue.
+		   This should probably only be used in Tuning Resets, but you
+		   never know when it might come in handy.
+		"""
+		chanlist = self.channels.keys()
+		for channelnum in chanlist:
+
+			theframe = self.channels[channelnum].pull()
+			if( theframe ):
+				self.sendFrame(theframe)
+				del theframe
 
 	def sendFrame(self, theframe):
 		"""sendFrame() is used to place outbound Frames onto the
@@ -398,6 +409,10 @@ class SessionException(errors.BEEPException):
 		self.args = args
 
 class TerminateException(SessionException):
+	def __init__(self, args=None):
+		self.args = args
+
+class TuningReset(SessionException):
 	def __init__(self, args=None):
 		self.args = args
 

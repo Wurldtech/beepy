@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.6 2002/08/13 13:08:23 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: tcpsession.py,v 1.7 2002/08/13 14:37:35 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -247,6 +247,7 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 		self.start()
 
 	def _stateINIT(self, cargo=None):
+		self.log.logmsg(logging.LOG_INFO, "state->INIT")
 		# configure as a SocketServer
 		SocketServer.StreamRequestHandler.setup(self)
 
@@ -274,12 +275,16 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 			# Finally, send a frame if any are pending
 			self.sendPendingFrame()
 
+		except session.TuningReset, e:
+			self.log.logmsg( logging.LOG_INFO, "Tuning reset: %s" % e )
+			return('TUNING', None)
+
 		except TCPSessionException, e:
-			self.log.logmsg( logging.LOG_ERR, "Closing Session: %s" % e)
+			self.log.logmsg( logging.LOG_INFO, "Closing Session: %s" % e)
 			return('CLOSING', None)
 
 		except session.TerminateException, e:
-			self.log.logmsg( logging.LOG_INFO, "Terminating Session: %s" % e)
+			self.log.logmsg( logging.LOG_ERR, "Terminating Session: %s" % e)
 			return('TERMINATE', None)
 
 	def _stateCLOSING(self, cargo=None):
@@ -294,16 +299,18 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 		return('TERMINATE', None)
 
 	def _stateTUNING(self, cargo=None):
-		# while there are active channels, we can't exit
-		# so we have to continue processing
-		while len(self.channels) > 0:
-			# attempt to close all channels
-			try:
-				self.closeAllChannels()
-			except:
-				result = self._mainLoop()
-				if result:
-					return result
+		self.log.logmsg(logging.LOG_INFO, "state->TUNING")
+		# Flush all outbound buffers, including channel outbound buffers
+		self.log.logmsg(logging.LOG_DEBUG, "Flushing channel queues...")
+		self.flushChannelOutbound()
+
+		self.log.logmsg(logging.LOG_DEBUG, "Flushing outbound queue...")
+		while not self.outbound.empty():
+			self.sendPendingFrame()
+
+		self.log.logmsg(logging.LOG_DEBUG, "Deleting channels...")
+		self.deleteAllChannels()
+
 		return('EXITED', None)
 
 	def _stateTERMINATE(self, cargo=None):

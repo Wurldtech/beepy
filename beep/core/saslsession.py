@@ -1,5 +1,5 @@
-# $Id: saslsession.py,v 1.2 2002/08/22 05:03:35 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: saslsession.py,v 1.3 2002/10/07 05:52:04 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -25,26 +25,23 @@ class SASLSession(session.Session):
 #	authentid = ''
 #	userid = ''
 
-	def __init__(self, log, profileDict, authentid, userid=None):
+	def __init__(self, authentid, userid=None):
 		self.authentid = authentid
 		if userid:
 			self.userid = userid
 		else:
 			self.userid = authentid
-		session.Session.__init__(self, log, profileDict)
 
 class SASLListenerSession(session.ListenerSession, SASLSession):
 
 	def __init__(self, log, profileDict, authentid, userid=None):
-		SASLSession.__init__(self, log, profileDict, authentid, userid)
-
-		self.nextChannelNum = 2
+		SASLSession.__init__(self, authentid, userid)
+		session.ListenerSession.__init__(self, log, profileDict)
 
 class SASLInitiatorSession(session.InitiatorSession, SASLSession):
 	def __init__(self, log, profileDict, authentid, userid=None):
-		SASLSession.__init__(self, log, profileDict, authentid, userid)
-
-		self.nextChannelNum = 1
+		SASLSession.__init__(self, authentid, userid)
+		session.InitiatorSession.__init__(self, log, profileDict)
 
 class SASLSessionException(session.SessionException):
 	def __init__(self, args=None):

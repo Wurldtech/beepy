@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.8 2002/09/19 04:32:33 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: channel.py,v 1.9 2002/10/07 05:52:04 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -209,6 +209,7 @@ class Channel:
 		# If we got here, then we've found the lowest
 		# available msgno, so allocate it
 		self.allocatedMsgnos.append(msgno)
+		self.log.logmsg(logging.LOG_DEBUG, "%s: Allocated msgno: %s" % (self, msgno) )
 		return msgno
 
 	# This method frees a msgno to be allocated again
@@ -225,11 +226,16 @@ class Channel:
 		if msgno in self.allocatedMsgnos:
 			del self.allocatedMsgnos[msgno]
 
-	def isMessageOutstanding(self, msgno):
+		self.log.logmsg(logging.LOG_DEBUG, "%s: Deallocated msgno: %s" % (self, msgno) )
+
+	def isMessageOutstanding(self, msgno=None):
 		"""isMessageOutstanding() checks to see if a particular
 		   message that was previously sent has been acknowledged.
 		"""
-		if msgno in self.allocatedMsgnos:
+		if not msgno:
+			if len(self.allocatedMsgnos) > 0:
+				return 1
+		elif msgno in self.allocatedMsgnos:
 			return 1
 		return 0
 
@@ -270,6 +276,10 @@ class Channel:
 		self.send(msg)
 
 	def sendGreetingReply(self, data):
+		"""sendGreetingReply() is identical to sendReply except that
+		   it doesn't allocate a msgno for the message as the Greeting
+		   RPY frame is never acknowledged.
+		"""
 		self.sendReply(0, data)
 
 	# seqno and more are not required for ERR frames
@@ -326,7 +336,7 @@ class Channel:
 		        have been acknowledged.
 		"""
 		if len(self.allocatedMsgnos) > 0:
-			raise ChannelMessagesOutstanding("%s allocatedMsgsnos unanswered" % len(self.allocatedMsgnos))
+			raise ChannelMessagesOutstanding("%s: %s allocatedMsgsnos unanswered: %s" % (self, len(self.allocatedMsgnos), self.allocatedMsgnos) )
 
 		del self.inbound
 		del self.outbound

@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.7 2002/09/17 06:51:44 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: profile.py,v 1.8 2002/10/07 05:52:04 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -39,7 +39,6 @@ __profileClass__ = "Profile"
 
 class Profile:
 #	log = None		# link into logging system
-#	uri = None		# URI identifying this profile, used by subclasses
 #	channel = None		# Channel this profile is bound to
 #	session = None		# Session this profile connects to via channel
 #	type = None		# Track the current message's MIME type
@@ -77,7 +76,14 @@ class Profile:
 			raise ProfileException("Profile not bound to Channel")
 
 		else:
-			self.doProcessing()
+			try:
+				self.doProcessing()
+
+			except TuningReset:
+				raise
+
+			except Exception, e:
+				raise ProfileException("Unmanaged exception in profile %s: %s" % (self, e) )
 
 	def mimeDecode(self, payload):
 		"""mimeDecode is a convenience function used to help

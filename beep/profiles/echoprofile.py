@@ -1,5 +1,5 @@
-# $Id: echoprofile.py,v 1.3 2002/09/18 07:07:01 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: echoprofile.py,v 1.4 2002/10/07 05:52:04 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -27,9 +27,9 @@ import profile
 from beep.core import logging
 
 __profileClass__ = "EchoProfile"
+uri = "http://www.eigenmagic.com/beep/ECHO"
 
 class EchoProfile(profile.Profile):
-	uri = "http://www.eigenmagic.com/beep/ECHO"
 
 	def doProcessing(self):
 		theframe = self.channel.recv()

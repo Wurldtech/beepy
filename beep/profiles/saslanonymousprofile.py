@@ -1,5 +1,5 @@
-# $Id: saslanonymousprofile.py,v 1.6 2002/09/18 07:07:01 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: saslanonymousprofile.py,v 1.7 2002/10/07 05:52:04 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -30,14 +30,16 @@ from beep.core import constants
 from beep.transports import sasltcpsession
 
 __profileClass__ = "SASLAnonymousProfile"
+uri = "http://iana.org/beep/SASL/ANONYMOUS"
 
 class SASLAnonymousProfile(saslprofile.SASLProfile):
 	"""A SASLAnonymousProfile is a SASL Profile that implements
 	   the ANONYMOUS mechanism for anonymous authentication.
 	"""
-	tuning = 0
 
 	def __init__(self, log, session, profileInit=None):
+		self.authentid = None
+		self.authid = None
 		saslprofile.SASLProfile.__init__(self, log, session)
 		self.log.logmsg(logging.LOG_DEBUG, "initstring: %s" % profileInit)
 		self.tuning = 0
@@ -51,7 +53,17 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
 			status = self.parseStatus(theframe.payload)
 			if status:
 				# do status code processing
-				raise NotImplementedError("status processing not implemented")
+				self.log.logmsg(logging.LOG_DEBUG, "status: %s" % status)
+				if status == 'complete':
+					# Server completed authentication, so we do a tuning reset
+					conn = self.session.connection
+					server_address = self.session.server_address
+
+					self.log.logmsg(logging.LOG_DEBUG, "Creating new session...")
+					newsess = sasltcpsession.SASLTCPInitiatorSession(conn, server_address, self.session.sessmgr, self.session, self.authentid)
+					self.log.logmsg(logging.LOG_DEBUG, "Raising tuning reset...")
+					raise TuningReset("SASL ANONYMOUS authentication succeeded")
+
 			else:
 				authentid = self.decodeBlob(theframe.payload)
 				if authentid:
@@ -69,9 +81,13 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
 					# Session object should wait for this session thread to exit before
 					# going to ACTIVE state.
 					newsess = sasltcpsession.SASLTCPListenerSession(conn, client_address, sessmgr, self.session, authentid)
-					data = '<blob status="complete">'
+					data = '<blob status="complete"/>'
 					self.channel.sendReply(theframe.msgno, data)
 					self.log.logmsg(logging.LOG_DEBUG, "Queued success message")
 					# finally, reset Session
 					raise TuningReset("SASL ANONYMOUS authentication succeeded")
 
+	def sendAuth(self, authentid, authid=None):
+		self.authentid = authentid
+		data = self.encodeBlob(authentid)
+		return self.channel.sendMessage(data)

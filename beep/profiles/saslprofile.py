@@ -1,5 +1,5 @@
-# $Id: saslprofile.py,v 1.4 2002/08/13 06:29:21 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: saslprofile.py,v 1.5 2002/10/07 05:52:04 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -30,17 +30,19 @@ import re
 import base64
 
 __profileClass__ = "SASLProfile"
+uri = "http://iana.org/beep/SASL"
 
 class SASLProfile(profile.Profile):
 	""" This is an abstract class to provide the core SASL Profile API
 	"""
-	uri = "http://www.eigenmagic.com/beep/SASL"
 
 	def __init__(self, log, session):
 		"""__init__() is used to set up special SASL data such
 		   as certificates, user dbases, etc.
 		"""
 		profile.Profile.__init__(self, log, session)
+		self.authentid = None
+		self.authid = None
 
 	def doProcessing(self):
 		"""doProcessing() isn't defined by the abstract SASLProfile.
@@ -55,11 +57,12 @@ class SASLProfile(profile.Profile):
 		   is warranted here.
 		"""
 		blobPattern = r'<blob>(.*)</blob>'
-		blobRE = re.compile(blobPattern, re.IGNORECASE)
+		blobRE = re.compile(blobPattern, re.IGNORECASE | re.DOTALL)
 
+#		self.log.logmsg(logging.LOG_DEBUG, "decoding blob: %s" % data)
 		match = re.search(blobRE, data)
 		if match:
-			self.log.logmsg(logging.LOG_DEBUG, "match group: %s" % match.group(1))
+#			self.log.logmsg(logging.LOG_DEBUG, "match group: %s" % match.group(1))
 			try:
 				decoded_data = base64.decodestring(match.group(1))
 				return decoded_data
@@ -68,11 +71,22 @@ class SASLProfile(profile.Profile):
 		else:
 			raise SASLProfileException("No blob to decode in datablock")
 
+	def encodeBlob(self, data):
+		"""encodeBlob() takes the data passed in and returns the appropriate
+		<blob></blob> structure with base64 encoded data.
+		"""
+		blob = "<blob>"
+		blob += base64.encodestring(data)
+		blob += "</blob>"
+
+		return blob
+
 	def parseStatus(self, data):
 		"""parseStatus() extracts the status code from the <blob> block
 		"""
-		blobStatusPattern = '<blob\sstatus=[\'"](.*)[\'"]\s/>'
-		blobStatusRE = re.compile(blobStatusPattern)
+#		self.log.logmsg(logging.LOG_DEBUG, "parsing status: %s" % data)
+		blobStatusPattern = '<blob\sstatus=[\'"](.*)[\'"]\s*/>'
+		blobStatusRE = re.compile(blobStatusPattern, re.IGNORECASE)
 
 		match = re.search(blobStatusRE, data)
 		if match:

@@ -1,5 +1,5 @@
-# $Id: statemachine.py,v 1.5 2002/09/17 06:51:44 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: statemachine.py,v 1.6 2002/10/07 05:52:04 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -113,7 +113,7 @@ class StateMachine:
 			# If nextState is different from the currentState, transition()
 			# has been called to flag a state transition.
 			if self.nextState != self.currentState:
-				print "DEBUG: changing state from %s to %s" % (self.currentState, self.nextState)
+				print "DEBUG: %s changing state from %s to %s" % (self, self.currentState, self.nextState)
 				handler = self.handlers[self.nextState]
 				self.currentState = self.nextState
 

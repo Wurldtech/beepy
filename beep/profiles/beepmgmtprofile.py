@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.10 2002/09/18 07:07:00 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: beepmgmtprofile.py,v 1.11 2002/10/07 05:52:04 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -55,7 +55,7 @@ class BEEPManagementProfile(profile.Profile):
 			try:
 				data = self.mimeDecode(theframe.payload)
 				if self.type != self.CONTENT_TYPE:
-					raise BEEPManagementProfileException("Invalid content type for message")
+					raise BEEPManagementProfileException("Invalid content type for message: %s != %s" % (self.type, self.CONTENT_TYPE) )
 
 				msg = self.mgmtParser.parse(data)
 
@@ -226,10 +226,16 @@ class BEEPManagementProfile(profile.Profile):
 		doProcessing() to split it up a bit and make it more manageable
 		It deals with <close> MSG frames
 		"""
-		self.session.deleteChannel(msg.getCloseChannelNum())
-		msg = self.mgmtCreator.createOKMessage()
-		msg = self.mimeEncode(msg, self.CONTENT_TYPE)
-		self.channel.sendReply(theframe.msgno, msg)
+		channelnum = msg.getCloseChannelNum()
+		# If channelnum is 0, this is a request to close the
+		# session completely
+		if channelnum == 0:
+			self.session.close()
+		else:
+			self.session.deleteChannel(channelnum)
+			msg = self.mgmtCreator.createOKMessage()
+			msg = self.mimeEncode(msg, self.CONTENT_TYPE)
+			self.channel.sendReply(theframe.msgno, msg)
 
 	def _handleOK(self, theframe, msg):
 		"""_handleOK is an internal method used from within
@@ -259,10 +265,12 @@ class BEEPManagementProfile(profile.Profile):
 		"""closeChannel() attempts to close a Channel at the remote end
 		by sending a <close> message to the remote end.
 		"""
+		self.log.logmsg(logging.LOG_DEBUG, "queuing close msg...")
 		msg = self.mgmtCreator.createCloseMessage(channelnum, code)
 		msg = self.mimeEncode(msg, self.CONTENT_TYPE)
 		msgno = self.channel.sendMessage(msg)
 		self.closingChannel[msgno] = channelnum
+		self.log.logmsg(logging.LOG_DEBUG, "queued close msg")
 
 	def setChannel(self, channel):
 		"""This profile overloads setChannel to perform some
@@ -273,7 +281,7 @@ class BEEPManagementProfile(profile.Profile):
 		# This is a hack to permit the greeting RPY message
 		# that gets sent without requiring a MSG to have
 		# already been sent.
-		msgno = self.channel.allocateMsgno()
+#		msgno = self.channel.allocateMsgno()
 		self.sendGreetingMessage()
 
 	def sendGreetingMessage(self):

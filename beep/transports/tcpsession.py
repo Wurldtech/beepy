@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.12 2002/09/18 07:07:03 jpwarren Exp $
-# $Revision: 1.12 $
+# $Id: tcpsession.py,v 1.13 2002/10/07 05:52:04 jpwarren Exp $
+# $Revision: 1.13 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -81,12 +81,14 @@ class TCPSessionListener(SocketServer.TCPServer, session.SessionListener, thread
 		self.handle_request()
 
 	def _stateCLOSING(self):
-#		self.log.logmsg(logging.LOG_DEBUG, "closing all ListenerSessions...")
+		self.log.logmsg(logging.LOG_DEBUG, "closing all ListenerSessions...")
 		while self.sessionList:
-			for sess in self.sessionList:
+			for sessId in self.sessionList.keys():
+				sess = self.sessionList[sessId]
+				self.log.logmsg(logging.LOG_DEBUG, "closing sessId: %s: %s..." % (sessId, sess))
 				sess.close()
 				sess.join()
-				self.removeSession(sess)
+				self.removeSession(sessId)
 
 		self.transition('ok')
 
@@ -315,19 +317,25 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 		except session.TuningReset, e:
 			self.log.logmsg( logging.LOG_INFO, "Tuning reset: %s" % e )
 			self.transition('reset')
+			return
 
 		except session.TerminateException, e:
 			self.log.logmsg( logging.LOG_ERR, "Terminating Session: %s" % e)
 			self.transition('error')
+			return
 
 	def _stateCLOSING(self):
-		# first, attempt to close the session channels
-		try:
-			self.closeAllChannels()
-
-		except Exception, e:
-			self.log.logmsg(logging.LOG_DEBUG, "Exception closing channels: %s" % e)
-			self.transition('error')
+		self.closeAllChannels()
+		while len(self.channels.keys()) > 0:
+			if len(self.channels.keys()) == 1 and self.channels.has_key(0):
+				self.log.logmsg(logging.LOG_DEBUG, "only channel zero left")
+				self.deleteChannel(0)
+				break
+			try:
+				self._mainLoop()
+			except Exception, e:
+				self.log.logmsg(logging.LOG_DEBUG, "exception closing channels: %s" % e)
+				self.transition('error')
 
 		self.transition('ok')
 
@@ -360,6 +368,7 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 		self.transition('ok')
 
 	def close(self):
+		self.log.logmsg(logging.LOG_DEBUG, "call to %s.close()" % self)
 		self.shutdown.set()
 
 class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMixin):
@@ -368,12 +377,13 @@ class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMi
 	connection = None		# socket connection to server
 	wfile = None			# File object to access connection outbound
 
-	def __init__(self, log, profileDict, host, port):
+	def __init__(self, log, profileDict, host, port, sessmgr):
 		threading.Thread.__init__(self)
 		self.shutdown = threading.Event()
 
 		session.InitiatorSession.__init__(self, log, profileDict)
 		self.server_address = (host, port)
+		self.sessmgr = sessmgr
 		self.start()
 
 	def _stateINIT(self):
@@ -417,17 +427,39 @@ class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMi
 		except session.TuningReset, e:
 			self.log.logmsg( logging.LOG_INFO, "Tuning reset: %s" % e )
 			self.transition('reset')
+			return
 
 		except session.TerminateException, e:
 			self.log.logmsg( logging.LOG_ERR, "Terminating Session: %s" % e)
 			self.transition('error')
+			return
 
 	def _stateCLOSING(self):
-		try:
-			self.closeAllChannels()
-		except Exception, e:
-			self.log.logmsg(logging.LOG_DEBUG, "exception closing channels: %s" % e)
-			self.transition('error')
+		self.closeAllChannels()
+		while len(self.channels.keys()) > 0:
+			if len(self.channels.keys()) == 1 and self.channels.has_key(0):
+				self.log.logmsg(logging.LOG_DEBUG, "only channel zero left")
+				self.deleteChannel(0)
+			try:
+				self._mainLoop()
+			except Exception, e:
+				self.log.logmsg(logging.LOG_DEBUG, "exception closing channels: %s" % e)
+				self.transition('error')
+
+		self.transition('ok')
+
+	def _stateTUNING(self):
+		self.log.logmsg(logging.LOG_INFO, "state->TUNING")
+		# Flush all outbound buffers, including channel outbound buffers
+		self.log.logmsg(logging.LOG_DEBUG, "Flushing channel queues...")
+		self.flushChannelOutbound()
+
+		self.log.logmsg(logging.LOG_DEBUG, "Flushing outbound queue...")
+		while not self.outbound.empty():
+			self.sendPendingFrame()
+
+		self.log.logmsg(logging.LOG_DEBUG, "Deleting channels...")
+		self.deleteAllChannels()
 
 		self.transition('ok')
 
@@ -439,3 +471,47 @@ class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMi
 
 	def close(self):
 		self.shutdown.set()
+
+class TCPInitiatorSessionManager(session.InitiatorManager, threading.Thread):
+
+	def __init__(self, log, profileDict, daemon=1):
+		threading.Thread.__init__(self)
+		self.shutdown = threading.Event()
+
+		session.InitiatorManager.__init__(self, log, profileDict)
+
+		if daemon:
+			self.setDaemon(1)
+		self.start()
+
+	def _stateINIT(self):
+		self.transition('ok')
+
+	def _stateACTIVE(self):
+		if self.shutdown.isSet():
+			self.transition('close')
+		pass
+
+	def _stateCLOSING(self):
+		while self.sessionList:
+			for sessId in self.sessionList.keys():
+				sess = self.sessionList[sessId]
+				sess.close()
+				sess.join()
+				self.removeSession(sessId)
+
+		self.transition('ok')
+
+	def _stateTERMINATE(self):
+		self.deleteAllSessions()
+		self.transition('ok')
+
+	def close(self):
+		self.shutdown.set()
+
+	def connectInitiator(self, host, port, profileDict=None):
+		if not profileDict:
+			profileDict = self.profileDict
+		client = TCPInitiatorSession(self.log, profileDict, host, port, self)
+		self.addSession(client)
+		return client

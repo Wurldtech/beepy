@@ -1,5 +1,5 @@
-# $Id: EchoClient.py,v 1.3 2002/09/19 04:32:34 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: EchoClient.py,v 1.4 2002/10/07 05:52:04 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -49,12 +49,18 @@ profileList = [['http://www.eigenmagic.com/beep/ECHO', None, None]]
 
 # Create the client and wait for it to become active
 log.logmsg(LOG_INFO, "Connecting to server...")
-client = beep.transports.tcpsession.TCPInitiatorSession(log, profileDict, 'localhost', 1976)
+clientmgr = beep.transports.tcpsession.TCPInitiatorSessionManager(log, profileDict)
+while not clientmgr.isActive():
+	pass
+
+client = clientmgr.connectInitiator('localhost', 1976)
+
 while not client.isActive():
 	if client.isExited():
 		log.logmsg(LOG_ERR, "Client connection failed.")
 		sys.exit()
 	pass
+clientid = client.ID
 # Create a channel using ECHO and wait for it to become active
 channelnum = client.startChannel(profileList)
 while not client.isChannelActive(channelnum):
@@ -72,8 +78,10 @@ msgno = channel.sendMessage('Hello!\n')
 while channel.isMessageOutstanding(msgno):
 	pass
 
-client.closeChannel(channelnum)
-while client.isChannelActive(channelnum):
-	pass
+#client.closeChannel(channelnum)
+#while client.isChannelActive(channelnum):
+#	pass
 
 client.close()
+while client.isAlive():
+	pass

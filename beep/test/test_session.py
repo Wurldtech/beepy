@@ -1,5 +1,5 @@
-# $Id: test_session.py,v 1.6 2002/09/18 07:07:02 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: test_session.py,v 1.7 2002/10/07 05:52:04 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -43,7 +43,7 @@ class SessionTest(unittest.TestCase):
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
 		# wait for it to become active
-		while sess.currentState != 'ACTIVE':
+		while not sess.isActive():
 			pass
 
 		# create and connect a client
@@ -53,7 +53,7 @@ class SessionTest(unittest.TestCase):
 
 		client.terminate()
 		sess.close()
-		while sess.isAlive():
+		while not sess.isExited():
 			pass
 
 	def test_4_invalidFrameType(self):
@@ -62,7 +62,7 @@ class SessionTest(unittest.TestCase):
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
 		# wait for it to become active
-		while sess.currentState != 'ACTIVE':
+		while not sess.isActive():
 			pass
 
 		# create and connect a client
@@ -70,11 +70,10 @@ class SessionTest(unittest.TestCase):
 #		data = client.getmsg()
 		client.sendmsg("WIZ 0 0 . 0 0\r\nEND\r\n")
 		data = client.getmsg()
-		print data
 
 		client.terminate()
 		sess.close()
-		while sess.isAlive():
+		while not sess.isExited():
 			pass
 
 	def test_5_invalidFrameSize(self):
@@ -83,22 +82,20 @@ class SessionTest(unittest.TestCase):
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
 		# wait for it to become active
-		while sess.currentState != 'ACTIVE':
+		while not sess.isActive():
 			pass
 		# create and connect a client
 		client = dummyclient.DummyClient()
 		data = client.getmsg()
 		client.sendmsg("MSG 0 0 . 0 5\r\nhere's some stuff\r\nEND\r\n")
-		data = client.getmsg()
-		print data
 
 		client.terminate()
 		sess.close()
-		while sess.isAlive():
+		while not sess.isExited():
 			pass
 
 	def test_6_invalidSeqno(self):
-		"""Test invalid frame size"""
+		"""Test invalid frame seqno"""
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
@@ -109,18 +106,17 @@ class SessionTest(unittest.TestCase):
 		# create and connect a client
 		client = dummyclient.DummyClient()
 		data = client.getmsg()
-		client.sendmsg("MSG 0 0 . 0 13\r\n<greeting/>\r\nEND\r\n")
+		client.sendmsg("RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
 		client.sendmsg("MSG 0 0 . 0 13\r\n<greeting/>\r\nEND\r\n")
 		data = client.getmsg()
-		print data
 
 		client.terminate()
 		sess.close()
-		while sess.isAlive():
+		while not sess.isExited():
 			pass
 
 	def test_7_validGreeting(self):
-		"""Test invalid frame size"""
+		"""Test valid greeting"""
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
@@ -131,11 +127,11 @@ class SessionTest(unittest.TestCase):
 		# create and connect a client
 		client = dummyclient.DummyClient()
 		data = client.getmsg()
-		client.sendmsg("MSG 0 0 . 0 13\r\n<greeting/>\r\nEND\r\n")
+		client.sendmsg("RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
 
 		client.terminate()
 		sess.close()
-		while sess.isAlive():
+		while not sess.isExited():
 			pass
 
 if __name__ == '__main__':

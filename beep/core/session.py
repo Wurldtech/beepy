@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.10 2002/09/18 07:06:58 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: session.py,v 1.11 2002/10/07 05:52:04 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -70,8 +70,8 @@ class Session(statemachine.StateMachine):
 
 		# define the transitions
 		self.addTransition('INIT', 'ok', 'ACTIVE')
-		self.addTransition('INIT', 'error', 'TERMINATE')
-		self.addTransition('INIT', 'close', 'EXITED')
+		self.addTransition('INIT', 'close', 'TERMINATE')
+		self.addTransition('INIT', 'error', 'EXITED')
 		self.addTransition('ACTIVE', 'close', 'CLOSING')
 		self.addTransition('ACTIVE', 'error', 'TERMINATE')
 		self.addTransition('ACTIVE', 'reset', 'TUNING')
@@ -89,6 +89,7 @@ class Session(statemachine.StateMachine):
 		self.sentGreeting = 0
 		self.receivedGreeting = 0
 		self.channels = {}
+		self.ID = 0
 
 		self.profileDict = profileDict
 
@@ -128,6 +129,9 @@ class Session(statemachine.StateMachine):
 		if self.currentState == 'EXITED':
 			return 1
 		return 0
+
+	def setID(self, sessId):
+		self.ID = sessId
 
 	def processFrames(self):
 		"""processFrames() is used by a Session to call each of the
@@ -188,7 +192,7 @@ class Session(statemachine.StateMachine):
 				raise TerminateException(e)
 
 			except Exception, e:
-				self.log.logmsg(logging.LOG_INFO, "Exception in channel %i processChannels(): %s" % (channelnum, e))
+				self.log.logmsg(logging.LOG_INFO, "Exception in channel %i: %s" % (channelnum, e))
 
 	def queueOutboundFrames(self):
 		"""queueOutboundFrame() gets a single frame from each
@@ -252,9 +256,10 @@ class Session(statemachine.StateMachine):
 			chanlist = self.channels.keys()
 			self.log.logmsg(logging.LOG_DEBUG, "Channels to close: %s" % chanlist)
 			for channelnum in chanlist:
-				self.log.logmsg(logging.LOG_DEBUG, "attempting to close channel %i..." % channelnum)
-				self.channels[channelnum].close()
-				self.deleteChannel(channelnum)
+				if channelnum != 0:
+					self.log.logmsg(logging.LOG_DEBUG, "Attempting to close channel %i..." % channelnum)
+					self.channels[0].profile.closeChannel(channelnum)
+					self.log.logmsg(logging.LOG_DEBUG, "Finished queueing closure." % channelnum)
 
 		except Exception, e:
 			# If we can't close a channel, we must remain active
@@ -351,7 +356,7 @@ class Session(statemachine.StateMachine):
 		and converted to a Frame object.
 		"""	
 		try:
-#			self.log.logmsg(logging.LOG_DEBUG, "pushing frame: %s" % theframe)
+			self.log.logmsg(logging.LOG_DEBUG, "pushing frame: %s" % theframe)
 			self.inbound.put(theframe, 0)
 
 		# Drop frames if queue is full
@@ -408,7 +413,7 @@ class Session(statemachine.StateMachine):
 		outputs: none
 		raises: none
 		"""
-		self.log.logmsg(logging.LOG_DEBUG, "Attempting to close channel %s" % channelnum)
+		self.log.logmsg(logging.LOG_DEBUG, "Attempting to close channel %s..." % channelnum)
 		if self.channels.has_key(channelnum):
 			self.channels[0].profile.closeChannel(channelnum)
 		else:
@@ -426,14 +431,12 @@ class SessionManager(statemachine.StateMachine):
 	"""A SessionManager is used to create and destroy sessions that
 	   handle BEEP connections
 	"""
-	log = None
-	profileDict = {}
-	sessionList = []
 
 	def __init__(self, log, profileDict):
 		self.log = log
 		self.profileDict = profileDict
-		self.sessionList = []
+		self.sessionList = {}
+		self.sessionIds = []
 
 		statemachine.StateMachine.__init__(self)
 
@@ -441,7 +444,7 @@ class SessionManager(statemachine.StateMachine):
 		self.addState('ACTIVE', self._stateACTIVE)
 		self.addState('CLOSING', self._stateCLOSING)
 		self.addState('TERMINATE', self._stateTERMINATE)
-		self.addState('EXITED', self._stateEXITED, 1)
+		self.addState('EXITED', None, 1)
 		self.setStart('INIT')
 
 		self.addTransition('INIT', 'ok', 'ACTIVE')
@@ -467,26 +470,43 @@ class SessionManager(statemachine.StateMachine):
 	def _stateTERMINATE(self):
 		raise NotImplementedError
 
-	def _stateEXITED(self):
-		raise NotImplementedError
-
 	def isActive(self):
 		if self.currentState != 'ACTIVE':
 			return 0
 		return 1
 
+	def isExited(self):
+		if self.currentState == 'EXITED':
+			return 1
+		return 0
+
 	# Add a Session instance to the sessionList
 	def addSession(self, sessionInst):
-		self.sessionList.append(sessionInst)
+		sessId = 0
+		while sessId in self.sessionIds:
+			sessId += 1
 
-	def removeSession(self, sessionInst):
-		if sessionInst in self.sessionList:
-			self.sessionList.remove(sessionInst)
-			self.log.logmsg(logging.LOG_DEBUG, "%s removed from sessionList." % sessionInst)
+		sessionInst.setID(sessId)
+		self.sessionList[sessId] = sessionInst
+		self.sessionIds.append(sessId)
+		self.log.logmsg(logging.LOG_DEBUG, "Allocated sessId: %d to %s" % (sessId, sessionInst))
+		return sessId
+
+	def removeSession(self, sessId):
+		if sessId in self.sessionIds:
+			del self.sessionList[sessId]
+			self.sessionIds.remove(sessId)
+
+	def replaceSession(self, sessId, sessionInst):
+		self.sessionList[sessId] = sessionInst
+		self.log.logmsg(logging.LOG_DEBUG, "Reallocated sessId: %d to %s" % (sessId, sessionInst))
 
 	def deleteAllSessions(self):
-		for sess in self.sessionList:
-			self.removeSession(sess)
+		for sessId in self.sessionIds:
+			self.removeSession(sessId)
+
+	def getSessionById(self, sessId):
+		return self.sessionList[sessId]
 
 	def close(self):
 		raise NotImplementedError
@@ -519,6 +539,10 @@ class ListenerSession(Session):
 
 		# Listeners use only even numbered channels for allocation
 		self.nextChannelNum = 2
+
+class InitiatorManager(SessionManager):
+	def __init__(self, log, profileDict):
+		SessionManager.__init__(self, log, profileDict)
 
 class InitiatorSession(Session):
 	"""An InitiatorSession is a Session that initiates a connection

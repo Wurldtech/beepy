@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.8 2002/09/17 06:51:44 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: session.py,v 1.9 2002/09/18 06:03:00 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -118,6 +118,16 @@ class Session(statemachine.StateMachine):
 		"""performs a tuning reset
 		"""
 		raise NotImplementedError
+
+	def isActive(self):
+		if self.currentState == 'ACTIVE':
+			return 1
+		return 0
+
+	def isExited(self):
+		if self.currentState == 'EXITED':
+			return 1
+		return 0
 
 	def processFrames(self):
 		"""processFrames() is used by a Session to call each of the
@@ -285,6 +295,14 @@ class Session(statemachine.StateMachine):
 		else:
 			return 0
 
+	def getActiveChannel(self, channelnum):
+		"""This method provides a way of getting the channel object
+		   by number.
+		"""
+		if self.isChannelActive(channelnum):
+			return self.channels[channelnum]
+		return None
+
 	def flushChannelOutbound(self):
 		"""This method gets all pending messages from all channels
 		   one at a time and places them on the Session Outbound Queue.
@@ -451,6 +469,11 @@ class SessionManager(statemachine.StateMachine):
 
 	def _stateEXITED(self):
 		raise NotImplementedError
+
+	def isActive(self):
+		if self.currentState != 'ACTIVE':
+			return 0
+		return 1
 
 	# Add a Session instance to the sessionList
 	def addSession(self, sessionInst):

@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.5 2002/09/17 06:51:44 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: channel.py,v 1.6 2002/09/18 06:03:00 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -141,6 +141,9 @@ class Channel:
 			if theframe.msgno not in self.allocatedMsgnos:
 				raise ChannelRPYMsgnoInvalid('msgno %i not valid for RPY' % theframe.msgno)
 			else:
+				# Not sure this should be here. Methinks that the
+				# actual deallocation of the msgno should occur once
+				# the profile has dealt with the message.
 				self.deallocateMsgno(theframe.msgno)
 
 		# Finally, allow the frame to be put on our inbound queue.

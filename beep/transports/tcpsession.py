@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.10 2002/09/17 06:51:44 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: tcpsession.py,v 1.11 2002/09/18 06:03:01 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -148,6 +148,7 @@ class TCPCommsMixin:
 #				self.log.logmsg(logging.LOG_DEBUG, "socket: %s" % self.connection)
 				data = self.connection.recv(constants.MAX_INBUF)
 				if data:
+					self.log.logmsg(logging.LOG_DEBUG, "gotdata: %s" % data)
 					self.framebuffer += data
 					# Check for oversized frames. If framebuffer goes over
 					# constants.MAX_FRAME_SIZE + constants.MAX_INBUF then
@@ -194,7 +195,7 @@ class TCPCommsMixin:
 
 			else:
 				self.log.logmsg(logging.LOG_DEBUG, "socket.error: %s" % e)
-				raise
+				raise session.TerminateException("%s" % e)
 
 		except frame.DataFrameException, e:
 			raise session.TerminateException(e)
@@ -269,11 +270,22 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 
 		# Now, configure the socket as non-blocking
 		self.connection.setblocking(0)
-#		self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+		self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 #		self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 		self.createChannelZero()
+		# send the queued greeting message
+		self.queueOutboundFrames()
 		self.sendPendingFrame()
+		while not self.channels[0].profile.receivedGreeting:
+			try:
+				self.getInputFrame()
+				self.processFrames()
+			except Exception, e:
+				self.log.logmsg(logging.LOG_DEBUG, "Error occurred setting up connection: %s" % e)
+				self.transition('error')
+				return
+
 		self.transition('ok')
 
 	def _stateACTIVE(self):
@@ -364,18 +376,19 @@ class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMi
 		try:
 			self.connection.connect(self.server_address)
 			self.wfile = self.connection.makefile('wb', constants.MAX_OUTBUF)
+			self.createChannelZero()
+			# send the queued greeting message
+			self.log.logmsg(logging.LOG_DEBUG, "Sending greeting...")
+			self.queueOutboundFrames()
+			self.sendPendingFrame()
+			while not self.channels[0].profile.receivedGreeting:
+				self.getInputFrame()
+				self.processFrames()
+			self.transition('ok')
 
 		except Exception, e:
-			self.log.logmsg(logging.LOG_DEBUG, "Exception occurred connecting to remote host: %s" % e)
+			self.log.logmsg(logging.LOG_ERR, "Connection to remote host failed: %s" % e)
 			self.transition('error')
-
-		self.createChannelZero()
-		# send the queued greeting message
-		self.sendPendingFrame()
-		while not self.channels[0].profile.receivedGreeting:
-			self.getInputFrame()
-			self.processFrames()
-		self.transition('ok')
 
 	def _stateACTIVE(self):
 		if self.shutdown.isSet():

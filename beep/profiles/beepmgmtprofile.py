@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.8 2002/09/17 06:51:44 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: beepmgmtprofile.py,v 1.9 2002/09/18 06:03:01 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -161,6 +161,8 @@ class BEEPManagementProfile(profile.Profile):
 			self.log.logmsg( logging.LOG_DEBUG, "Attempting to create matching channel %s..." % channelnum)
 			self.log.logmsg( logging.LOG_DEBUG, "Msg URIlist: %s" % msg.getProfileURIList() )
 			self.session.createChannelFromURIList(channelnum, msg.getProfileURIList())
+
+			self.log.logmsg( logging.LOG_DEBUG, "Channel %s created successfully." % channelnum )
 		except beep.core.session.SessionException, e:
 			# If we get here, something very wrong happened.
 			# Being here means we requested a channel be started

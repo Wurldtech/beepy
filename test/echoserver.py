@@ -1,5 +1,5 @@
-# $Id: echoserver.py,v 1.4 2004/09/28 01:19:21 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: echoserver.py,v 1.5 2004/11/16 00:38:29 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -29,7 +29,6 @@ from twisted.application import internet, service
 # Put this here so we override twisted's logging
 import logging
 from beepy.core import debug
-log = debug.log
 
 factory = BeepServerFactory()
 factory.addProfile(echoprofile)

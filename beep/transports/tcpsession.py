@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.14 2002/10/18 06:41:32 jpwarren Exp $
-# $Revision: 1.14 $
+# $Id: tcpsession.py,v 1.15 2002/10/23 07:05:40 jpwarren Exp $
+# $Revision: 1.15 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -115,7 +115,9 @@ class TCPCommsMixin:
 	once.
 	"""
 	framebuffer = ''
+	newframe = None
 	windowsize = {}			# dictionary for each channel's window size
+	frameHeaderPattern = re.compile(".*\r\n")
 	dataFrameTrailer = re.compile(frame.DataFrame.TRAILER)
 	SEQFrameRE = frame.SEQFrame.type
 	SEQFrameRE += ".*"
@@ -157,37 +159,58 @@ class TCPCommsMixin:
 					# the frame is too large.
 					if len(self.framebuffer) > (constants.MAX_FRAME_SIZE + constants.MAX_INBUF):
 						raise session.TerminateException("Frame too large")
-
-					# Detect a complete frame
-					# First, check for SEQ frames. These have a higher priority.
-					match = re.search(self.SEQFramePattern, self.framebuffer)
-					while match:
-						framedata = self.framebuffer[:match.end()]
-						newframe = frame.SEQFrame(self.log, databuffer=framedata)
-
-						# Process the SEQ frame straight away
-						self.processSEQFrame(newframe)
-
-						# slice the framebuffer to only include the trailing
-						# non frame data what probably belongs to the next frame
-						self.framebuffer = self.framebuffer[match.end():]
-						match = re.search(self.SEQFramePattern, self.framebuffer)
-
-					# Look for the frame trailer
-					match = re.search(self.dataFrameTrailer, self.framebuffer)
-					# If found, create a Frame object
-					while match:
-						framedata = self.framebuffer[:match.end()]
-						newframe = frame.DataFrame(self.log, databuffer=framedata)
-						self.pushFrame(newframe)
-#						self.log.logmsg(logging.LOG_DEBUG, "%s: pushedFrame: %s" % (self, newframe) )
-
-						# slice the framebuffer to only include the trailing
-						# non frame data what probably belongs to the next frame
-						self.framebuffer = self.framebuffer[match.end():]
-						match = re.search(self.dataFrameTrailer, self.framebuffer)
 				else:
 					raise session.TerminateException("Connection closed by remote host")
+
+			# If the current new frame is complete, we search for
+			# the header and create a new frame.
+			if not self.newframe:
+				# Ok, what we do is to first find the frame header
+				match = re.search(self.frameHeaderPattern, self.framebuffer)
+				if match:
+					headerdata = self.framebuffer[:match.end()]
+					self.framebuffer = self.framebuffer[match.end():]
+
+					# If this is a SEQ frame, create it and process it
+					if re.search(self.SEQFramePattern, headerdata):
+						seqframe = frame.SEQFrame(self.log, databuffer=headerdata)
+						self.processSEQFrame(seqframe)
+					else:
+						# start a new dataframe
+						self.newframe = frame.DataFrame(self.log, databuffer=headerdata)
+
+			# Populate our frame with payload data
+			if self.newframe:
+				# we scan the framebuffer for the frame trailer
+				match = re.search(self.dataFrameTrailer, self.framebuffer)
+				# If we find it, we should have a complete frame
+				if match:
+					# slice out this frame's data
+					framedata = self.framebuffer[:match.start()]
+					self.framebuffer = self.framebuffer[match.end():]
+					# I append the data to the current frame payload
+					# after checking that it isn't too long.
+					if len(self.newframe.payload) + len(framedata) > self.newframe.size:
+						self.log.logmsg(logging.LOG_DEBUG, "size: %s, expected: %s" % ( len(self.newframe.payload) + len(framedata), self.newframe.size ) )
+						self.log.logmsg(logging.LOG_DEBUG, "payload: %s, buffer: %s" % ( self.newframe.payload, framedata ) ) 
+						raise session.TerminateException("Payload larger than expected size")
+					else:
+						self.newframe.payload += framedata
+						# The frame is now complete
+						self.pushFrame(self.newframe)
+						self.newframe = None
+	#					self.log.logmsg(logging.LOG_DEBUG, "%s: pushedFrame: %s" % (self, newframe) )
+
+				else:
+					# I append the data to the current frame payload
+					# after checking that it isn't too long.
+					if len(self.newframe.payload) + len(self.framebuffer) > self.newframe.size:
+						self.log.logmsg(logging.LOG_DEBUG, "size: %s, expected: %s" % ( len(self.newframe.payload) + len(self.framebuffer), self.newframe.size ) )
+						self.log.logmsg(logging.LOG_DEBUG, "payload: %s, buffer: %s" % ( self.newframe.payload, self.framebuffer ) ) 
+						raise session.TerminateException("Payload larger than expected size")
+					else:
+						self.newframe.payload += self.framebuffer
+						self.framebuffer = ''
 
 		except socket.error, e:
 			if e[0] == errno.EWOULDBLOCK:

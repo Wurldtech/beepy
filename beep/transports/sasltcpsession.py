@@ -1,5 +1,5 @@
-# $Id: sasltcpsession.py,v 1.4 2002/10/07 05:52:04 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: sasltcpsession.py,v 1.5 2002/10/23 07:05:39 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -48,7 +48,9 @@ class SASLTCPListenerSession(tcpsession.TCPListenerSession, saslsession.SASLList
 
 		sessmgr.replaceSession(oldsession.ID, self)
 
-		self.inbound = oldsession.inbound
+		self.inbound = self.oldsession.inbound
+		self.newframe = self.oldsession.newframe
+		self.framebuffer = self.oldsession.framebuffer
 		self.log.logmsg(logging.LOG_INFO, "%s: initialized" % self )
 		self.start()
 
@@ -83,7 +85,10 @@ class SASLTCPInitiatorSession(tcpsession.TCPInitiatorSession, saslsession.SASLIn
 		# resets but before we reset, as they will get read in
 		# my the TCPCommsMixin to get the reset <ok/> message
 		# as a batch.
-		self.inbound = oldsession.inbound
+
+		self.inbound = self.oldsession.inbound
+		self.newframe = self.oldsession.newframe
+		self.framebuffer = self.oldsession.framebuffer
 		self.log.logmsg(logging.LOG_INFO, "%s: initialized" % self )
 		self.start()
 

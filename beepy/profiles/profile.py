@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.2 2003/01/02 00:46:16 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: profile.py,v 1.3 2003/01/03 02:39:11 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -58,6 +58,7 @@ class Profile:
 		self.channel = None
 		self.type = None
 		self.encoding = None
+		self.asyncflag = 0
 
 	def setChannel(self, channel):
 		"""setChannel() binds this Profile to the Channel
@@ -68,11 +69,20 @@ class Profile:
 		self.channel = channel
 		self.channel.transition(constants.CHANNEL_ACTIVE)
 
+	def isSynchronous(self):
+		"""Test to see if this profile is synchronous or
+		   asynchronous.
+		"""
+		return self.async_flag
+
 	def doProcessing(self):
 		"""doProcessing() is where the real guts of the
 		message processing takes place, so subclasses should
 		implement this method to do work.
 		"""
+		# doProcessing() will only be used by synchronous
+		# profiles. asynchronous profiles will use other
+		# methods.
 		raise NotImplementedError
 
 	def processMessages(self):
@@ -96,7 +106,7 @@ class Profile:
 				self.log.logmsg(logging.LOG_DEBUG, 'Unmanaged exception: %s' % e)
 				self.log.logmsg(logging.LOG_DEBUG, 'Generating traceback...')
 				traceback.print_exc(file=self.log.log)
-				raise ProfileException("Unmanaged exception in %s: %s" % (self.__class__, e) )
+				raise TerminalProfileException("Unmanaged exception in %s: %s: %s" % (self.__class__, e.__class__, e) )
 
 	def mimeDecode(self, payload):
 		"""mimeDecode is a convenience function used to help

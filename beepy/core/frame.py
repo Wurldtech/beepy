@@ -1,5 +1,5 @@
-# $Id: frame.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: frame.py,v 1.2 2003/01/03 02:39:11 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -79,10 +79,7 @@ class DataFrame( Frame ):
 			self.size = size
 			self.payload = ''
 			self.complete = 0
-			if ansno:
-				self.ansno = ansno
-			else:
-				self.ansno = None
+			self.ansno = ansno
 
 	def __str__(self):
 
@@ -91,8 +88,8 @@ class DataFrame( Frame ):
 		# transportation
 		framestring = "%s %i %i %s %i %i" % (constants.DataFrameTypes[self.type], self.channelnum, self.msgno, self.more, self.seqno, self.size)
 
-		if( self.ansno ):
-			framestring += "%i" % self.ansno
+		if( self.ansno is not None ):
+			framestring += " %i" % self.ansno
 		framestring += '\r\n'
 		framestring += "%s" % self.payload
 		framestring += self.TRAILER
@@ -159,6 +156,7 @@ class DataFrame( Frame ):
 	# upon initial creation, but that makes a certain amount
 	# of sense
 	def _checkValues(self, channelnum, msgno, more, seqno, size, type, ansno=None):
+
 		if type not in constants.DataFrameTypes.keys():
 			raise DataFrameException("Invalid DataFrame Type")
 
@@ -174,10 +172,10 @@ class DataFrame( Frame ):
 		if not constants.MIN_SEQNO <= seqno <= constants.MAX_SEQNO:
 			raise DataFrameException("SEQNO (%s) out of bounds" % seqno)
 
-		if type == constants.DataFrameTypes['ANS'] and not ansno:
+		if type == constants.DataFrameTypes['ANS'] and ansno is None:
 			raise DataFrameException("No ansno for ANS frame")
 
-		if ansno:
+		if ansno is not None:
 			if not type == constants.DataFrameTypes['ANS']:
 				raise DataFrameException("ANSNO in non ANS frame" % ansno)
 

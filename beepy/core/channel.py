@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: channel.py,v 1.2 2003/01/03 02:39:10 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -36,7 +36,8 @@ class Channel:
 	number = -1			# Channel number
 	localSeqno = -1L		# My current Sequence number
 	remoteSeqno = -1L		# Remote Sequence number
-	ansno = -1			# Current Answer number
+	localAnsno = {}			# Local Answer numbers
+	remoteAnsno = {}		# Remote Answer numbers
 	profile = None			# channel Profile
 	allocatedMsgnos = []		# List of allocated msgno's
 	inbound = None			# queue of incoming frames
@@ -228,6 +229,7 @@ class Channel:
 			self.nextMsgno = constants.MINX_MSGNO
 		return msgno
 
+
 	# This method frees a msgno to be allocated again
 	def deallocateMsgno(self, msgno):
 		"""deallocateMsgno() deallocates a previously allocated
@@ -255,6 +257,16 @@ class Channel:
 		elif msgno in self.allocatedMsgnos:
 			return 1
 		return 0
+
+	def allocateLocalAnsno(self, msgno):
+		if msgno not in self.localAnsno.keys():
+			self.localAnsno[msgno] = constants.MIN_ANSNO
+
+		new_ansno = self.localAnsno[msgno]
+		self.localAnsno[msgno] += 1
+		if self.localAnsno[msgno] > constants.MAX_ANSNO:
+			self.localAnsno[msgno] = constants.MIN_ANSNO
+		return new_ansno
 
 	# Send a frame of type MSG
 	def sendMessage(self, data, more=constants.MoreTypes['.']):
@@ -332,23 +344,40 @@ class Channel:
 		except frame.DataFrameException, e:
 			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed: %s" % e)
 
-	def sendNul():
-		raise NotImplementedError
-
 	# msgno here is the msgno to which this an answer
 	def sendAnswer(self, msgno, data, more=constants.MoreTypes['.']):
 		"""sendAnswer() is used for sending a frame of type ANS
 		The msgno here is the msgno of the message to which this is an answer.
 		It raises a ChannelQueueFull exception.
 		"""
-		seqno = self.allocateLocalSeqno(size)
 		size = len(data)
+		seqno = self.allocateLocalSeqno(size)
+		ansno = self.allocateLocalAnsno(msgno)
+
 		try:
-			msg = DataFrame(self.log, self.number, msgno, more, seqno, size, constants.DataFrameTypes['RPY'])
+			msg = frame.DataFrame(self.log, self.number, msgno, more, seqno, size, constants.DataFrameTypes['ANS'], ansno)
 			msg.setPayload(data)
 			self.send(msg)
 
-		except DataFrameException, e:
+		except frame.DataFrameException, e:
+			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed: %s" % e)
+
+	def sendNul(self, msgno):
+		"""sendNul() is used for sending a frame of type NUL
+
+		   NUL frames are used to finish a series of ANS frames
+		   in response to a MSG. The msgno here is the msgno of the
+		   message to which the previous ANS frames were an answer to.
+		"""
+		try:
+			seqno = self.allocateLocalSeqno(0)
+			msg = frame.DataFrame(self.log, self.number, msgno, constants.MoreTypes['.'], seqno, 0, constants.DataFrameTypes['NUL'])
+			self.send(msg)
+			# Once we've sent a NUL, we don't need to maintain a list of
+			# ansno's for this msgno any more.
+			del self.localAnsno[msgno]
+
+		except frame.DataFrameException, e:
 			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed: %s" % e)
 
 

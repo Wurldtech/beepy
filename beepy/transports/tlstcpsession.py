@@ -1,5 +1,5 @@
-# $Id: tlstcpsession.py,v 1.2 2003/01/02 01:18:53 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: tlstcpsession.py,v 1.3 2003/01/03 02:39:11 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -42,6 +42,10 @@ class TLSTCPCommsMixin(TCPCommsMixin):
 	"""This class overloads the methods provided by TCPCommsMixin to
 	   provide encryption.
 	"""
+	# TLS related class variables
+
+
+
 	def getInputFrame(self):
 		"""getInputFrame reads a frame off the wire and places it
 		in the Session inbound Queue.
@@ -123,9 +127,7 @@ class TLSTCPCommsMixin(TCPCommsMixin):
 			data = self.pullFrame()
 			if data:
 
->>>
->>>				FIXME: Do encryption stuff here
->>>
+#				FIXME: Do encryption stuff here
 
 				self.wfile.write(data)
 				self.wfile.flush()

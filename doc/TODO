@@ -1,0 +1,34 @@
+# $Id: TODO,v 1.1 2002/08/05 02:40:43 jpwarren Exp $
+# $Revision: 1.1 $
+#
+#    BEEPy - A Python BEEP Library
+#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#
+#    This library is free software; you can redistribute it and/or
+#    modify it under the terms of the GNU Lesser General Public
+#    License as published by the Free Software Foundation; either
+#    version 2.1 of the License, or (at your option) any later version.
+#
+#    This library is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#    Lesser General Public License for more details.
+#
+#    You should have received a copy of the GNU Lesser General Public
+#    License along with this library; if not, write to the Free Software
+#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+# This file tracks items that are outstanding as a sort of scratch monkey
+# used during coding sessions so I can keep track of things that occur to
+# me while doing something else. It's easier to import into CVS than
+# yellow sticky notes. :)
+
+- Channel.pull() returns a message instead of a frame. why?
+- Channel.allocateRemoteSeqno() and similar: check for need for mutex
+  because of concurrency and synchronisation issues.
+- Possible rationalisation of Exceptions classes in some cases. I'm having
+  to draw lots of Exception classes in Dia to document this thing. I wonder
+  if string comparison is quicker than class instanciation during exception
+  processing?
+- architecture.dia: SEQFrame.type == 'SEQ'. Is this in beep.core.constants
+  somewhere, and why?

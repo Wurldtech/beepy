@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.8 2003/12/08 03:25:30 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: session.py,v 1.9 2003/12/08 22:47:51 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -58,7 +58,7 @@ class Session(statemachine.StateMachine):
         self.addState('INIT', self._stateINIT)
         self.addState('ACTIVE', self._stateACTIVE)
         self.addState('CLOSING', self._stateCLOSING)
-        self.addState('TUNING', self._stateTUNING)
+#        self.addState('TUNING', self._stateTUNING)
         self.addState('TERMINATE', self._stateTERMINATE)
         self.addState('EXITED', None, 1)
         self.setStart('INIT')
@@ -69,14 +69,14 @@ class Session(statemachine.StateMachine):
         self.addTransition('INIT', 'error', 'EXITED')
         self.addTransition('ACTIVE', 'close', 'CLOSING')
         self.addTransition('ACTIVE', 'error', 'TERMINATE')
-        self.addTransition('ACTIVE', 'reset', 'TUNING')
+#        self.addTransition('ACTIVE', 'reset', 'TUNING')
         self.addTransition('CLOSING', 'unable', 'ACTIVE')
         self.addTransition('CLOSING', 'ok', 'TERMINATE')
         self.addTransition('CLOSING', 'error', 'TERMINATE')
         self.addTransition('CLOSING', 'close', 'CLOSING')
-        self.addTransition('TUNING', 'ok', 'EXITED')
-        self.addTransition('TUNING', 'close', 'TUNING')
-        self.addTransition('TUNING', 'error', 'TERMINATE')
+#        self.addTransition('TUNING', 'ok', 'EXITED')
+#        self.addTransition('TUNING', 'close', 'TUNING')
+#        self.addTransition('TUNING', 'error', 'TERMINATE')
         self.addTransition('TERMINATE', 'ok', 'EXITED')
         self.addTransition('TERMINATE', 'close', 'TERMINATE')
         self.addTransition('TERMINATE', 'error', 'TERMINATE')
@@ -147,6 +147,18 @@ class Session(statemachine.StateMachine):
         # Now, process all channels, round robin style
         self.processChannels()
 
+    def processFrame(self, theframe):
+        """ Allocate a given frame to the channel it belongs to
+        and call the channel's processing method
+        """
+        if self.channels.has_key(theframe.channelnum):
+            try:
+                self.channels[theframe.channelnum].processFrame(theframe)
+            except Exception, e:
+                raise
+        else:
+            log.info('Attempt to send to non-existant channel: %d' % theframe.channelnum)
+            raise SessionException('Invalid Channel Number')
 
     def addProfile(self, profileModule):
         """ This method adds a given profile to the Session so that
@@ -379,9 +391,9 @@ class Session(statemachine.StateMachine):
     def getChannelState(self, channelnum):
         return self.channels[0].profile.getChannelState(channelnum)
 
-    def newChannel(self, profile):
+    def newChannel(self, profile, chardata=None, encoding=None):
         log.debug('trying to start channel with %s' % profile.uri)
-        self.startChannel([[profile.uri, None, None]])
+        self.startChannel([[profile.uri, encoding, chardata]])
 
     def startChannel(self, profileList):
         """startChannel() attempts to start a new channel for communication.
@@ -608,6 +620,7 @@ class Initiator(Session):
     connection.
     """
     def __init__(self):
+        log.debug('Initialising an Initiator')
         Session.__init__(self)
 
         # Initiators use only odd numbered channels for allocation

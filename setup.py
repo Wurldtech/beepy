@@ -1,5 +1,5 @@
-# $Id: setup.py,v 1.6 2004/09/28 01:19:19 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: setup.py,v 1.7 2004/11/22 06:05:09 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -22,7 +22,7 @@
 from distutils.core import setup
 
 setup(name='BEEPy',
-	version='0.5',
+	version='0.5.1',
 	description='A Python BEEP Library',
 	author='Justin Warren',
 	author_email='daedalus@eigenmagic.com',

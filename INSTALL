@@ -1,5 +1,5 @@
-# $Id: INSTALL,v 1.7 2004/09/28 01:19:19 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: INSTALL,v 1.8 2004/11/22 06:05:09 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -63,14 +63,10 @@ or, for more verbose testing:
 
 $ python testall.py -v
 
-Keep in mind that this library is still very much in development, so it's
-likely that you'll see a lot of debug information. You want to be
-watching for any ERRORs that occur. I try to make sure that the code passes
-all unittests before releasing a package so any ERRORs are likely platform
-difference problems. I want to hear about them, so log onto sourceforge
-and log a bug or send an email to the beepy-devel list.
+By default, debug output is sent to a file in the working directory:
+beepy-debug.log.
 
 Using It
 --------
-More detailed instructions on using the library are given in doc/HOWTO including
-an example client and server.
+More detailed instructions on using the library are given in doc/HOWTO
+including an example client and server.

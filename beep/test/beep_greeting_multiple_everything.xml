@@ -1,4 +1,0 @@
-<greeting localize="us-english,cel-gaulish" feature="notabug,notabugeither">
-  <profile uri="http://iana.org/beep/TLS" />
-  <profile uri="http://iana.org/beep/SASL/OTP" />
-</greeting>

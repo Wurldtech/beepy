@@ -1,8 +1,24 @@
-# $Id: EchoClient.py,v 1.1 2002/09/19 02:36:46 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: EchoClient.py,v 1.2 2002/09/19 03:54:45 jpwarren Exp $
+# $Revision: 1.2 $
 #
-# This is an attempt to build the server side of a client/server 
-# MessageNet setup using BEEPy.
+#    BEEPy - A Python BEEP Library
+#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#
+#    This library is free software; you can redistribute it and/or
+#    modify it under the terms of the GNU Lesser General Public
+#    License as published by the Free Software Foundation; either
+#    version 2.1 of the License, or (at your option) any later version.
+#
+#    This library is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#    Lesser General Public License for more details.
+#
+#    You should have received a copy of the GNU Lesser General Public
+#    License along with this library; if not, write to the Free Software
+#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+# This is the client side of the example EchoServer code used in the HOWTO.
 
 import sys
 import time

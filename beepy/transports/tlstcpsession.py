@@ -1,5 +1,5 @@
-# $Id: tlstcpsession.py,v 1.3 2003/01/03 02:39:11 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: tlstcpsession.py,v 1.4 2003/01/04 00:07:14 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -27,7 +27,12 @@ from beepy.core import constants
 from beepy.core import logging
 from beepy.core import frame
 
+from beepy.core import session
+from beepy.core import tlssession
+
 import tcpsession
+
+import POW
 
 import sys
 import re
@@ -37,14 +42,42 @@ import socket, select
 import string
 import threading
 import SocketServer
+import traceback
 
-class TLSTCPCommsMixin(TCPCommsMixin):
+class TLSTCPCommsMixin(tcpsession.TCPCommsMixin):
 	"""This class overloads the methods provided by TCPCommsMixin to
 	   provide encryption.
 	"""
-	# TLS related class variables
+	def __init__(self):
+		self.framebuffer = ''
+		self.newframe = None
+		self.windowsize = {}			# dictionary for each channel's window size
+		self.frameHeaderPattern = re.compile(".*\r\n")
+		self.dataFrameTrailer = re.compile(frame.DataFrame.TRAILER)
 
+		SEQFrameRE = frame.SEQFrame.type
+		SEQFrameRE += ".*"
+		SEQFrameRE += frame.SEQFrame.TRAILER
+		self.SEQFramePattern = re.compile(SEQFrameRE)
 
+	# Overload createChannel from Session
+	def createChannel(self, channelnum, profile):
+		"""This overloads createChannel() from class Session to
+		   add window sizing via SEQ capabilities to the TCP transport
+		   layer mapping, as per RFC 3081
+		"""
+		self.log.logmsg(logging.LOG_DEBUG, "Creating TLS Channel via Mixin")
+		session.Session.createChannel(self, channelnum, profile)
+		self.windowsize[channelnum] = 4096
+
+	def deleteChannel(self, channelnum):
+		"""This overloads deleteChannel() from class Session to
+		   blank out the window size dictionary for the closed
+		   channel. Memory management, basically.
+		"""
+		session.Session.deleteChannel(self, channelnum)
+		self.log.logmsg(logging.LOG_DEBUG, "%s windowsize: %s" % (self, self.windowsize))
+		del self.windowsize[channelnum]
 
 	def getInputFrame(self):
 		"""getInputFrame reads a frame off the wire and places it
@@ -55,102 +88,222 @@ class TLSTCPCommsMixin(TCPCommsMixin):
 			inbit, outbit, oobit = select.select([self.connection], [], [], 0)
 			if inbit:
 #				self.log.logmsg(logging.LOG_DEBUG, "socket: %s" % self.connection)
-				data = self.connection.recv(constants.MAX_INBUF)
+				data = self.sl.read(constants.MAX_INBUF)
 				if data:
-
-#					FIXME: Do decryption stuff here.
-
 					self.framebuffer += data
+#					self.log.logmsg(logging.LOG_DEBUG, "gotdata: %s" % data)
 					# Check for oversized frames. If framebuffer goes over
 					# constants.MAX_FRAME_SIZE + constants.MAX_INBUF then
 					# the frame is too large.
 					if len(self.framebuffer) > (constants.MAX_FRAME_SIZE + constants.MAX_INBUF):
-						raise TCPSessionException("Frame too large")
-
-					# Detect a complete frame
-					# First, check for SEQ frames. These have a higher priority.
-					match = re.search(self.SEQFramePattern, self.framebuffer)
-					if match:
-						framedata = self.framebuffer[:match.end()]
-						newframe = frame.SEQFrame(self.log, databuffer=framedata)
-
-						# Process the SEQ frame straight away
-						self.processSEQFrame(newframe)
-
-						# slice the framebuffer to only include the trailing
-						# non frame data what probably belongs to the next frame
-						self.framebuffer = self.framebuffer[match.end():]
-
-					# Look for the frame trailer
-					match = re.search(self.dataFrameTrailer, self.framebuffer)
-
-					# If found, create a Frame object
-					if match:
-						framedata = self.framebuffer[:match.end()]
-						newframe = frame.DataFrame(self.log, databuffer=framedata)
-						self.pushFrame(newframe)
-#						self.log.logmsg(logging.LOG_DEBUG, "%s: pushedFrame: %s" % (self, newframe) )
-
-						# slice the framebuffer to only include the trailing
-						# non frame data what probably belongs to the next frame
-						self.framebuffer = self.framebuffer[match.end():]
+						raise session.TerminateException("Frame too large")
 				else:
-					raise TCPSessionException("Connection closed by remote host")
+					raise session.TerminateException("Connection closed by remote host")
+
+			# If the current new frame is complete, we search for
+			# the header and create a new frame.
+			if not self.newframe:
+				# Ok, what we do is to first find the frame header
+				match = re.search(self.frameHeaderPattern, self.framebuffer)
+				if match:
+					headerdata = self.framebuffer[:match.end()]
+					self.framebuffer = self.framebuffer[match.end():]
+
+					# If this is a SEQ frame, create it and process it
+					if re.search(self.SEQFramePattern, headerdata):
+						seqframe = frame.SEQFrame(self.log, databuffer=headerdata)
+						self.processSEQFrame(seqframe)
+					else:
+						# start a new dataframe
+						self.newframe = frame.DataFrame(self.log, databuffer=headerdata)
+
+			# Populate our frame with payload data
+			if self.newframe:
+				# we scan the framebuffer for the frame trailer
+				match = re.search(self.dataFrameTrailer, self.framebuffer)
+				# If we find it, we should have a complete frame
+				if match:
+					# slice out this frame's data
+					framedata = self.framebuffer[:match.start()]
+					self.framebuffer = self.framebuffer[match.end():]
+					# I append the data to the current frame payload
+					# after checking that it isn't too long.
+					if len(self.newframe.payload) + len(framedata) > self.newframe.size:
+						self.log.logmsg(logging.LOG_DEBUG, "size: %s, expected: %s" % ( len(self.newframe.payload) + len(framedata), self.newframe.size ) )
+						self.log.logmsg(logging.LOG_DEBUG, "payload: %s, buffer: %s" % ( self.newframe.payload, framedata ) ) 
+						raise session.TerminateException("Payload larger than expected size")
+					else:
+						self.newframe.payload += framedata
+						# The frame is now complete
+						self.pushFrame(self.newframe)
+						self.newframe = None
+	#					self.log.logmsg(logging.LOG_DEBUG, "%s: pushedFrame: %s" % (self, newframe) )
+
+				else:
+					# I append the data to the current frame payload
+					# after checking that it isn't too long.
+					if len(self.newframe.payload) + len(self.framebuffer) > self.newframe.size:
+						self.log.logmsg(logging.LOG_DEBUG, "size: %s, expected: %s" % ( len(self.newframe.payload) + len(self.framebuffer), self.newframe.size ) )
+						self.log.logmsg(logging.LOG_DEBUG, "payload: %s, buffer: %s" % ( self.newframe.payload, self.framebuffer ) ) 
+						raise session.TerminateException("Payload larger than expected size")
+					else:
+						self.newframe.payload += self.framebuffer
+						self.framebuffer = ''
 
 		except socket.error, e:
 			if e[0] == errno.EWOULDBLOCK:
 				pass
 
 			elif e[0] == errno.ECONNRESET:
-				raise TCPSessionException("Connection closed by remote host")
+				raise session.TerminateException("Connection closed by remote host")
 
 			else:
 				self.log.logmsg(logging.LOG_DEBUG, "socket.error: %s" % e)
-				raise
+				raise session.TerminateException("%s" % e)
 
 		except frame.DataFrameException, e:
-			raise TCPSessionException(e)
+			raise session.TerminateException("%s" % e)
 
 		# Drop packets if queue is full, log a warning.
 		except session.SessionInboundQueueFull:
 			self.log.logmsg(logging.LOG_WARN, "Session inbound queue full from %s" % self.client_address)
 			pass
 
-		except TCPSessionException:
+		except session.TerminateException:
 			raise
 
 		except Exception, e:
-			raise TCPSessionException("Unhandled Exception in getInputFrame(): %s: %s" % (e.__class__, e))
+			raise session.TerminateException("Unhandled Exception in getInputFrame(): %s: %s" % (e.__class__, e))
+
 
 	def sendPendingFrame(self):
 		try:
 			data = self.pullFrame()
 			if data:
-
-#				FIXME: Do encryption stuff here
-
-				self.wfile.write(data)
-				self.wfile.flush()
+				self.sl.write(data)
 		except Exception, e:
-			self.log.logmsg(logging.LOG_WARN, "Exception in sendPendingFrame(): %s" % e)
+			self.log.logmsg(logging.LOG_WARN, "sendPendingFrame(): %s: %s" % ( e.__class__, e) )
+			traceback.print_exc(file=self.log.log)
 			pass
 
-class TLSTCPListenerSession(tcpsession.TCPListenerSession, TLSTCPCommsMixin):
+class TLSTCPListenerSession(TLSTCPCommsMixin, tcpsession.TCPListenerSession, tlssession.TLSListenerSession):
 
-	def __init__(self, request, client_address, server):
-		raise NotImplementedError
+	def __init__(self, conn, client_address, sessmgr, oldsession, keyFile, certFile, passphrase):
+		threading.Thread.__init__(self)
+		self.shutdown = threading.Event()
 
-		# Not quite sure what should go here yet
-		tcpsession.TCPListenerSession.__init__(self, request, client_address, server)
+		TLSTCPCommsMixin.__init__(self)
 
-class TLSTCPInitiatorSession(tcpsession.TCPInitiatorSession, TLSTCPCommsMixin):
+		self.request = conn
+		self.connection = conn
+		self.client_address = client_address
+		self.sessmgr = sessmgr
+		self.oldsession = oldsession
 
-	def __init__(self, log, profileDict, host, port):
-		raise NotImplementedError
+		# Read in the TLS key
+		kfd = open( keyFile, 'r' )
+		cfd = open( certFile, 'r' )
+		md5 = POW.Digest( POW.MD5_DIGEST )
+		md5.update( passphrase )
+		password = md5.digest()
+		self.key = POW.pemRead( POW.RSA_PRIVATE_KEY, kfd.read(), password )
+		self.cert = POW.pemRead( POW.X509_CERTIFICATE, cfd.read() )
+		kfd.close()
+		cfd.close()
 
-		# Whatever encryption setup stuff is needed here.
-		tcpsession.TCPInitiatorSession.__init__(self, log, profileDict, host, port)
+		self.sl = POW.Ssl( POW.TLSV1_SERVER_METHOD )
+		self.sl.useCertificate( self.cert )
+		self.sl.useKey( self.key )
 
-class TLSTCPSessionException(tcpsession.TCPSessionException):
-	def __init__(self, args=None):
-		self.args = args
+		tlssession.TLSListenerSession.__init__(self, self.sessmgr.log, self.sessmgr.profileDict)
+		sessmgr.replaceSession(oldsession.ID, self)
+
+		self.inbound = self.oldsession.inbound
+		self.newframe = self.oldsession.newframe
+		self.framebuffer = self.oldsession.framebuffer
+
+		self.log.logmsg(logging.LOG_INFO, "%s: initialized" % self)
+		self.start()
+
+	def _stateINIT(self):
+
+		self.log.logmsg(logging.LOG_DEBUG, "Waiting on old Session thread to exit: %s" % self.oldsession )
+		self.oldsession.join()
+		self.log.logmsg(logging.LOG_DEBUG, "Tuning reset: reconnected to %s[%s]." % self.client_address )
+
+		# configure TLS
+		self.sl.setFd( self.connection.fileno() )
+		self.connection.setblocking(1)
+		self.sl.accept()
+		self.connection.setblocking(0)
+
+		tcpsession.TCPListenerSession._stateINIT(self)
+
+		self.transition('ok')
+
+class TLSTCPInitiatorSession(TLSTCPCommsMixin, tcpsession.TCPInitiatorSession, tlssession.TLSInitiatorSession):
+
+	def __init__(self, conn, server_address, sessmgr, oldsession, keyFile, certFile, passphrase ):
+		threading.Thread.__init__(self)
+		self.shutdown = threading.Event()
+
+		TLSTCPCommsMixin.__init__(self)
+
+		self.request = conn
+		self.connection = conn
+		self.server_address = server_address
+		self.oldsession = oldsession
+
+		# Read in the TLS key
+		md5 = POW.Digest( POW.MD5_DIGEST )
+		md5.update( passphrase )
+		password = md5.digest()
+		kfd = open( keyFile, 'r' )
+		cfd = open( certFile, 'r' )
+		self.key = POW.pemRead( POW.RSA_PUBLIC_KEY, kfd.read(), password )
+#		self.cert = POW.pemRead( POW.X509_CERTIFICATE, cfd.read() )
+		kfd.close()
+		cfd.close()
+
+		self.sl = POW.Ssl( POW.TLSV1_CLIENT_METHOD )
+#		self.sl.useCertificate( self.cert )
+#		self.sl.useKey( self.key )
+
+		tlssession.TLSInitiatorSession.__init__(self, sessmgr.log, sessmgr.profileDict)
+		sessmgr.replaceSession(oldsession.ID, self)
+
+		self.inbound = self.oldsession.inbound
+		self.newframe = self.oldsession.newframe
+		self.framebuffer = self.oldsession.framebuffer
+		self.log.logmsg(logging.LOG_INFO, "%s: initialized" % self)
+		self.start()
+
+	def _stateINIT(self):
+		self.log.logmsg(logging.LOG_DEBUG, "Waiting on old Session thread to exit: %s" % self.oldsession )
+		self.oldsession.join()
+
+		self.log.logmsg(logging.LOG_DEBUG, "Tuning reset: reconnected to %s[%s]." % self.server_address )
+
+		try:
+			# configure TLS
+			self.sl.setFd( self.connection.fileno() )
+			#
+			self.connection.setblocking(1)
+			self.sl.connect()
+			self.connection.setblocking(0)
+
+			self.createChannelZero()
+			self.queueOutboundFrames()
+			self.sendPendingFrame()
+			while not self.channels[0].profile.receivedGreeting:
+				self.getInputFrame()
+				self.processFrames()
+			self.transition('ok')
+
+		except Exception, e:
+			self.log.logmsg(logging.LOG_ERR, "Connection to remote host failed: %s" % e)
+			self.transition('error')
+
+	def _stateTERMINATE(self):
+		self.connection.close()
+		self.transition('ok')

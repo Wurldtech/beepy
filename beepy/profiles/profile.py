@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.3 2003/01/03 02:39:11 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: profile.py,v 1.4 2003/01/04 00:07:14 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -103,7 +103,7 @@ class Profile:
 				raise
 
 			except Exception, e:
-				self.log.logmsg(logging.LOG_DEBUG, 'Unmanaged exception: %s' % e)
+				self.log.logmsg(logging.LOG_DEBUG, 'Unmanaged exception: %s: %s' % (e.__class__, e))
 				self.log.logmsg(logging.LOG_DEBUG, 'Generating traceback...')
 				traceback.print_exc(file=self.log.log)
 				raise TerminalProfileException("Unmanaged exception in %s: %s: %s" % (self.__class__, e.__class__, e) )

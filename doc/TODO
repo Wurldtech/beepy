@@ -1,5 +1,5 @@
-# $Id: TODO,v 1.12 2003/01/02 01:18:53 jpwarren Exp $
-# $Revision: 1.12 $
+# $Id: TODO,v 1.13 2003/01/04 00:07:14 jpwarren Exp $
+# $Revision: 1.13 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -65,3 +65,11 @@
 - TLS implementation should take place soon, once I decide on which OpenSSL
   library to use. POW is starting to look attractive as M2Crypto is too
   hard to install.
+- TCPCommsMixin is fragile because of the way it assigns variables at
+  the beginning. It needs an explicit __init__ method as per 
+  TLSTCPCommsMixin that will need to be called from each TCPSession class.
+- self.wfile isn't really necessary in TCPSessions, so it should be
+  replaced with self.connection.send(). At least, I think so. It depends
+  on the autoflush capabilities of the socket, but it should be fine.
+  This will help streamline the subclassing for TLSTCPSessions, among
+  other things.

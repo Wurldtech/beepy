@@ -1,5 +1,5 @@
-# $Id: frame.py,v 1.2 2003/01/03 02:39:11 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: frame.py,v 1.3 2003/01/04 00:07:14 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -117,9 +117,6 @@ class DataFrame( Frame ):
 			return 1
 
 	def _bufferToFrame(self, data):
-
-		# If there are any exceptions to this, it's either a
-		# bug in the code, or crap data being sent in
 
 		# Split the header into bits
 		headerbits = string.split(data)

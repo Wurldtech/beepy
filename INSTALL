@@ -1,5 +1,5 @@
-# $Id: INSTALL,v 1.3 2003/01/02 01:18:53 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: INSTALL,v 1.4 2003/01/04 00:07:11 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -27,6 +27,25 @@ type:
 $ python setup.py install
 
 and distutils should take of the rest.
+
+POW, TLS and patented ciphers
+-----------------------------
+I ran into this issue since I run Debian linux as my main platform.
+Since Debian is all free stuff, patented cipher algorithms aren't
+compiled into the debian package version of OpenSSL, and hence
+aren't available to Python OpenSSL Wrappers (POW). Happily, the
+authors of POW know about this and you can compile POW without
+requiring patented ciphers.
+
+It is documented as part of the POW package, so check there for the
+authoritative word on what's going on, but for me, all I had to do
+was disable RC5 when installing POW, thusly:
+
+$ python setup.py build_ext -D NO_RC5_32_12_16 install
+
+Pretty simple, no? Note that this the POW setup.py, not BEEPy's.
+
+You won't need POW unless you use TLS in your clients or servers.
 
 Getting Started
 ---------------

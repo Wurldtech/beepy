@@ -1,5 +1,5 @@
-# $Id: AddOTP.py,v 1.3 2003/01/02 00:46:17 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: AddOTP.py,v 1.4 2003/01/07 07:39:59 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -35,7 +35,7 @@ if __name__ != '__main__':
 	print "Do not import this module."
 
 log = logging.Log()
-#	log.debuglevel = logging.LOG_DEBUG
+#	log.loglevel = logging.LOG_DEBUG
 
 generator = saslotpprofile.OTPGenerator(log)
 

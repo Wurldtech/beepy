@@ -1,5 +1,5 @@
-# $Id: frame.py,v 1.4 2003/01/06 07:19:07 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: frame.py,v 1.5 2003/01/07 07:39:58 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -50,16 +50,13 @@ class DataFrame( Frame ):
 	frameType = 'data'
 	TRAILER = str('END\r\n')		# Trailer
 
-#	payload = None				# Payload object
-#	type = ''
-#	channelnum = -1
-#	msgno = -1
-#	more = ''
-#	seqno = -1L
-#	size = -1
-#	ansno = None
+	channelnum = -1
+	msgno = -1
+	seqno = -1L
+	size = -1L
+	anso = -1
 
-	def __init__(self, channelnum=None, msgno=None, more=None, seqno=None, size=None, type='MSG', ansno=None, databuffer=None):
+	def __init__(self, channelnum=None, msgno=None, more=None, seqno=None, size=None, dataFrameType='MSG', ansno=None, databuffer=None):
 		Frame.__init__(self, self.frameType)
 
 		# This lets us pass in a string type databuffer
@@ -68,8 +65,8 @@ class DataFrame( Frame ):
 			self._bufferToFrame(databuffer)
 			self.payload = ''
 		else:
-			self._checkValues(channelnum, msgno, more, seqno, size, type, ansno)
-			self.type = type
+			self._checkValues(channelnum, msgno, more, seqno, size, dataFrameType, ansno)
+			self.dataFrameType = dataFrameType
 			self.channelnum = channelnum
 			self.msgno = msgno
 			self.more = more
@@ -84,7 +81,7 @@ class DataFrame( Frame ):
 		# We use this handy function to return a string
 		# representation of a DataFrame as required for
 		# transportation
-		framestring = "%s %i %i %s %i %i" % (constants.DataFrameTypes[self.type], self.channelnum, self.msgno, self.more, self.seqno, self.size)
+		framestring = "%s %i %i %s %i %i" % (constants.DataFrameTypes[self.dataFrameType], self.channelnum, self.msgno, self.more, self.seqno, self.size)
 
 		if( self.ansno is not None ):
 			framestring += " %i" % self.ansno
@@ -95,23 +92,23 @@ class DataFrame( Frame ):
 
 	# Check to see if this is a MSG frame
 	def isMSG(self):
-		if self.type == 'MSG':
+		if self.dataFrameType == 'MSG':
 			return 1
 
 	def isRPY(self):
-		if self.type == 'RPY':
+		if self.dataFrameType == 'RPY':
 			return 1
 
 	def isANS(self):
-		if self.type == 'ANS':
+		if self.dataFrameType == 'ANS':
 			return 1
 
 	def isERR(self):
-		if self.type == 'ERR':
+		if self.dataFrameType == 'ERR':
 			return 1
 
 	def isNUL(self):
-		if self.type == 'NUL':
+		if self.dataFrameType == 'NUL':
 			return 1
 
 	def _bufferToFrame(self, data):
@@ -122,7 +119,7 @@ class DataFrame( Frame ):
 		# Check for valid header format
 		if len(headerbits) != 6 and len(headerbits) != 7:
 			raise DataFrameException("Header Format Invalid")
-		self.type = headerbits[0]
+		self.dataFrameType = headerbits[0]
 
 		try:
 			self.channelnum = string.atol(headerbits[1])
@@ -141,7 +138,7 @@ class DataFrame( Frame ):
 		except Exception, e:
 			raise DataFrameException("Unhandled exception in _bufferToFrame: %s: %s" % (e.__class__, e) )
 
-		self._checkValues(self.channelnum, self.msgno, self.more, self.seqno, self.size, self.type, self.ansno)
+		self._checkValues(self.channelnum, self.msgno, self.more, self.seqno, self.size, self.dataFrameType, self.ansno)
 
 	# Sanity checking of frame values
 	# We do heaps of bounds checking here, because I'm
@@ -149,9 +146,9 @@ class DataFrame( Frame ):
 	# It means DataFrames are only really bounds checked
 	# upon initial creation, but that makes a certain amount
 	# of sense
-	def _checkValues(self, channelnum, msgno, more, seqno, size, type, ansno=None):
+	def _checkValues(self, channelnum, msgno, more, seqno, size, dataFrameType, ansno=None):
 
-		if type not in constants.DataFrameTypes.keys():
+		if dataFrameType not in constants.DataFrameTypes.keys():
 			raise DataFrameException("Invalid DataFrame Type")
 
 		if not constants.MIN_CHANNEL <= channelnum <= constants.MAX_CHANNEL:
@@ -166,17 +163,17 @@ class DataFrame( Frame ):
 		if not constants.MIN_SEQNO <= seqno <= constants.MAX_SEQNO:
 			raise DataFrameException("SEQNO (%s) out of bounds" % seqno)
 
-		if type == constants.DataFrameTypes['ANS'] and ansno is None:
+		if dataFrameType == constants.DataFrameTypes['ANS'] and ansno is None:
 			raise DataFrameException("No ansno for ANS frame")
 
 		if ansno is not None:
-			if not type == constants.DataFrameTypes['ANS']:
+			if not dataFrameType == constants.DataFrameTypes['ANS']:
 				raise DataFrameException("ANSNO in non ANS frame")
 
 			elif not constants.MIN_ANSNO <= ansno <= constants.MAX_ANSNO:
 				raise DataFrameException("ANSNO (%s) out of bounds" % ansno)
 
-		if type == constants.DataFrameTypes['NUL']:
+		if dataFrameType == constants.DataFrameTypes['NUL']:
 			if more == constants.MoreTypes['*']:
 				raise DataFrameException('NUL frame cannot be intermediate')
 			elif size != 0:
@@ -205,11 +202,11 @@ class SEQFrame(Frame):
 	# class constants
 	frameType = 'seq'
 	TRAILER = str('\r\n')		# Trailer
-	type = 'SEQ'
+	dataFrameType = 'SEQ'
 
-#	channelnum = -1
-#	ackno = -1L
-#	window = -1
+	channelnum = -1
+	ackno = -1L
+	window = -1
 
 	def __init__(self, channelnum=None, ackno=None, window=None, databuffer=None):
 		Frame.__init__(self, self.frameType)

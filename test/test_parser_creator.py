@@ -1,5 +1,5 @@
-# $Id: test_parser_creator.py,v 1.2 2003/01/01 23:37:39 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: test_parser_creator.py,v 1.3 2003/01/07 07:40:00 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -38,8 +38,9 @@ except ImportError:
 class ParserTest(unittest.TestCase):
 
 	def setUp(self):
-		self.log = logging.Log()
-		self.log.debuglevel = -1
+		# Set up logging
+		self.log = logging.Log(logfile)
+		self.log.loglevel = loglevel
 
 	def test_parseGreeting(self):
 		"""Parse empty greeting"""

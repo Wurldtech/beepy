@@ -1,5 +1,5 @@
-# $Id: util.py,v 1.1 2003/01/06 07:20:14 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: util.py,v 1.2 2003/01/07 07:39:58 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -52,6 +52,7 @@ class LoopingThread(threading.Thread):
 
 	def __init__(self, group=None, target=None, name=None, args=(), kwargs={}):
 		self._stop = threading.Event()
+		self._terminate = 0
 		threading.Thread.__init__(self, group, target, name, args, kwargs)
 
 	def run(self):
@@ -59,13 +60,21 @@ class LoopingThread(threading.Thread):
 			if self._stop.isSet():
 				break
 			self.loop()
+		if not self._terminate:
+			self.cleanup()
 
 	def stop(self):
 		self._stop.set()
 
+	def terminate(self):
+		self._terminate = 1
+		self._stop.set()
 
 	def loop(self):
 		raise NotImplementedError
+
+	def cleanup(self):
+		pass
 
 class Monitor(LoopingThread):
 	"""Monitors other threads for error conditions
@@ -119,7 +128,6 @@ class Monitor(LoopingThread):
 		for obj in self.monitoredObjects:
 			err = obj.getError()
 			if err:
-				print "DEBUG: Error in monitored object!"
 				self.handleError(err, obj)
 				obj.clearError()
 
@@ -159,18 +167,20 @@ class DataEnqueuer(isMonitored):
 	   a shared Event which is passed in.
 	"""
 
-	def __init__(self, event, dataq, errEvent, name=None):
+	def __init__(self, condition, dataq, errEvent, name=None):
 		"""event is a threading.Event to be used for synchronisation
 		   dataq is a Queue used to put the data onto.
 		"""
 		isMonitored.__init__(self, errEvent, name)
-		self.event = event
+		self.cv = condition
 		self.dataq = dataq
 
 	def loop(self):
 		try:
+			self.cv.acquire()
 			self.enqueueData()
-			self.event.set()
+			self.cv.notify()
+			self.cv.release()
 		except Exception, e:
 			self.setError(e)
 
@@ -179,9 +189,6 @@ class DataEnqueuer(isMonitored):
 
 	def stop(self):
 		isMonitored.stop(self)
-		# set the event so that my wait() wakes up and
-		# I stop more or less immediately.
-		self.event.set()
 
 class DataDequeuer(isMonitored):
 	"""A DataDeQueuer gets data from the provided Queue and
@@ -189,23 +196,23 @@ class DataDequeuer(isMonitored):
 	   DataQueuer via the provided Event
 	"""
 
-	def __init__(self, event, dataq, errEvent, timeout=1, name=None):
+	def __init__(self, condition, dataq, errEvent, timeout=1, name=None):
 		"""event is a threading.Event to be used for synchronisation
 		   dataq is a Queue used to put the data onto.
 		"""
 		isMonitored.__init__(self, errEvent, name)
-		self.event = event
+		self.cv = condition
 		self.dataq = dataq
 		self.timeout = timeout
 
 	def loop(self):
-		if not self.event.isSet():
-			self.event.wait(self.timeout)
-		#	print "%s: Event triggered! Data available!" % self
 		try:
+			self.cv.acquire()
+#			print "-- acquired DE queue lock --"
 			if not self.dequeueData():
-		#		print "%s: no more data." % self
-				self.event.clear()
+				self.cv.wait(self.timeout)
+			self.cv.release()
+#			print "-- released DE queue lock --"
 
 		except Exception, e:
 			self.setError(e)
@@ -215,6 +222,9 @@ class DataDequeuer(isMonitored):
 
 	def stop(self):
 		isMonitored.stop(self)
-		# set the event so that my wait() wakes up and
-		# I stop more or less immediately.
-		self.event.set()
+		# Notify myself so that I stop
+		# This is actually called by a different
+		# thread, which is why this works
+		self.cv.acquire()
+		self.cv.notify()
+		self.cv.release()

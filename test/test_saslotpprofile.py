@@ -1,5 +1,5 @@
-# $Id: test_saslotpprofile.py,v 1.4 2003/01/02 00:46:17 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: test_saslotpprofile.py,v 1.5 2003/01/07 07:40:00 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -51,8 +51,9 @@ import dummyclient
 class SASLOTPProfileTest(unittest.TestCase):
 
 	def setUp(self):
-		self.log = logging.Log()
-		self.log.debuglevel = 5
+		# Set up logging
+		self.log = logging.Log(logfile)
+		self.log.loglevel = loglevel
 		# We have to create a OTP database to use for the tests.
 		generator = saslotpprofile.OTPGenerator(self.log)
 		self.username = 'justin'

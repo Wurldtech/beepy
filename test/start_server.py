@@ -1,5 +1,5 @@
-# $Id: start_server.py,v 1.4 2003/01/06 07:19:08 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: start_server.py,v 1.5 2003/01/07 07:40:00 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -38,7 +38,6 @@ except ImportError:
 if __name__ == '__main__':
 
 	log = logging.Log()
-	log.debuglevel = logging.LOG_DEBUG
 
 	# create the server
 	pdict = profile.ProfileDict()

@@ -1,5 +1,5 @@
-# $Id: test_saslanonymousprofile.py,v 1.2 2003/01/01 23:37:39 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: test_saslanonymousprofile.py,v 1.3 2003/01/07 07:40:00 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -51,8 +51,9 @@ import dummyclient
 class SASLAnonymousProfileTest(unittest.TestCase):
 
 	def setUp(self):
-		self.log = logging.Log()
-		self.log.debuglevel = -1
+		# Set up logging
+		self.clientlog = logging.Log(prefix='client: ')
+		self.serverlog = logging.Log(prefix='server: ')
 
 	def test_SASLClient(self):
 		"""Test SASL Anonymous with Initiator"""
@@ -60,67 +61,80 @@ class SASLAnonymousProfileTest(unittest.TestCase):
 		pdict1 = profile.ProfileDict()
 		pdict1[saslanonymousprofile.uri] = saslanonymousprofile
 		pdict1[echoprofile.uri] = echoprofile
-		sess = tcpsession.TCPSessionListener(self.log, pdict1, 'localhost', 1976)
+		sess = tcpsession.TCPSessionListener(self.serverlog, pdict1, 'localhost', 1976)
 		while not sess.isActive():
-			pass
+			time.sleep(0.25)
 
 		# create an initiator manager
 		pdict2 = profile.ProfileDict()
 		pdict2[saslanonymousprofile.uri] = saslanonymousprofile
 		pdict2[echoprofile.uri] = echoprofile
-		clientmgr = tcpsession.TCPInitiatorSessionManager(self.log, pdict2)
+		clientmgr = tcpsession.TCPInitiatorSessionManager(self.clientlog, pdict2)
 		while not clientmgr.isActive():
-			pass
+			time.sleep(0.25)
 
 		# Connect a client
 		client = clientmgr.connectInitiator('localhost', 1976)
 		clientid = client.ID
 		while not client.isActive():
-			pass
+			time.sleep(0.25)
+
+		self.clientlog.logmsg(logging.LOG_DEBUG, "Client connected.")
 
 		# Start a channel using SASL/ANONYMOUS authentication
 		profileList = [[saslanonymousprofile.uri,None,None]]
 		channelnum = client.startChannel(profileList)
 		while not client.isChannelActive(channelnum):
-			pass
+			time.sleep(0.25)
 		channel = client.getActiveChannel(channelnum)
 
 		# Send our authentication information
 		msgno = channel.profile.sendAuth('justin')
 		while client.isAlive():
-			pass
+			time.sleep(0.25)
 
 		# old client will have exited, so get the new client
 		# for the same connection, as it has the same id
+		self.clientlog.logmsg(logging.LOG_DEBUG, "Getting new client...")
 		client = clientmgr.getSessionById(clientid)
+		self.clientlog.logmsg(logging.LOG_DEBUG, "New client: %s" % client)
 
 		while not client.isActive():
-			pass
+			time.sleep(0.25)
+		self.clientlog.logmsg(logging.LOG_DEBUG, "Got new client...")
 
 		# Create a channel on the new, authenticated, session
 		# using the echo profile
 		profileList = [[echoprofile.uri,None,None]]
 		channelnum = client.startChannel(profileList)
 		while not client.isChannelActive(channelnum):
-			pass
+			time.sleep(0.25)
 		channel = client.getActiveChannel(channelnum)
+		self.clientlog.logmsg(logging.LOG_DEBUG, "Got active channel...")
 
 		# send a message
 		msgno = channel.sendMessage('Hello!')
-		while channel.isMessageOutstanding():
-			pass
+		self.clientlog.logmsg(logging.LOG_DEBUG, "Sent Hello (msgno: %d)" % msgno)
 
-		client.close()
+		client.stop()
+
+		while channel.isMessageOutstanding():
+			time.sleep(0.25)
+		self.clientlog.logmsg(logging.LOG_DEBUG, "Got reply to Hello.")
+
+		self.clientlog.logmsg(logging.LOG_DEBUG, "Stopping client...")
+		client.stop()
 		while not client.isExited():
-			pass
+			time.sleep(0.25)
+		self.clientlog.logmsg(logging.LOG_DEBUG, "closed client...")
 
 		clientmgr.close()
 		while not clientmgr.isExited():
-			pass
+			time.sleep(0.25)
 
 		sess.close()
 		while not sess.isExited():
-			pass
+			time.sleep(0.25)
 
 
 if __name__ == '__main__':

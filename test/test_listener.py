@@ -1,5 +1,5 @@
-# $Id: test_listener.py,v 1.2 2003/01/01 23:37:39 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: test_listener.py,v 1.3 2003/01/07 07:40:00 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -46,9 +46,6 @@ class ServerTest(unittest.TestCase):
 	def setUp(self):
 		# Set up logging
 		self.log = logging.Log()
-#		self.log.debuglevel = logging.LOG_DEBUG
-#		self.log.debuglevel = logging.LOG_INFO
-		self.log.debuglevel = -1
 
 		# create a listener
 		pdict = profile.ProfileDict()

@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.2 2003/01/06 07:19:07 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: session.py,v 1.3 2003/01/07 07:39:58 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -153,10 +153,6 @@ class Session(statemachine.StateMachine):
 		# Now, process all channels, round robin style
 		self.processChannels()
 
-			# Now that that's over, get a pending frame and
-			# prepare it for sending over the wire
-		self.queueOutboundFrames()
-
 	# method to un-encapsulate frames recv'd from transport
 	def unplexFrames(self):
 		theframe = self.recvFrame()
@@ -206,21 +202,9 @@ class Session(statemachine.StateMachine):
 			except Exception, e:
 				self.log.logmsg(logging.LOG_INFO, "Exception in channel %i: %s" % (channelnum, e))
 
-	def queueOutboundFrames(self):
-		"""queueOutboundFrame() gets a single frame from each
-		   channel and places it on the outbound queue
-		"""
-		chanlist = self.channels.keys()
-		for channelnum in chanlist:
-			theframe = self.channels[channelnum].pull()
-			if( theframe ):
-				self.log.logmsg(logging.LOG_DEBUG, "sending channel %i frame:\n%s" % (channelnum, theframe) )
-				self.sendFrame(theframe)
-				del theframe
-
 	# Open a new channel
 	def createChannel(self, channelnum, profile):
-		newchan = channel.Channel(self.log, channelnum, profile, self.outbound)
+		newchan = channel.Channel(self.log, channelnum, profile, self)
 		self.channels[channelnum] = newchan
 
 	def createChannelFromURIList(self, channelnum, uriList, profileInit=None):
@@ -507,7 +491,7 @@ class SessionManager(statemachine.StateMachine):
 		sessionInst.setID(sessId)
 		self.sessionList[sessId] = sessionInst
 		self.sessionIds.append(sessId)
-		self.log.logmsg(logging.LOG_DEBUG, "Allocated sessId: %d to %s" % (sessId, sessionInst))
+#		self.log.logmsg(logging.LOG_DEBUG, "Allocated sessId: %d to %s" % (sessId, sessionInst))
 		return sessId
 
 	def removeSession(self, sessId):
@@ -524,7 +508,9 @@ class SessionManager(statemachine.StateMachine):
 			self.removeSession(sessId)
 
 	def getSessionById(self, sessId):
-		return self.sessionList[sessId]
+		sess = self.sessionList[sessId]
+		self.log.logmsg(logging.LOG_DEBUG, "Found session %d: %s" % (sessId, sess) ) 
+		return sess
 
 	def close(self):
 		raise NotImplementedError

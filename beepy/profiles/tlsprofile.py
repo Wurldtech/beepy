@@ -1,5 +1,5 @@
-# $Id: tlsprofile.py,v 1.2 2003/01/06 07:19:07 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: tlsprofile.py,v 1.3 2003/01/07 07:39:59 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -66,10 +66,10 @@ class TLSProfile(profile.Profile):
 			if isinstance(self.session, session.ListenerSession):
 				# Listeners automatically start TLS negotiation
 
-				conn = self.session.connection
+				sock = self.session.sock
 				client_address = self.session.client_address
-				sessmgr = self.session.server
-				newsess = tlstcpsession.TLSTCPListenerSession(conn, client_address, sessmgr, self.session, self.keyFile, self.certFile, self.passphrase)
+				sessmgr = self.session.sessmgr
+				newsess = tlstcpsession.TLSTCPListenerSession(sock, client_address, sessmgr, self.session, self.keyFile, self.certFile, self.passphrase)
 
 				raise profile.TuningReset("Enabling server side TLS...")
 
@@ -77,9 +77,9 @@ class TLSProfile(profile.Profile):
 				# Initiators need to have configured passphrases
 				# etc. before proceeding.
 				if self.clientConfigured:
-					conn = self.session.connection
+					sock = self.session.sock
 					server_address = self.session.server_address
-					newsess = tlstcpsession.TLSTCPInitiatorSession(conn, server_address, self.session.sessmgr, self.session, self.keyFile, self.certFile, self.passphrase )
+					newsess = tlstcpsession.TLSTCPInitiatorSession(sock, server_address, self.session.sessmgr, self.session, self.keyFile, self.certFile, self.passphrase )
 					self.log.logmsg(logging.LOG_DEBUG, "Raising tuning reset...")
 					raise profile.TuningReset("Enabling client side TLS...")
 

@@ -1,5 +1,5 @@
-# $Id: constants.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: constants.py,v 1.2 2003/01/07 07:39:58 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -84,19 +84,13 @@ ReplyCodes = { '200' : 'Success',
 DEFAULT_MIME_CONTENT_TYPE = "application/octet-stream"
 DEFAULT_MIME_TRANSFER_ENCODING = "binary"
 
-# The Session finite state machine
-SESSION_UNINITIALIZED = 0
-SESSION_INITIALIZED = 1
-SESSION_ACTIVE = 2
-SESSION_PROCESSING = 3
-SESSION_CLOSING = 4
-SESSION_TUNING = 5
-SESSION_CLOSED = 6
-SESSION_EXITING = 7
-SESSION_EXITED = 8
-
 # The Channel finite state machine
 CHANNEL_STOPPED = 0
 CHANNEL_STARTING = 1
 CHANNEL_ACTIVE = 2
 CHANNEL_CLOSING = 3
+
+# Default logging
+DEFAULT_LOGFILE = None
+DEFAULT_LOGLEVEL = 5
+LOG_TIME_FORMAT = '%Y-%m-%d %H:%M:%S'

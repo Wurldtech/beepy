@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.2 2003/01/01 23:53:34 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: beepmgmtprofile.py,v 1.3 2003/01/07 07:39:59 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -55,10 +55,6 @@ class BEEPManagementProfile(profile.Profile):
 		theframe = self.channel.recv()
 		if theframe:
 #			self.log.logmsg(logging.LOG_DEBUG, "MGMT: processing frame: %s" % theframe)
-			if isinstance(self.session, beepy.core.session.ListenerSession):
-				self.log.logmsg(logging.LOG_DEBUG, "--Listener MGMT Session--")
-			else:
-				self.log.logmsg(logging.LOG_DEBUG, "--Initiator MGMT Session--")
 			try:
 				data = self.mimeDecode(theframe.payload)
 				if self.type != self.CONTENT_TYPE:
@@ -165,24 +161,27 @@ class BEEPManagementProfile(profile.Profile):
 	def _handleProfile(self, theframe, msg):
 		self.log.logmsg( logging.LOG_DEBUG, "%s: entered _handleProfile()" % self )
 		# look up which channel was being started by msgno
-		channelnum = self.startingChannel[theframe.msgno]
-		if not channelnum:
+		try:
+			channelnum = self.startingChannel[theframe.msgno]
+
+
+			del self.startingChannel[theframe.msgno]
+			self.channel.deallocateMsgno(theframe.msgno)
+
+			# create it at this end
+			self.log.logmsg( logging.LOG_DEBUG, "Attempting to create matching channel %s..." % channelnum)
+			self.log.logmsg( logging.LOG_DEBUG, "Msg URIlist: %s" % msg.getProfileURIList() )
+			self.session.createChannelFromURIList(channelnum, msg.getProfileURIList())
+
+			self.log.logmsg( logging.LOG_DEBUG, "Channel %s created successfully." % channelnum )
+
+		except KeyError:
 			# a profile was received for a channel that we weren't
 			# starting, which is bad, so kill session.
 			self.log.logmsg( logging.LOG_ERR, "Attempt to confirm start of channel we didn't ask for.")
 			self.channel.deallocateMsgno(theframe.msgno)
 			raise profile.TerminalProfileException("Invalid Profile RPY Message")
 
-		del self.startingChannel[theframe.msgno]
-		self.channel.deallocateMsgno(theframe.msgno)
-
-		# create it at this end
-		try:
-			self.log.logmsg( logging.LOG_DEBUG, "Attempting to create matching channel %s..." % channelnum)
-			self.log.logmsg( logging.LOG_DEBUG, "Msg URIlist: %s" % msg.getProfileURIList() )
-			self.session.createChannelFromURIList(channelnum, msg.getProfileURIList())
-
-			self.log.logmsg( logging.LOG_DEBUG, "Channel %s created successfully." % channelnum )
 		except beepy.core.session.SessionException, e:
 			# If we get here, something very wrong happened.
 			# Being here means we requested a channel be started
@@ -225,8 +224,11 @@ class BEEPManagementProfile(profile.Profile):
 				# Finally, inform client of success, and which profile was used.
 				self.log.logmsg(logging.LOG_DEBUG, "uri: %s" % uri)
 				msg = self.mgmtCreator.createStartReplyMessage(uri)
+				self.log.logmsg(logging.LOG_DEBUG, "create start reply message")
 				msg = self.mimeEncode(msg, self.CONTENT_TYPE)
+				self.log.logmsg(logging.LOG_DEBUG, "encoded message")
 				self.channel.sendReply(theframe.msgno, msg)
+				self.log.logmsg(logging.LOG_DEBUG, "message sent")
 
 		except beepy.core.session.SessionException, e:
 			self.log.logmsg(logging.LOG_DEBUG, "Cannot start channel: %s" % e)
@@ -327,6 +329,7 @@ class BEEPManagementProfile(profile.Profile):
 
 		msg = self.mimeEncode(msg, self.CONTENT_TYPE)
 		self.channel.sendGreetingReply(msg)
+		self.log.logmsg(logging.LOG_DEBUG, "Sent greeting.")
 
 class BEEPManagementProfileException(profile.ProfileException):
 	def __init__(self, args=None):

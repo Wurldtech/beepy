@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.2 2003/01/06 07:19:07 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: tcpsession.py,v 1.3 2003/01/07 07:39:59 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -19,9 +19,8 @@
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 
-
 import re
-import socket, select
+import socket, select, errno
 import threading
 import exceptions
 import Queue
@@ -34,9 +33,10 @@ from beepy.core import session
 from beepy.core import frame
 from beepy.core import util
 
+
 class TCPDataEnqueuer(util.DataEnqueuer):
 
-	def __init__(self, log, sock, session, event, dataq, errEvent, read_timeout=1, name=None):
+	def __init__(self, log, sock, session, condition, dataq, errEvent, read_timeout=1, name=None):
 
 		self.log = log
 		self.sock = sock
@@ -47,7 +47,7 @@ class TCPDataEnqueuer(util.DataEnqueuer):
 		self.windowsize = {}
 		self.frameHeaderPattern = re.compile(".*\r\n")
 		self.dataFrameTrailer = re.compile(frame.DataFrame.TRAILER)
-		SEQFrameRE = frame.SEQFrame.type
+		SEQFrameRE = frame.SEQFrame.dataFrameType
 		SEQFrameRE += ".*"
 		SEQFrameRE += frame.SEQFrame.TRAILER
 		self.SEQFramePattern = re.compile(SEQFrameRE)
@@ -55,85 +55,16 @@ class TCPDataEnqueuer(util.DataEnqueuer):
 		self.read_timeout = read_timeout
 
 		# Initialise as a DataEnqueuer
-		util.DataEnqueuer.__init__(self, event, dataq, errEvent, name)
+		util.DataEnqueuer.__init__(self, condition, dataq, errEvent, name)
 
-		print "DEQ: %s, ev: %s, dq: %s" % (self, self.event, self.dataq)
-
-	def enqueueData(self):
+	def loop(self):
 		"""enqueueData reads a frame off the wire and places it
 		   into the dataq.
 		"""
 		try:
-			# use select to poll for pending data inbound
-			inbit, outbit, oobit = select.select([self.sock], [], [], self.read_timeout)
-			if inbit:
-#				self.log.logmsg(logging.LOG_DEBUG, "socket: %s" % self.connection)
-				data = self.sock.recv(constants.MAX_INBUF)
-				if data:
-					self.log.logmsg(logging.LOG_DEBUG, "EnQ: recv: %s" % data)
-					self.framebuffer += data
-#					self.log.logmsg(logging.LOG_DEBUG, "gotdata: %s" % data)
-					# Check for oversized frames. If framebuffer goes over
-					# constants.MAX_FRAME_SIZE + constants.MAX_INBUF then
-					# the frame is too large.
-					if len(self.framebuffer) > (constants.MAX_FRAME_SIZE + constants.MAX_INBUF):
-						self.setError( TCPTerminalError("Frame too large") )
-						self.stop()
-				else:
-					self.setError( TCPTerminalError("Connection closed by remote host") )
-					self.stop()
-
-			# If the current new frame is complete, we search for
-			# the header and create a new frame.
-			if not self.newframe:
-				# Ok, what we do is to first find the frame header
-				match = re.search(self.frameHeaderPattern, self.framebuffer)
-				if match:
-					headerdata = self.framebuffer[:match.end()]
-					self.framebuffer = self.framebuffer[match.end():]
-
-					# If this is a SEQ frame, create it and process it
-					if re.search(self.SEQFramePattern, headerdata):
-						seqframe = frame.SEQFrame(self.log, databuffer=headerdata)
-						self.processSEQFrame(seqframe)
-					else:
-						# start a new dataframe
-						self.newframe = frame.DataFrame(databuffer=headerdata)
-
-			# Populate our frame with payload data
-			if self.newframe:
-				# we scan the framebuffer for the frame trailer
-				match = re.search(self.dataFrameTrailer, self.framebuffer)
-				# If we find it, we should have a complete frame
-				if match:
-					# slice out this frame's data
-					framedata = self.framebuffer[:match.start()]
-					self.framebuffer = self.framebuffer[match.end():]
-					# I append the data to the current frame payload
-					# after checking that it isn't too long.
-					if len(self.newframe.payload) + len(framedata) > self.newframe.size:
-						self.log.logmsg(logging.LOG_DEBUG, "size: %s, expected: %s" % ( len(self.newframe.payload) + len(framedata), self.newframe.size ) )
-						self.log.logmsg(logging.LOG_DEBUG, "payload: %s, buffer: %s" % ( self.newframe.payload, framedata ) ) 
-						self.setError( TCPTerminalError("Payload larger than expected size") )
-						self.stop()
-					else:
-						self.newframe.payload += framedata
-						# The frame is now complete
-						self.dataq.put(self.newframe)
-						self.newframe = None
-	#					self.log.logmsg(logging.LOG_DEBUG, "%s: pushedFrame: %s" % (self, newframe) )
-
-				else:
-					# I append the data to the current frame payload
-					# after checking that it isn't too long.
-					if len(self.newframe.payload) + len(self.framebuffer) > self.newframe.size:
-						self.log.logmsg(logging.LOG_DEBUG, "size: %s, expected: %s" % ( len(self.newframe.payload) + len(self.framebuffer), self.newframe.size ) )
-						self.log.logmsg(logging.LOG_DEBUG, "payload: %s, buffer: %s" % ( self.newframe.payload, self.framebuffer ) ) 
-						self.setError( TCPTerminalError("Payload larger than expected size") )
-						self.stop()
-					else:
-						self.newframe.payload += self.framebuffer
-						self.framebuffer = ''
+			self.getDataBlock()
+			self.findHeader()
+			self.finishFrame()
 
 		except socket.error, e:
 			if e[0] == errno.EWOULDBLOCK:
@@ -141,12 +72,19 @@ class TCPDataEnqueuer(util.DataEnqueuer):
 
 			elif e[0] == errno.ECONNRESET:
 				self.setError( TCPTerminalError("Connection closed by remote host") )
-				self.stop
+				self.stop()
 
 			else:
 				self.log.logmsg(logging.LOG_DEBUG, "socket.error: %s" % e)
 				self.setError( TCPTerminalError("%s" % e) )
-				self.stop
+				self.stop()
+
+		except select.error, e:
+			if e[0] == 4:
+				# Interrupted system call. Don't worry about it.
+				# This is probably a CTRL-C job from somewhere.
+				self.setError( TCPTerminalError("%s" % e) )
+				self.stop()
 
 		except frame.DataFrameException, e:
 			self.setError( TCPTerminalError("%s" % e) )
@@ -162,47 +100,173 @@ class TCPDataEnqueuer(util.DataEnqueuer):
 			self.stop()
 
 		except Exception, e:
-			print '%s' % traceback.print_exc()
+			self.log.logmsg(logging.LOG_ERR, "Unhandled exception in enqueueData(). Generating traceback..." )
+			self.log.logmsg(logging.LOG_ERR, '%s' % traceback.print_exc() )
+
 			self.setError( TCPTerminalError("Unhandled exception in enqueueData(): %s: %s" % (e.__class__, e)) )
 			self.stop()
+
+	def getDataBlock(self):
+		""" getDataBlock retrieves a block of data from the socket.
+		    It uses select() to wait on the socket until data
+		    becomes available until self.read_timeout.
+		    Any data receives is placed on self.framebuffer
+		"""
+
+		# use select to poll for pending data inbound
+		inbit, outbit, oobit = select.select([self.sock], [], [], self.read_timeout)
+		if inbit:
+			data = self.getDataFromSocket()
+#			self.log.logmsg(logging.LOG_DEBUG, "Read event")
+			if data:
+				self.log.logmsg(logging.LOG_DEBUG, "Received: %s" % data)
+				self.framebuffer += data
+				# Check for oversized frames. If framebuffer goes over
+				# constants.MAX_FRAME_SIZE + constants.MAX_INBUF then
+				# the frame is too large.
+				if len(self.framebuffer) > (constants.MAX_FRAME_SIZE + constants.MAX_INBUF):
+					raise TCPTerminalError("Frame too large")
+			else:
+				raise TCPTerminalError("Connection closed by remote host")
+
+	def findHeader(self):
+		""" findHeader() attempts to find a new frame header
+		    in the framedata so far received in the framebuffer.
+		    If a frame header is found, a new frame object is
+		    started.
+		"""
+		# If the current new frame is complete, we search for
+		# the header and create a new frame.
+		if not self.newframe:
+			# Ok, what we do is to first find the frame header
+			match = re.search(self.frameHeaderPattern, self.framebuffer)
+			if match:
+				headerdata = self.framebuffer[:match.end()]
+				self.framebuffer = self.framebuffer[match.end():]
+
+				# If this is a SEQ frame, create it and process it
+				if re.search(self.SEQFramePattern, headerdata):
+					seqframe = frame.SEQFrame(self.log, databuffer=headerdata)
+					self.processSEQFrame(seqframe)
+				else:
+					# start a new dataframe
+					self.newframe = frame.DataFrame(databuffer=headerdata)
+
+	def finishFrame(self):
+		""" finishFrame() adds framebuffer data to a frame object
+		    (if one has been started) as payload data. If it
+		    finds a frame trailer, the completed frame is placed
+		    onto the session inbound queue and the state is reset
+		    to look for the next frame header.
+		"""
+		# Populate our frame with payload data
+		if self.newframe:
+			# we scan the framebuffer for the frame trailer
+			match = re.search(self.dataFrameTrailer, self.framebuffer)
+			# If we find it, we should have a complete frame
+			if match:
+				# slice out this frame's data
+				framedata = self.framebuffer[:match.start()]
+				self.framebuffer = self.framebuffer[match.end():]
+				# I append the data to the current frame payload
+				# after checking that it isn't too long.
+				if len(self.newframe.payload) + len(framedata) > self.newframe.size:
+					self.log.logmsg(logging.LOG_DEBUG, "size: %s, expected: %s" % ( len(self.newframe.payload) + len(framedata), self.newframe.size ) )
+					self.log.logmsg(logging.LOG_DEBUG, "payload: %s, buffer: %s" % ( self.newframe.payload, framedata ) ) 
+					raise TCPTerminalError("Payload larger than expected size")
+				else:
+					self.newframe.payload += framedata
+					# The frame is now complete
+#					self.log.logmsg(logging.LOG_DEBUG, "adding frame to input Q" ) 
+					self.cv.acquire()
+					self.dataq.put(self.newframe)
+					self.cv.notify()
+					self.cv.release()
+					self.newframe = None
+
+			else:
+				# I append the data to the current frame payload
+				# after checking that it isn't too long.
+				if len(self.newframe.payload) + len(self.framebuffer) > self.newframe.size:
+					self.log.logmsg(logging.LOG_DEBUG, "size: %s, expected: %s" % ( len(self.newframe.payload) + len(self.framebuffer), self.newframe.size ) )
+					self.log.logmsg(logging.LOG_DEBUG, "payload: %s, buffer: %s" % ( self.newframe.payload, self.framebuffer ) ) 
+					raise TCPTerminalError("Payload larger than expected size")
+				else:
+					self.newframe.payload += self.framebuffer
+					self.framebuffer = ''
+
+	def getDataFromSocket(self):
+		""" This method abstracts the method for getting data from
+		    the socket. This comes in handy when subclassing this
+		    class, as in TLSTCPDataEnqueuer, which uses a slightly
+		    different mechanism for getting data.
+		    This encourages easy code re-use, which is always good.
+		"""
+		return self.sock.recv(constants.MAX_INBUF)
 
 	# Need to deal with SEQ frames
 	def processSEQFrame(self):
 		raise NotImplementedError
 
-	def stop(self):
-		if self.connected:
-			self.sock.shutdown(2)
-			self.sock.close()
-			self.connected = 0
-		util.DataEnqueuer.stop(self)
+	def tuningReset(self):
+		self.terminate()
+
+	def cleanup(self):
+		try:
+			if self.connected:
+				self.sock.shutdown(2)
+				self.sock.close()
+				self.connected = 0
+			util.DataEnqueuer.stop(self)
+		except socket.error, e:
+			if e[0] == errno.ENOTCONN:
+				pass
+
+		except Exception, e:
+			self.log.logmsg(logging.LOG_ERR, "Unhandled exception while stopping. Generating traceback...")
+			self.log.logmsg(logging.LOG_ERR, "%s" % traceback.print_exc() )
 
 class TCPDataDequeuer(util.DataDequeuer):
 	"""A TCPDataDequeuer takes frames off the session outbound queue
 	   and sends them over the wire.
 	"""
-	def __init__(self, log, sock, session, event, dataq, errEvent, name=None):
+	def __init__(self, log, sock, session, condition, dataq, errEvent, name=None):
 		self.log = log
 		self.sock = sock
 		self.session = session
 
 		# Initialise as a DataDequeuer
-		util.DataDequeuer.__init__(self, event, dataq, errEvent, name)
-
-		print "DDQ: %s, ev: %s, dq: %s" % (self, self.event, self.dataq)
+		util.DataDequeuer.__init__(self, condition, dataq, errEvent, name)
 
 	def dequeueData(self):
 		try:
 			data = self.dataq.get(0)
 			if data:
-				sent = self.sock.send(data)
-				print "DeQ: sent %d bytes" % sent
+				sent = self.sendDataToSocket(data)
+#				self.log.logmsg(logging.LOG_DEBUG, "Sent %d bytes>> %s" % (sent, data) )
 				return 1
-		except Queue.Empty():
-			return 0
+		except Queue.Empty:
+			pass
 
 		except Exception, e:
-			"Error! %s" % e
+			self.log.logmsg(logging.LOG_ERR, "Unhandled Error: %s: %s" % (e.__class__, e) )
+			self.log.logmsg(logging.LOG_ERR, "%s" % traceback.print_exc() )
+
+	def sendDataToSocket(self, data):
+		""" This method abstracts the method for getting sending data
+		    to socket. This comes in handy when subclassing this
+		    class, as in TLSTCPDataDequeuer, which uses a slightly
+		    different mechanism for sending data.
+		    This encourages easy code re-use, which is always good.
+		"""
+		return self.sock.send(data)
+
+	def tuningReset(self):
+		""" A Tuning Reset should flush the outbound DataQueue
+		"""
+		while self.dequeueData():
+			pass
+		self.terminate()
 
 class TCPError(exceptions.Exception):
 	def __init__(self, args=None):
@@ -237,46 +301,15 @@ class TCPListenerSession(session.ListenerSession, util.isMonitored):
 
 		session.ListenerSession.__init__(self, sessmgr.log, sessmgr.profileDict)
 
-		# Create TCP I/O Threads
-		self.inputAvailable = threading.Event()
-		self.inputDataQueue = TCPDataEnqueuer(self.log, self.sock, self, self.inputAvailable, self.inbound, self.ismonitoredEvent, read_timeout)
-		self.outputAvailable = threading.Event()
-		self.outputDataQueue = TCPDataDequeuer(self.log, self.sock, self, self.outputAvailable, self.outbound, self.ismonitoredEvent )
-		sessmgr.monitor.startMonitoring(self.inputDataQueue)
-		sessmgr.monitor.startMonitoring(self.outputDataQueue)
-
-		self.inputDataQueue.start()
-		self.log.logmsg(logging.LOG_DEBUG, "Started inputDataQueue: %s" % self.inputDataQueue)
-		self.outputDataQueue.start()
-		self.log.logmsg(logging.LOG_DEBUG, "Started outputDataQueue: %s" % self.outputDataQueue)
-
-		self.log.logmsg(logging.LOG_NOTICE, "Handling session from: %s[%s]" % self.client_address)
+		self.log.logmsg(logging.LOG_INFO, "Handling session from: %s[%s]" % self.client_address)
 
 		self.start()
 
 	def _stateINIT(self):
 
-		print "----> In INIT"
+		self.startIOThreads(self.sock)
 
 		self.createChannelZero()
-		self.queueOutboundFrames()
-
-#		while not self.channels[0].profile.receivedGreeting:
-#			if self._stop.isSet():
-#				self.transition('close')
-#				return
-#			try:
-#				self.processFrames()
-#
-#			except session.TerminateException, e:
-#				self.log.logmsg( logging.LOG_NOTICE, "Terminating SessionID %d: %s" % (self.ID, e))
-#				self.transition('error')
-#				return
-#
-#			except Exception, e:
-#				self.log.logmsg(logging.LOG_DEBUG, "sessID %d: Error occurred setting up connection: %s" % (self.ID, e))
-#				self.transition('error')
-#				return
 
 		self.transition('ok')
 		return
@@ -321,7 +354,10 @@ class TCPListenerSession(session.ListenerSession, util.isMonitored):
 		self.log.logmsg(logging.LOG_INFO, "state->TUNING")
 		# Flush all outbound buffers, including channel outbound buffers
 		self.log.logmsg(logging.LOG_DEBUG, "Flushing channel queues...")
-		self.flushChannelOutbound()
+		self.inputDataQueue.tuningReset()
+		self.sessmgr.monitor.stopMonitoring(self.inputDataQueue)
+		self.outputDataQueue.tuningReset()
+		self.sessmgr.monitor.stopMonitoring(self.inputDataQueue)
 
 		self.log.logmsg(logging.LOG_DEBUG, "Deleting channels...")
 		self.deleteAllChannels()
@@ -345,37 +381,66 @@ class TCPListenerSession(session.ListenerSession, util.isMonitored):
 		self.log.logmsg(logging.LOG_INFO, "Session from %s[%s] finished." % self.client_address)
 		self.transition('ok')
 
+	def startIOThreads(self, sock):
+		""" startIOThreads instanciates the IO threads for the Session.
+		    This is done as a method to allow subclasses to overload this
+		    part of the initialisation easily.
+		"""
+		self.inputAvailable = threading.Condition()
+		self.inputDataQueue = TCPDataEnqueuer(self.log, sock, self, self.inputAvailable, self.inbound, self.ismonitoredEvent, self.read_timeout)
+		self.outputAvailable = threading.Condition()
+		self.outputDataQueue = TCPDataDequeuer(self.log, sock, self, self.outputAvailable, self.outbound, self.ismonitoredEvent )
+		self.sessmgr.monitor.startMonitoring(self.inputDataQueue)
+		self.sessmgr.monitor.startMonitoring(self.outputDataQueue)
+		self.inputDataQueue.start()
+		self.outputDataQueue.start()
+
 	def sendFrame(self, theframe):
 		data = str(theframe)
 		try:
+			self.outputAvailable.acquire()
 			self.outbound.put(data, 0)
-			self.outputAvailable.set()
-			self.log.logmsg(logging.LOG_DEBUG, 'sendFrame(): ev: %s(%s), dq: %s' % (self.outputAvailable, self.outputAvailable.isSet(), self.outbound ) )
+			self.outputAvailable.notify()
+			self.outputAvailable.release()
 		except Queue.Full:
 			self.setError( SessionOutboundQueueFull('Outbound queue full') )
+			self.outputAvailable.release()
 
 	def recvFrame(self):
-		if not self.inputAvailable.isSet():
-			self.inputAvailable.wait(self.read_timeout)
-
 		try:
-			theframe = self.inbound.get(0)
-			if theframe:
-				return theframe
+			self.inputAvailable.acquire()
+			theframe = self.dequeueData()
+			if not theframe:
+#				self.log.logmsg(logging.LOG_DEBUG, "Listener recvFrame: waiting for data...")
+				self.inputAvailable.wait(self.read_timeout)
+			self.inputAvailable.release()
+#			self.log.logmsg(logging.LOG_DEBUG, "input frame: %s" % theframe)
+
+			return theframe
+		except:
+			self.inputAvailable.release()
+			raise
+
+	def dequeueData(self):
+		try:
+			data = self.inbound.get(0)
+			if data:
+				return data
 		except Queue.Empty:
-			self.inputAvailable.clear()
+			pass
 
 	def close(self):
 		self.stop()
 
 class TCPInitiatorSession(session.InitiatorSession, util.isMonitored):
 
-	def __init__(self, log, profileDict, host, port, sessmgr):
+	def __init__(self, log, profileDict, server_address, sessmgr, read_timeout=1):
 
 		session.InitiatorSession.__init__(self, log, profileDict)
 		util.isMonitored.__init__(self, sessmgr.monitorEvent)
-		self.server_address = (host, port)
+		self.server_address = server_address
 		self.sessmgr = sessmgr
+		self.read_timeout = read_timeout
 
 		self.start()
 
@@ -387,30 +452,23 @@ class TCPInitiatorSession(session.InitiatorSession, util.isMonitored):
 		try:
 			self.sock.connect(self.server_address)
 
-			# Create TCP I/O Threads
-			self.inputAvailable = threading.Event()
-			self.inputDataQueue = TCPDataEnqueuer(self.log, self.sock, self, self.inputAvailable, self.inbound, self.ismonitoredEvent)
-			self.outputAvailable = threading.Event()
-			self.outputDataQueue = TCPDataDequeuer(self.log, self.sock, self, self.outputAvailable, self.outbound, self.ismonitoredEvent)
-			self.inputDataQueue.start()
-			self.outputDataQueue.start()
+			self.startIOThreads(self.sock)
 
 			self.createChannelZero()
-			# send the queued greeting message
-			self.log.logmsg(logging.LOG_DEBUG, "Sending greeting...")
-
-			self.queueOutboundFrames()
 
 			while not self.channels[0].profile.receivedGreeting:
 				if self._stop.isSet():
 					self.transition('close')
 					return
 				self.processFrames()
+			self.log.logmsg(logging.LOG_DEBUG, 'initiator initialized successfully')
 			self.transition('ok')
+			return
 
 		except Exception, e:
 			self.log.logmsg(logging.LOG_ERR, "Connection to remote host failed: %s" % e)
 			self.transition('error')
+			return
 
 	def _stateACTIVE(self):
 		if self._stop.isSet():
@@ -434,6 +492,7 @@ class TCPInitiatorSession(session.InitiatorSession, util.isMonitored):
 			return
 
 	def _stateCLOSING(self):
+		self.log.logmsg(logging.LOG_INFO, "Closing Session %d...", self.ID)
 		self.closeAllChannels()
 		while len(self.channels.keys()) > 0:
 			if len(self.channels.keys()) == 1 and self.channels.has_key(0):
@@ -452,7 +511,10 @@ class TCPInitiatorSession(session.InitiatorSession, util.isMonitored):
 		self.log.logmsg(logging.LOG_INFO, "state->TUNING")
 		# Flush all outbound buffers, including channel outbound buffers
 		self.log.logmsg(logging.LOG_DEBUG, "Flushing channel queues...")
-		self.flushChannelOutbound()
+		self.inputDataQueue.tuningReset()
+		self.sessmgr.monitor.stopMonitoring(self.inputDataQueue)
+		self.outputDataQueue.tuningReset()
+		self.sessmgr.monitor.stopMonitoring(self.inputDataQueue)
 
 		self.log.logmsg(logging.LOG_DEBUG, "Deleting channels...")
 		self.deleteAllChannels()
@@ -462,28 +524,59 @@ class TCPInitiatorSession(session.InitiatorSession, util.isMonitored):
 	def _stateTERMINATE(self):
 		self.inputDataQueue.stop()
 		self.outputDataQueue.stop()
+
+		self.log.logmsg(logging.LOG_NOTICE, "Session to %s[%s] exited." % self.server_address)
 		self.transition('ok')
+
+	def startIOThreads(self, sock):
+		""" startIOThreads instanciates the IO threads for the Session.
+		    This is done as a method to allow subclasses to overload this
+		    part of the initialisation easily.
+		"""
+		self.inputAvailable = threading.Condition()
+		self.inputDataQueue = TCPDataEnqueuer(self.log, sock, self, self.inputAvailable, self.inbound, self.ismonitoredEvent, self.read_timeout)
+		self.outputAvailable = threading.Condition()
+		self.outputDataQueue = TCPDataDequeuer(self.log, sock, self, self.outputAvailable, self.outbound, self.ismonitoredEvent )
+		self.sessmgr.monitor.startMonitoring(self.inputDataQueue)
+		self.sessmgr.monitor.startMonitoring(self.outputDataQueue)
+		self.inputDataQueue.start()
+		self.outputDataQueue.start()
 
 	def sendFrame(self, theframe):
 		data = str(theframe)
 		try:
+			self.outputAvailable.acquire()
 			self.outbound.put(data, 0)
-			self.outputAvailable.set()
+			self.outputAvailable.notify()
+			self.outputAvailable.release()
 		except Queue.Full:
 			self.setError( SessionOutboundQueueFull('Outbound queue full') )
+			self.outputAvailable.release()
 
 	def recvFrame(self):
-		if not self.inputAvailable.isSet():
-			self.inputAvailable.wait(self.read_timeout)
-
 		try:
-			theframe = self.inbound.get(0)
-			if theframe:
-				return theframe
+			self.inputAvailable.acquire()
+			theframe = self.dequeueData()
+			if not theframe:
+				self.log.logmsg(logging.LOG_DEBUG, "client recvFrame: waiting for data...")
+#				self.inputAvailable.wait(self.read_timeout)
+				self.inputAvailable.wait()
+			self.inputAvailable.release()
+			return theframe
+		except:
+			self.inputAvailable.release()
+			raise
+
+	def dequeueData(self):
+		try:
+			data = self.inbound.get(0)
+			if data:
+				return data
 		except Queue.Empty:
-			self.inputAvailable.clear()
+			pass
 
 	def close(self):
+		self.log.logmsg(logging.LOG_DEBUG, "I've been asked to stop.")
 		self.stop()
 
 class TCPSessionListener(session.SessionListener, util.LoopingThread):
@@ -540,7 +633,6 @@ class TCPSessionListener(session.SessionListener, util.LoopingThread):
 				newSession = TCPListenerSession(client, addr, self, self.read_timeout)
 				self.addSession(newSession)
 				self.monitor.startMonitoring(newSession)
-				self.log.logmsg(logging.LOG_DEBUG, "Finished spawning new thread")
 
 				# Now check that we haven't got too many sessions
 				if len(self.sessionList) >= self.max_concurrent:
@@ -549,9 +641,17 @@ class TCPSessionListener(session.SessionListener, util.LoopingThread):
 					self.transition('pause')
 					return
 
+		except select.error, e:
+			if e[0] == 4:
+				# Interrupted system call. Don't worry about it.
+				# This is probably a CTRL-C job from somewhere.
+				self.transition('error')
+				return
+
 		except Exception, e:
 			self.log.logmsg(logging.LOG_DEBUG, "%s" % traceback.print_exc() )
 			self.transition('error')
+			return
 
 	def _statePAUSED(self):
 		if len(self.sessionList) < self.max_concurrent:
@@ -562,21 +662,21 @@ class TCPSessionListener(session.SessionListener, util.LoopingThread):
 		time.sleep(5)
 
 	def _stateCLOSING(self):
-		self.log.logmsg(logging.LOG_DEBUG, "closing all ListenerSessions...")
+		self.log.logmsg(logging.LOG_INFO, "Closing all ListenerSessions...")
 		while self.sessionList:
 			for sessId in self.sessionList.keys():
 				sess = self.sessionList[sessId]
-				self.log.logmsg(logging.LOG_DEBUG, "closing sessId: %s: %s..." % (sessId, sess))
+				self.log.logmsg(logging.LOG_DEBUG, "Closing sessId: %s..." % sessId)
 				sess.stop()
 				sess.join()
 				self.monitor.stopMonitoring(sess)
 				self.removeSession(sessId)
+		self.log.logmsg(logging.LOG_INFO, "All ListenerSessions have exited." )
 
 		self.transition('ok')
 
 	def _stateTERMINATE(self):
 		self.monitor.stop()
-		self.sock.shutdown(2)
 		self.sock.close()
 
 		self.log.logmsg(logging.LOG_NOTICE, "Listener at %s[%s] exited." % self.address)
@@ -592,25 +692,31 @@ class TCPSessionListener(session.SessionListener, util.LoopingThread):
 		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.sock.bind(self.address)
 		self.sock.listen(self.max_concurrent)
-		self.log.logmsg(logging.LOG_DEBUG, 'started socket')
 
 	def close(self):
 		self.stop()
 
 class TCPInitiatorSessionManager(session.InitiatorManager, util.LoopingThread):
 
-	def __init__(self, log, profileDict, daemon=1):
+	def __init__(self, log, profileDict, daemon=1, timeout=1):
 		util.LoopingThread.__init__(self)
 		session.InitiatorManager.__init__(self, log, profileDict)
+
+		self.timeout = timeout
+
+		self.monitorEvent = threading.Event()
+		self.monitor = SessionMonitor(self.log, self.monitorEvent)
+		self.monitor.start()
 
 		self.setDaemon(daemon)
 		self.start()
 
 	def _stateINIT(self):
+		self.log.logmsg(logging.LOG_INFO, "InitiatorSessionManager initialised.")
 		self.transition('ok')
 
 	def _stateACTIVE(self):
-		self._stop.wait(0)
+		self._stop.wait(self.timeout)
 		self.transition('close')
 
 	def _stateCLOSING(self):
@@ -630,7 +736,7 @@ class TCPInitiatorSessionManager(session.InitiatorManager, util.LoopingThread):
 	def connectInitiator(self, host, port, profileDict=None):
 		if not profileDict:
 			profileDict = self.profileDict
-		client = TCPInitiatorSession(self.log, profileDict, host, port, self)
+		client = TCPInitiatorSession(self.log, profileDict, (host, port), self)
 		self.addSession(client)
 		return client
 
@@ -645,11 +751,16 @@ class SessionMonitor(util.Monitor):
 
 	def handleError(self, exc, obj):
 		try:
-			self.log.logmsg(logging.LOG_DEBUG, "%s: %s" % (exc.__class__, exc) )
 			raise exc
 
 		except TCPTerminalError, e:
 			if isinstance(obj, TCPDataEnqueuer):
 				self.log.logmsg(logging.LOG_DEBUG, "Terminating Session: %s" % exc)
 				obj.session.transition('error')
+
+			else:
+				self.log.logmsg(logging.LOG_DEBUG, "Unhandled Terminal Error from %s: %s" % (obj, exc) )
+
+		except Exception, e:
+			self.log.logmsg(logging.LOG_DEBUG, "Unhandled Error from %s: %s" % (obj, exc) )
 

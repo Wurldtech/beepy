@@ -1,5 +1,5 @@
-# $Id: echoprofile.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: echoprofile.py,v 1.2 2003/01/07 07:39:59 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -37,6 +37,7 @@ class EchoProfile(profile.Profile):
 			self.log.logmsg(logging.LOG_DEBUG, "EchoProfile: processing frame: %s" % theframe)
 			try:
 				if theframe.isMSG():
+					self.log.logmsg(logging.LOG_DEBUG, "EchoProfile: sending RPY")
 					self.channel.sendReply(theframe.msgno, theframe.payload)
 
 				if theframe.isRPY():

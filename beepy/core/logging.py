@@ -1,5 +1,5 @@
-# $Id: logging.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: logging.py,v 1.2 2003/01/07 07:39:58 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -29,9 +29,11 @@ import sys
 import errors
 import time
 
+import constants
+
 """ This class provides a method for centralised logging throughout
     the library. Code throughout the beep library will log based on 
-    the setting for the debuglevel in this class. A single Log
+    the setting for the loglevel in this class. A single Log
     instance should be created at started and passed to all classes
     that require access to logging.
 """
@@ -45,7 +47,7 @@ LOG_DEBUG = 5		# Loads of stuff about how the internal processing is done.
 
 class Log:
 
-	def __init__(self, logfile=None):
+	def __init__(self, logfile=constants.DEFAULT_LOGFILE, loglevel=constants.DEFAULT_LOGLEVEL, prefix=''):
 		# Attempt to open the logfile for writing
 		if logfile:
 			try:
@@ -58,20 +60,20 @@ class Log:
 			self.log = sys.stderr
 			self.logfile = 'STDERR'
 
-#		self.debuglevel = -1
-#		self.debuglevel = LOG_INFO
-		self.debuglevel = LOG_DEBUG
+		self.loglevel = loglevel
+		self.prefix = prefix
 
 	def logmsg(self, msglevel, *msgs):
-		if self.debuglevel == -1:
+		if self.loglevel == -1:
 			return
 
-		if msglevel <= self.debuglevel:
-			stamp = time.asctime(time.localtime())
+		if msglevel <= self.loglevel:
+			stamp = time.strftime(constants.LOG_TIME_FORMAT, time.localtime())
 			self.log.write(stamp)
 			self.log.write(": [")
 			self.log.write(str(msglevel))
 			self.log.write("]: ")
+			self.log.write(self.prefix)
 			for string in msgs:
 				try:
 					self.log.write(string)

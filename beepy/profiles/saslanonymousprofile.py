@@ -1,5 +1,5 @@
-# $Id: saslanonymousprofile.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: saslanonymousprofile.py,v 1.2 2003/01/07 07:39:59 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -60,11 +60,13 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
 				self.log.logmsg(logging.LOG_DEBUG, "status: %s" % status)
 				if status == 'complete':
 					# Server completed authentication, so we do a tuning reset
-					conn = self.session.connection
+					sock = self.session.sock
 					server_address = self.session.server_address
+					sessmgr = self.session.sessmgr
+					read_timeout = self.session.read_timeout
 
 					self.log.logmsg(logging.LOG_DEBUG, "Creating new session...")
-					newsess = sasltcpsession.SASLTCPInitiatorSession(conn, server_address, self.session.sessmgr, self.session, self.authentid)
+					newsess = sasltcpsession.SASLTCPInitiatorSession(sock, server_address, sessmgr, self.session, self.authentid, self.authid, read_timeout)
 					self.log.logmsg(logging.LOG_DEBUG, "Raising tuning reset...")
 					raise TuningReset("SASL ANONYMOUS authentication succeeded")
 
@@ -87,13 +89,14 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
 					self.channel.deallocateMsgno(theframe.msgno)
 					# Ok, start setting up for a tuning reset
 					# copy connection to new session object
-					conn = self.session.connection
+					sock = self.session.sock
 					client_address = self.session.client_address
-					sessmgr = self.session.server
+					sessmgr = self.session.sessmgr
+					read_timeout = self.session.read_timeout
 
 					# Session object should wait for this session thread to exit before
 					# going to ACTIVE state.
-					newsess = sasltcpsession.SASLTCPListenerSession(conn, client_address, sessmgr, self.session, self.authentid)
+					newsess = sasltcpsession.SASLTCPListenerSession(sock, client_address, sessmgr, self.session, self.authentid, self.authid, read_timeout)
 					data = '<blob status="complete"/>'
 					self.channel.sendReply(theframe.msgno, data)
 					self.log.logmsg(logging.LOG_DEBUG, "Queued success message")

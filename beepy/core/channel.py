@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.3 2003/01/06 07:19:07 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: channel.py,v 1.4 2003/01/07 07:39:58 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -48,7 +48,7 @@ class Channel:
 	state = 0
 
 	# Create a new channel object
-	def __init__(self, log, channelnum, profile, outbound):
+	def __init__(self, log, channelnum, profile, session):
 		self.log = log
 		try:
 			assert( constants.MIN_CHANNEL <= channelnum <= constants.MAX_CHANNEL)
@@ -62,8 +62,8 @@ class Channel:
 			self.remoteSeqno = 0
 			self.ansno = 0
 			self.inbound = Queue.Queue(constants.MAX_INPUT_QUEUE_SIZE)
-			self.outbound = outbound	# this is the same as the session outbound
 			self.profile = profile
+			self.session = session
 
 			# This binds the profile to this channel, readying it for operation.
 			self.profile.setChannel(self)
@@ -74,22 +74,7 @@ class Channel:
 	# Send frame over this channel
 	# Used by Profiles
 	def send(self, frame):
-		"""send() is the raw interface to the Channel's
-		outbound frame Queue. It isn't designed to be
-		used directly as that would require messing about
-		inside the Channel's variables directly, which would
-		be.. well.. messy. Use the convenience methods like
-		sendMessage() instead.
-		It raises a ChannelQueueFull exception if the
-		Channel's outbound Queue is full, strangely enough.
-		"""
-		if self.state is constants.CHANNEL_ACTIVE:
-			if not self.outbound.full():
-				self.outbound.put(frame)
-			else:
-				raise ChannelQueueFull('Outbound queue full')
-		else:
-			raise ChannelStateException('Channel not active')
+		self.session.sendFrame(frame)
 
 	# Receive frame from this channel
 	# Used by Profiles
@@ -127,14 +112,14 @@ class Channel:
 
 		# check the frametype is the right one if we're expecting More frames
 		if self.moreFrameType:
-			if theframe.type is not self.moreFrameType:
+			if theframe.dataFrameType is not self.moreFrameType:
 				raise ChannelException("Frametype incorrect. Expecting more %s frames" % self.moreFrameType)
 			# Then check the msgno is the right one
 			if theframe.msgno is not self.moreFrameMsgno:
 				raise ChannelException("Msgno incorrect. Expecting more frames for msgno: %i" % self.moreFrameMsgno)
 		# if Frame has the more flag set, set our expected MoreType and Msgno
 		if theframe.more is constants.MoreTypes['*']:
-			self.moreFrameType = theframe.type
+			self.moreFrameType = theframe.dataFrameType
 			self.moreFrameMsgno = theframe.msgno
 		else:
 			self.moreFrameType = None
@@ -142,7 +127,7 @@ class Channel:
 
 		# If the frametype is MSG, check that the msgno hasn't
 		# been completely received, but not replied to yet.
-		if theframe.type == constants.DataFrameTypes['MSG']:
+		if theframe.dataFrameType == constants.DataFrameTypes['MSG']:
 			if theframe.msgno in self.receivedMsgnos:
 				raise ChannelMsgnoInvalid('msgno %i not valid for MSG' % theframe.msgno)
 			else:
@@ -151,7 +136,7 @@ class Channel:
 		# Otherwise, check the msgno is valid
 		else:
 			# Allow first frame received for the greeting on management channel
-			if not ( theframe.type == constants.DataFrameTypes['RPY'] and theframe.msgno == 0 and self.number == 0 ):
+			if not ( theframe.dataFrameType == constants.DataFrameTypes['RPY'] and theframe.msgno == 0 and self.number == 0 ):
 				if theframe.msgno not in self.allocatedMsgnos:
 					raise ChannelMsgnoInvalid('msgno %i not valid' % theframe.msgno)
 
@@ -160,19 +145,6 @@ class Channel:
 			self.inbound.put(theframe)
 		else:
 			raise ChannelQueueFull('Inbound queue full')
-
-	def pull(self):
-		"""pull() is used by a Session to retrive frames from
-		the Channel outbound Queue destined for the wire.
-		"""
-		if self.state is constants.CHANNEL_ACTIVE:
-			try:
-				message = self.outbound.get(0)
-				return message
-			except Queue.Empty:
-				pass
-		else:
-			raise ChannelStateException('Channel not active')
 
 	# Method for allocating the next sequence number
 	# seqno = last_seqno + size and wraps around constants.MAX_SEQNO
@@ -411,7 +383,6 @@ class Channel:
 			raise ChannelMessagesOutstanding("Channel %d: %s allocatedMsgno(s) unanswered: %s" % (self.number, len(self.allocatedMsgnos), self.allocatedMsgnos) )
 
 		del self.inbound
-		del self.outbound
 		del self.profile
 
 	def transition(self, newstate):

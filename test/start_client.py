@@ -1,5 +1,5 @@
-# $Id: start_client.py,v 1.3 2003/01/02 00:46:17 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: start_client.py,v 1.4 2003/01/07 07:40:00 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -40,7 +40,6 @@ class StartClient(unittest.TestCase):
 # and creating another one to prevent "address already in use" errors
 # This is a feature, not a bug
 	log = logging.Log()
-#	log.debuglevel = logging.LOG_DEBUG
 
 	def test_startClient(self):
 

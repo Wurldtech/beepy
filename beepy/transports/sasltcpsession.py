@@ -1,5 +1,5 @@
-# $Id: sasltcpsession.py,v 1.1 2003/01/01 23:37:38 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: sasltcpsession.py,v 1.2 2003/01/07 07:39:59 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -24,73 +24,45 @@
 from beepy.core import constants
 from beepy.core import logging
 from beepy.core import frame
-from beepy.core import session
 from beepy.core import saslsession
 
 import tcpsession
-import threading
 
-class SASLTCPListenerSession(tcpsession.TCPListenerSession, saslsession.SASLListenerSession):
+class SASLTCPListenerSession(tcpsession.TCPListenerSession, saslsession.SASLSession):
 
-	def __init__(self, conn, client_address, sessmgr, oldsession, authentid, userid=None):
-		threading.Thread.__init__(self)
-		self.shutdown = threading.Event()
+	def __init__(self, sock, client_address, sessmgr, oldsession, authentid, userid=None, read_timeout=1):
 
-		self.request = conn
-		self.connection = conn
-		self.client_address = client_address
-		self.sessmgr = sessmgr
 		self.oldsession = oldsession
+		self.sessmgr = sessmgr
 
-		# initialise as a TCPListenerSession
-#		session.ListenerSession.__init__(self, self.sessmgr.log, self.sessmgr.profileDict)
-		saslsession.SASLListenerSession.__init__(self, self.sessmgr.log, self.sessmgr.profileDict, authentid, userid)
+		saslsession.SASLSession.__init__(self, authentid, userid)
+		tcpsession.TCPListenerSession.__init__(self, sock, client_address, sessmgr, read_timeout)
 
-		sessmgr.replaceSession(oldsession.ID, self)
+		self.sessmgr.replaceSession(oldsession.ID, self)
 
-		self.inbound = self.oldsession.inbound
-		self.newframe = self.oldsession.newframe
-		self.framebuffer = self.oldsession.framebuffer
 		self.log.logmsg(logging.LOG_INFO, "%s: initialized" % self )
-		self.start()
 
 	def _stateINIT(self):
 		self.log.logmsg(logging.LOG_DEBUG, "Waiting on old Session Thread to exit: %s" % self.oldsession )
 		self.oldsession.join()
-		self.log.logmsg(logging.LOG_DEBUG, "Old Session Thread finished: %s" % self.oldsession )
 		self.log.logmsg(logging.LOG_INFO, "Tuning reset: reconnected to %s[%s]." % self.client_address )
 		tcpsession.TCPListenerSession._stateINIT(self)
 		self.transition('ok')
 
-class SASLTCPInitiatorSession(tcpsession.TCPInitiatorSession, saslsession.SASLInitiatorSession):
+class SASLTCPInitiatorSession(tcpsession.TCPInitiatorSession, saslsession.SASLSession):
 
-	def __init__(self, conn, server_address, sessmgr, oldsession, authentid, userid=None):
-		threading.Thread.__init__(self)
-		self.shutdown = threading.Event()
+	def __init__(self, sock, server_address, sessmgr, oldsession, authentid, userid=None, read_timeout=1):
 
-		self.request = conn
-		self.connection = conn
-		self.server_address = server_address
 		self.oldsession = oldsession
+		self.sessmgr = sessmgr
+		self.sock = sock
 
-		# initialise as a TCPInitiatorSession
-#		session.InitiatorSession.__init__(self, sessmgr.log, sessmgr.profileDict)
-		saslsession.SASLInitiatorSession.__init__(self, sessmgr.log, sessmgr.profileDict, authentid, userid)
+		saslsession.SASLSession.__init__(self, authentid, userid)
+		tcpsession.TCPInitiatorSession.__init__(self, sessmgr.log, sessmgr.profileDict, server_address, sessmgr, read_timeout)
 
-		sessmgr.replaceSession(oldsession.ID, self)
+		self.sessmgr.replaceSession(oldsession.ID, self)
 
-		# This is here to ensure that the message queue isn't
-		# interrupted by the tuning reset. If we don't do this
-		# we may lose messages sent just after the other side
-		# resets but before we reset, as they will get read in
-		# my the TCPCommsMixin to get the reset <ok/> message
-		# as a batch.
-
-		self.inbound = self.oldsession.inbound
-		self.newframe = self.oldsession.newframe
-		self.framebuffer = self.oldsession.framebuffer
 		self.log.logmsg(logging.LOG_INFO, "%s: initialized" % self )
-		self.start()
 
 	def _stateINIT(self):
 		self.log.logmsg(logging.LOG_DEBUG, "Waiting on old Session Thread to exit: %s" % self.oldsession )
@@ -99,14 +71,17 @@ class SASLTCPInitiatorSession(tcpsession.TCPInitiatorSession, saslsession.SASLIn
 		self.log.logmsg(logging.LOG_INFO, "Tuning reset: reconnected to %s[%s]." % self.server_address )
 
 		try:
-			self.wfile = self.connection.makefile('wb', constants.MAX_OUTBUF)
+			self.startIOThreads(self.sock)
+
 			self.createChannelZero()
-			self.queueOutboundFrames()
-			self.sendPendingFrame()
 			while not self.channels[0].profile.receivedGreeting:
-				self.getInputFrame()
+				if self._stop.isSet():
+					self.transition('close')
+					return
 				self.processFrames()
+			self.log.logmsg(logging.LOG_DEBUG, 'initiator initialized successfully')
 			self.transition('ok')
+			return
 
 		except Exception, e:
 			self.log.logmsg(logging.LOG_ERR, "Connection to remote host failed: %s" % e)

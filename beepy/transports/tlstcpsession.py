@@ -1,5 +1,5 @@
-# $Id: tlstcpsession.py,v 1.5 2003/01/06 07:19:07 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: tlstcpsession.py,v 1.6 2003/01/07 07:39:59 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,184 +23,68 @@
 # of encryption. The encryption parameters are negotiated by the corresponding
 # TLS profile in beep/profiles
 
+import re
+import string
+import socket, select
+import threading
+import exceptions
+import time
+import traceback
+
 from beepy.core import constants
 from beepy.core import logging
-from beepy.core import frame
-
 from beepy.core import session
-from beepy.core import tlssession
-
+from beepy.core import frame
+from beepy.core import util
 import tcpsession
 
 import POW
 
-import sys
-import re
-import errno
-import exceptions
-import socket, select
-import string
-import threading
-import SocketServer
-import traceback
-
-class TLSTCPCommsMixin(tcpsession.TCPCommsMixin):
-	"""This class overloads the methods provided by TCPCommsMixin to
-	   provide encryption.
+class TLSTCPDataEnqueuer(tcpsession.TCPDataEnqueuer):
+	""" A TLSTCPDataEnqueuer is identical to a TCPDataEnqueuer
+	    except that it uses a TLS socket object instead of a 
+	    standard socket.
 	"""
-	def __init__(self):
-		self.framebuffer = ''
-		self.newframe = None
-		self.windowsize = {}			# dictionary for each channel's window size
-		self.frameHeaderPattern = re.compile(".*\r\n")
-		self.dataFrameTrailer = re.compile(frame.DataFrame.TRAILER)
+	def __init__(self, log, sock, tls_sock, session, event, dataq, errEvent, read_timeout=1, name=None):
+		self.tls_sock = tls_sock
+		tcpsession.TCPDataEnqueuer.__init__(self, log, sock, session, event, dataq, errEvent, read_timeout, name)
 
-		SEQFrameRE = frame.SEQFrame.type
-		SEQFrameRE += ".*"
-		SEQFrameRE += frame.SEQFrame.TRAILER
-		self.SEQFramePattern = re.compile(SEQFrameRE)
-
-	# Overload createChannel from Session
-	def createChannel(self, channelnum, profile):
-		"""This overloads createChannel() from class Session to
-		   add window sizing via SEQ capabilities to the TCP transport
-		   layer mapping, as per RFC 3081
+	def getDataFromSocket(self):
+		""" A TLS session uses a TLS session object to get
+		    data from instead of the underlying socket.
 		"""
-		self.log.logmsg(logging.LOG_DEBUG, "Creating TLS Channel via Mixin")
-		session.Session.createChannel(self, channelnum, profile)
-		self.windowsize[channelnum] = 4096
+		self.tls_sock.read(constants.MAX_INBUF)
 
-	def deleteChannel(self, channelnum):
-		"""This overloads deleteChannel() from class Session to
-		   blank out the window size dictionary for the closed
-		   channel. Memory management, basically.
+	def stop(self):
+		if self.connected:
+			self.sock.shutdown(2)
+			# The POW implementation requires shutdown() to be called
+			# twice for some reason relating to the underlying SSL
+			# implementation. Two shutdown() calls with no exception
+			# mean the connection was shutdown successfully.
+			self.sock.shutdown(2)
+			# The socket.close() operation should take place in the
+			# parent session
+			self.connected = 0
+		util.DataEnqueuer.stop(self)
+
+class TLSTCPDataDequeuer(tcpsession.TCPDataDequeuer):
+	""" A TLSTCPDataDequeuer is identical to a TCPDataDequeuer
+	    except that it uses a TLS socket object instead of a 
+	    standard socket.
+	"""
+
+	def sendDataToSocket(self, data):
+		""" A TLS session uses a TLS session object to send
+		    data instead of the underlying socket.
 		"""
-		session.Session.deleteChannel(self, channelnum)
-		self.log.logmsg(logging.LOG_DEBUG, "%s windowsize: %s" % (self, self.windowsize))
-		del self.windowsize[channelnum]
+		return self.sock.write(data)
 
-	def getInputFrame(self):
-		"""getInputFrame reads a frame off the wire and places it
-		in the Session inbound Queue.
-		"""
-		try:
-			# use select to poll for pending data inbound
-			inbit, outbit, oobit = select.select([self.connection], [], [], 0)
-			if inbit:
-#				self.log.logmsg(logging.LOG_DEBUG, "socket: %s" % self.connection)
-				data = self.sl.read(constants.MAX_INBUF)
-				if data:
-					self.framebuffer += data
-#					self.log.logmsg(logging.LOG_DEBUG, "gotdata: %s" % data)
-					# Check for oversized frames. If framebuffer goes over
-					# constants.MAX_FRAME_SIZE + constants.MAX_INBUF then
-					# the frame is too large.
-					if len(self.framebuffer) > (constants.MAX_FRAME_SIZE + constants.MAX_INBUF):
-						raise session.TerminateException("Frame too large")
-				else:
-					raise session.TerminateException("Connection closed by remote host")
+class TLSTCPListenerSession(tcpsession.TCPListenerSession):
 
-			# If the current new frame is complete, we search for
-			# the header and create a new frame.
-			if not self.newframe:
-				# Ok, what we do is to first find the frame header
-				match = re.search(self.frameHeaderPattern, self.framebuffer)
-				if match:
-					headerdata = self.framebuffer[:match.end()]
-					self.framebuffer = self.framebuffer[match.end():]
+	def __init__(self, conn, client_address, sessmgr, oldsession, keyFile, certFile, passphrase, read_timeout=1):
 
-					# If this is a SEQ frame, create it and process it
-					if re.search(self.SEQFramePattern, headerdata):
-						seqframe = frame.SEQFrame(self.log, databuffer=headerdata)
-						self.processSEQFrame(seqframe)
-					else:
-						# start a new dataframe
-						self.newframe = frame.DataFrame(self.log, databuffer=headerdata)
-
-			# Populate our frame with payload data
-			if self.newframe:
-				# we scan the framebuffer for the frame trailer
-				match = re.search(self.dataFrameTrailer, self.framebuffer)
-				# If we find it, we should have a complete frame
-				if match:
-					# slice out this frame's data
-					framedata = self.framebuffer[:match.start()]
-					self.framebuffer = self.framebuffer[match.end():]
-					# I append the data to the current frame payload
-					# after checking that it isn't too long.
-					if len(self.newframe.payload) + len(framedata) > self.newframe.size:
-						self.log.logmsg(logging.LOG_DEBUG, "size: %s, expected: %s" % ( len(self.newframe.payload) + len(framedata), self.newframe.size ) )
-						self.log.logmsg(logging.LOG_DEBUG, "payload: %s, buffer: %s" % ( self.newframe.payload, framedata ) ) 
-						raise session.TerminateException("Payload larger than expected size")
-					else:
-						self.newframe.payload += framedata
-						# The frame is now complete
-						self.pushFrame(self.newframe)
-						self.newframe = None
-	#					self.log.logmsg(logging.LOG_DEBUG, "%s: pushedFrame: %s" % (self, newframe) )
-
-				else:
-					# I append the data to the current frame payload
-					# after checking that it isn't too long.
-					if len(self.newframe.payload) + len(self.framebuffer) > self.newframe.size:
-						self.log.logmsg(logging.LOG_DEBUG, "size: %s, expected: %s" % ( len(self.newframe.payload) + len(self.framebuffer), self.newframe.size ) )
-						self.log.logmsg(logging.LOG_DEBUG, "payload: %s, buffer: %s" % ( self.newframe.payload, self.framebuffer ) ) 
-						raise session.TerminateException("Payload larger than expected size")
-					else:
-						self.newframe.payload += self.framebuffer
-						self.framebuffer = ''
-
-		except socket.error, e:
-			if e[0] == errno.EWOULDBLOCK:
-				pass
-
-			elif e[0] == errno.ECONNRESET:
-				raise session.TerminateException("Connection closed by remote host")
-
-			else:
-				self.log.logmsg(logging.LOG_DEBUG, "socket.error: %s" % e)
-				raise session.TerminateException("%s" % e)
-
-		except frame.DataFrameException, e:
-			raise session.TerminateException("%s" % e)
-
-		# Drop packets if queue is full, log a warning.
-		except session.SessionInboundQueueFull:
-			self.log.logmsg(logging.LOG_WARN, "Session inbound queue full from %s" % self.client_address)
-			pass
-
-		except session.TerminateException:
-			raise
-
-		except Exception, e:
-			raise session.TerminateException("Unhandled Exception in getInputFrame(): %s: %s" % (e.__class__, e))
-
-
-	def sendPendingFrame(self):
-		try:
-			data = self.pullFrame()
-			if data:
-				self.sl.write(data)
-		except Exception, e:
-			self.log.logmsg(logging.LOG_WARN, "sendPendingFrame(): %s: %s" % ( e.__class__, e) )
-			traceback.print_exc(file=self.log.log)
-			pass
-
-class TLSTCPListenerSession(TLSTCPCommsMixin, tcpsession.TCPListenerSession, tlssession.TLSListenerSession):
-
-	def __init__(self, conn, client_address, sessmgr, oldsession, keyFile, certFile, passphrase):
-		threading.Thread.__init__(self)
-		self.shutdown = threading.Event()
-
-		TLSTCPCommsMixin.__init__(self)
-
-		self.request = conn
-		self.connection = conn
-		self.client_address = client_address
-		self.sessmgr = sessmgr
-		self.oldsession = oldsession
-
-		tlssession.TLSListenerSession.__init__(self, self.sessmgr.log, self.sessmgr.profileDict)
+		tcpsession.TCPListenerSession.__init__(self, conn, client_address, sessmgr, read_timeout)
 
 		kfd = open( keyFile, 'r' )
 		cfd = open( certFile, 'r' )
@@ -224,53 +108,59 @@ class TLSTCPListenerSession(TLSTCPCommsMixin, tcpsession.TCPListenerSession, tls
 #			self.log.logmsg(logging.LOG_INFO, "TLS Key doesn't check out")
 
 		sessmgr.replaceSession(oldsession.ID, self)
-
-		self.inbound = self.oldsession.inbound
-		self.newframe = self.oldsession.newframe
-		self.framebuffer = self.oldsession.framebuffer
+		self.oldsession = oldsession
 
 		self.log.logmsg(logging.LOG_INFO, "%s: initialized" % self)
 		self.start()
 
 	def _stateINIT(self):
-
+		# This join goes here because we won't be in a new thread until
+		# we get here. __init__ above is called from what is by now oldsession
 		self.log.logmsg(logging.LOG_DEBUG, "Waiting on old Session thread to exit: %s" % self.oldsession )
 		self.oldsession.join()
 		self.log.logmsg(logging.LOG_DEBUG, "Tuning reset: reconnected to %s[%s]." % self.client_address )
 
 		# configure TLS
 		try:
-			self.sl.setFd( self.connection.fileno() )
-			self.connection.setblocking(1)
+			self.sl.setFd( self.sock.fileno() )
+			self.sock.setblocking(1)
 			self.sl.accept()
-			self.connection.setblocking(0)
+			self.sock.setblocking(0)
+
+			# Connect established
+			peerCert = self.sl.peerCertificate()
+			if peerCert:
+				self.log.logmsg(logging.LOG_DEBUG, "==== TLS Cert Parameters ===")
+				self.log.logmsg(logging.LOG_DEBUG, "%s" % peerCert.pprint() )
+
+			# IO threads use the TLS socket, not the actual socket
+			self.startIOThreads(self.sock, self.sl)
+			self.createChannelZero()
+
+			self.transition('ok')
+			return
 
 		except Exception, e:
 			self.log.logmsg(logging.LOG_DEBUG, "Exception setting up TLS connection: %s: %s" % (e.__class__, e) )
 			self.transition('error')
 
-		# Connect established
-		peerCert = self.sl.peerCertificate()
-		if peerCert:
-			self.log.logmsg(logging.LOG_DEBUG, "==== TLS Cert Parameters ===")
-			self.log.logmsg(logging.LOG_DEBUG, "%s" % peerCert.pprint() )
+	def startIOThreads(self, sock, tls_sock):
+		self.inputAvailable = threading.Event()
+		self.inputDataQueue = TCPDataEnqueuer(self.log, sock, tls_sock, self, self.inputAvailable, self.inbound, self.ismonitoredEvent, self.read_timeout)
+		self.outputAvailable = threading.Event()
+		self.outputDataQueue = TCPDataDequeuer(self.log, sock, self, self.outputAvailable, self.outbound, self.ismonitoredEvent )
+		self.sessmgr.monitor.startMonitoring(self.inputDataQueue)
+		self.sessmgr.monitor.startMonitoring(self.outputDataQueue)
+		self.inputDataQueue.start()
+		self.log.logmsg(logging.LOG_DEBUG, "Started inputDataQueue: %s" % self.inputDataQueue)
+		self.outputDataQueue.start()
+		self.log.logmsg(logging.LOG_DEBUG, "Started outputDataQueue: %s" % self.outputDataQueue)
 
-		tcpsession.TCPListenerSession._stateINIT(self)
+class TLSTCPInitiatorSession(tcpsession.TCPInitiatorSession):
 
-		self.transition('ok')
+	def __init__(self, conn, server_address, sessmgr, oldsession, keyFile, certFile, passphrase, read_timeout=1 ):
 
-class TLSTCPInitiatorSession(TLSTCPCommsMixin, tcpsession.TCPInitiatorSession, tlssession.TLSInitiatorSession):
-
-	def __init__(self, conn, server_address, sessmgr, oldsession, keyFile, certFile, passphrase ):
-		threading.Thread.__init__(self)
-		self.shutdown = threading.Event()
-
-		TLSTCPCommsMixin.__init__(self)
-
-		self.request = conn
-		self.connection = conn
-		self.server_address = server_address
-		self.oldsession = oldsession
+		tcpsession.TCPInitiatorSession.__init__(self, sessmgr.log, sessmgr.profileDict, server_address, sessmgr, read_timeout)
 
 		# Read in the TLS key
 		md5 = POW.Digest( POW.MD5_DIGEST )
@@ -287,39 +177,37 @@ class TLSTCPInitiatorSession(TLSTCPCommsMixin, tcpsession.TCPInitiatorSession, t
 		self.sl.useCertificate( self.cert )
 		self.sl.useKey( self.key )
 
-		tlssession.TLSInitiatorSession.__init__(self, sessmgr.log, sessmgr.profileDict)
 		sessmgr.replaceSession(oldsession.ID, self)
+		self.oldsession = oldsession
 
-		self.inbound = self.oldsession.inbound
-		self.newframe = self.oldsession.newframe
-		self.framebuffer = self.oldsession.framebuffer
 		self.log.logmsg(logging.LOG_INFO, "%s: initialized" % self)
 		self.start()
 
 	def _stateINIT(self):
-		self.log.logmsg(logging.LOG_DEBUG, "Waiting on old Session thread to exit: %s" % self.oldsession )
-		self.oldsession.join()
-
+		self.log.logmsg(logging.LOG_DEBUG, "Waiting on old Session thread to exit: %s" % oldsession )
+		oldsession.join()
 		self.log.logmsg(logging.LOG_DEBUG, "Tuning reset: reconnected to %s[%s]." % self.server_address )
 
 		try:
 			# configure TLS
-			self.sl.setFd( self.connection.fileno() )
+			self.sl.setFd( self.sock.fileno() )
 			#
-			self.connection.setblocking(1)
+			self.sock.setblocking(1)
 			self.sl.connect()
-			self.connection.setblocking(0)
+			self.sock.setblocking(0)
 
 			# Connect established
 			peerCert = self.sl.peerCertificate()
 			self.log.logmsg(logging.LOG_DEBUG, "==== TLS Cert Parameters ===")
 			self.log.logmsg(logging.LOG_DEBUG, "%s" % peerCert.pprint() )
 
+			self.startIOThreads(self.sl)
 			self.createChannelZero()
-			self.queueOutboundFrames()
-			self.sendPendingFrame()
+
 			while not self.channels[0].profile.receivedGreeting:
-				self.getInputFrame()
+				if self._stop.isSet():
+					self.transition('close')
+					return
 				self.processFrames()
 			self.transition('ok')
 
@@ -327,6 +215,3 @@ class TLSTCPInitiatorSession(TLSTCPCommsMixin, tcpsession.TCPInitiatorSession, t
 			self.log.logmsg(logging.LOG_ERR, "Connection to remote host failed: %s" % e)
 			self.transition('error')
 
-	def _stateTERMINATE(self):
-		self.connection.close()
-		self.transition('ok')

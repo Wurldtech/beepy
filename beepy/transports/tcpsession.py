@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.1 2003/01/01 23:37:38 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: tcpsession.py,v 1.2 2003/01/06 07:19:07 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -18,150 +18,70 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# 
-# This class implements a DataStream object that communicates via TCP
+
+
+import re
+import socket, select
+import threading
+import exceptions
+import Queue
+import time
+import traceback
 
 from beepy.core import constants
 from beepy.core import logging
 from beepy.core import session
 from beepy.core import frame
+from beepy.core import util
 
-import sys
-import re
-import errno
-import exceptions
-import socket, select
-import string
-import time
-import threading
-import SocketServer
+class TCPDataEnqueuer(util.DataEnqueuer):
 
-# This uses heaps of multiple inheritence, for the following reasons:
-# SocketServer.ThreadingTCPServer provides a relatively neat interface for
-# providing a TCP socket server with thread support.
-# SessionListener is necessary because, well, that's what this really does.
-# the ThreadingTCPServer is just an implementation detail for this particular
-# kind of SessionListener.
-# threading.Thread is required because for some stupid reason, a ThreadingTCPServer
-# only creates a thread for whatever you put in the finish_request bits, which
-# I find really dumb.
+	def __init__(self, log, sock, session, event, dataq, errEvent, read_timeout=1, name=None):
 
-class TCPSessionListener(SocketServer.TCPServer, session.SessionListener, threading.Thread):
+		self.log = log
+		self.sock = sock
+		self.connected = 1
+		self.session = session
+		self.framebuffer = ''
+		self.newframe = None
+		self.windowsize = {}
+		self.frameHeaderPattern = re.compile(".*\r\n")
+		self.dataFrameTrailer = re.compile(frame.DataFrame.TRAILER)
+		SEQFrameRE = frame.SEQFrame.type
+		SEQFrameRE += ".*"
+		SEQFrameRE += frame.SEQFrame.TRAILER
+		self.SEQFramePattern = re.compile(SEQFrameRE)
 
-	def __init__(self, log, profileDict, host, port, daemon=0 ):
+		self.read_timeout = read_timeout
 
-		session.SessionListener.__init__(self, log, profileDict)
+		# Initialise as a DataEnqueuer
+		util.DataEnqueuer.__init__(self, event, dataq, errEvent, name)
 
-		self.address = (host, port)
+		print "DEQ: %s, ev: %s, dq: %s" % (self, self.event, self.dataq)
 
-		# and finally, do the thread bits
-		threading.Thread.__init__(self)
-		self.shutdown = threading.Event()
-
-		# I want to act like a daemon
-		if daemon:
-			self.setDaemon(1)
-		self.start()
-
-	def server_bind(self):
-		self.allow_reuse_address = 1
-		SocketServer.TCPServer.server_bind(self)
-
-	def _stateINIT(self):
-		self.log.logmsg(logging.LOG_NOTICE, "Starting listener on %s[%s]..." % self.address )
-		SocketServer.TCPServer.__init__(self, self.address, TCPListenerSession)
-
-		# Make socket non-blocking
-		self.socket.setblocking(0)
-		self.transition('ok')
-
-	def _stateACTIVE(self):
-		if self.shutdown.isSet():
-			self.transition('close')
-
-		self.handle_request()
-
-	def _stateCLOSING(self):
-		self.log.logmsg(logging.LOG_DEBUG, "closing all ListenerSessions...")
-		while self.sessionList:
-			for sessId in self.sessionList.keys():
-				sess = self.sessionList[sessId]
-				self.log.logmsg(logging.LOG_DEBUG, "closing sessId: %s: %s..." % (sessId, sess))
-				sess.close()
-				sess.join()
-				self.removeSession(sessId)
-
-		self.transition('ok')
-
-	def _stateTERMINATE(self):
-		self.socket.close()
-
-		self.log.logmsg(logging.LOG_NOTICE, "Listener at %s[%s] exited." % self.address)
-		self.transition('ok')
-
-	def finish_request(self, request, client_address):
-		requestHandler = self.RequestHandlerClass(request, client_address, self)
-		self.addSession(requestHandler)
-
-	def close_request(self, request):
-		pass
-
-	def close(self):
-		self.shutdown.set()
-
-class TCPCommsMixin:
-	"""This class is used to supply the common methods used
-	by both Initiator and Listener TCPSessions to read and write
-	frames to/from the wire. Saves writing things more than
-	once.
-	"""
-	framebuffer = ''
-	newframe = None
-	windowsize = {}			# dictionary for each channel's window size
-	frameHeaderPattern = re.compile(".*\r\n")
-	dataFrameTrailer = re.compile(frame.DataFrame.TRAILER)
-	SEQFrameRE = frame.SEQFrame.type
-	SEQFrameRE += ".*"
-	SEQFrameRE += frame.SEQFrame.TRAILER
-	SEQFramePattern = re.compile(SEQFrameRE)
-
-	# Overload createChannel from Session
-	def createChannel(self, channelnum, profile):
-		"""This overloads createChannel() from class Session to
-		   add window sizing via SEQ capabilities to the TCP transport
-		   layer mapping, as per RFC 3081
-		"""
-		session.Session.createChannel(self, channelnum, profile)
-		self.windowsize[channelnum] = 4096
-
-	def deleteChannel(self, channelnum):
-		"""This overloads deleteChannel() from class Session to
-		   blank out the window size dictionary for the closed
-		   channel. Memory management, basically.
-		"""
-		session.Session.deleteChannel(self, channelnum)
-		del self.windowsize[channelnum]
-
-	def getInputFrame(self):
-		"""getInputFrame reads a frame off the wire and places it
-		in the Session inbound Queue.
+	def enqueueData(self):
+		"""enqueueData reads a frame off the wire and places it
+		   into the dataq.
 		"""
 		try:
 			# use select to poll for pending data inbound
-			inbit, outbit, oobit = select.select([self.connection], [], [], 0)
+			inbit, outbit, oobit = select.select([self.sock], [], [], self.read_timeout)
 			if inbit:
 #				self.log.logmsg(logging.LOG_DEBUG, "socket: %s" % self.connection)
-				data = self.connection.recv(constants.MAX_INBUF)
+				data = self.sock.recv(constants.MAX_INBUF)
 				if data:
+					self.log.logmsg(logging.LOG_DEBUG, "EnQ: recv: %s" % data)
 					self.framebuffer += data
 #					self.log.logmsg(logging.LOG_DEBUG, "gotdata: %s" % data)
 					# Check for oversized frames. If framebuffer goes over
 					# constants.MAX_FRAME_SIZE + constants.MAX_INBUF then
 					# the frame is too large.
 					if len(self.framebuffer) > (constants.MAX_FRAME_SIZE + constants.MAX_INBUF):
-						raise session.TerminateException("Frame too large")
+						self.setError( TCPTerminalError("Frame too large") )
+						self.stop()
 				else:
-					raise session.TerminateException("Connection closed by remote host")
+					self.setError( TCPTerminalError("Connection closed by remote host") )
+					self.stop()
 
 			# If the current new frame is complete, we search for
 			# the header and create a new frame.
@@ -178,7 +98,7 @@ class TCPCommsMixin:
 						self.processSEQFrame(seqframe)
 					else:
 						# start a new dataframe
-						self.newframe = frame.DataFrame(self.log, databuffer=headerdata)
+						self.newframe = frame.DataFrame(databuffer=headerdata)
 
 			# Populate our frame with payload data
 			if self.newframe:
@@ -194,11 +114,12 @@ class TCPCommsMixin:
 					if len(self.newframe.payload) + len(framedata) > self.newframe.size:
 						self.log.logmsg(logging.LOG_DEBUG, "size: %s, expected: %s" % ( len(self.newframe.payload) + len(framedata), self.newframe.size ) )
 						self.log.logmsg(logging.LOG_DEBUG, "payload: %s, buffer: %s" % ( self.newframe.payload, framedata ) ) 
-						raise session.TerminateException("Payload larger than expected size")
+						self.setError( TCPTerminalError("Payload larger than expected size") )
+						self.stop()
 					else:
 						self.newframe.payload += framedata
 						# The frame is now complete
-						self.pushFrame(self.newframe)
+						self.dataq.put(self.newframe)
 						self.newframe = None
 	#					self.log.logmsg(logging.LOG_DEBUG, "%s: pushedFrame: %s" % (self, newframe) )
 
@@ -208,7 +129,8 @@ class TCPCommsMixin:
 					if len(self.newframe.payload) + len(self.framebuffer) > self.newframe.size:
 						self.log.logmsg(logging.LOG_DEBUG, "size: %s, expected: %s" % ( len(self.newframe.payload) + len(self.framebuffer), self.newframe.size ) )
 						self.log.logmsg(logging.LOG_DEBUG, "payload: %s, buffer: %s" % ( self.newframe.payload, self.framebuffer ) ) 
-						raise session.TerminateException("Payload larger than expected size")
+						self.setError( TCPTerminalError("Payload larger than expected size") )
+						self.stop()
 					else:
 						self.newframe.payload += self.framebuffer
 						self.framebuffer = ''
@@ -218,125 +140,156 @@ class TCPCommsMixin:
 				pass
 
 			elif e[0] == errno.ECONNRESET:
-				raise session.TerminateException("Connection closed by remote host")
+				self.setError( TCPTerminalError("Connection closed by remote host") )
+				self.stop
 
 			else:
 				self.log.logmsg(logging.LOG_DEBUG, "socket.error: %s" % e)
-				raise session.TerminateException("%s" % e)
+				self.setError( TCPTerminalError("%s" % e) )
+				self.stop
 
 		except frame.DataFrameException, e:
-			raise session.TerminateException("%s" % e)
+			self.setError( TCPTerminalError("%s" % e) )
+			self.stop()
 
-		# Drop packets if queue is full, log a warning.
-		except session.SessionInboundQueueFull:
-			self.log.logmsg(logging.LOG_WARN, "Session inbound queue full from %s" % self.client_address)
-			pass
+#		# Drop packets if queue is full, log a warning.
+#		except Queue.Full:
+#			self.log.logmsg(logging.LOG_WARN, "Session inbound queue full from %s" % self.client_address)
+#			pass
 
-		except session.TerminateException:
-			raise
+		except TCPTerminalError, e:
+			self.setError(e)
+			self.stop()
 
 		except Exception, e:
-			raise session.TerminateException("Unhandled Exception in getInputFrame(): %s: %s" % (e.__class__, e))
-
-	def sendPendingFrame(self):
-		try:
-			data = self.pullFrame()
-			if data:
-				self.wfile.write(data)
-				self.wfile.flush()
-		except Exception, e:
-			self.log.logmsg(logging.LOG_WARN, "Exception in sendPendingFrame(): %s" % e)
-			pass
+			print '%s' % traceback.print_exc()
+			self.setError( TCPTerminalError("Unhandled exception in enqueueData(): %s: %s" % (e.__class__, e)) )
+			self.stop()
 
 	# Need to deal with SEQ frames
 	def processSEQFrame(self):
 		raise NotImplementedError
 
-# Created when TCPSessionListener accepts a connection and spawns a thread
-# This really only inherits from StreamRequestHandler for typing reasons,
-# since the implementation of SocketServer RequestHandlers appears to be
-# badly broken
-class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSession, threading.Thread, TCPCommsMixin):
-#	log = None
-#	request = None
-#	connection = None
-#	client_address = None
-#	server = None
+	def stop(self):
+		if self.connected:
+			self.sock.shutdown(2)
+			self.sock.close()
+			self.connected = 0
+		util.DataEnqueuer.stop(self)
 
-	# The __init__ strategy of the StreamRequestHandler 
-	# (actually, the BaseRequestHandler) really breaks threading.
-	# I should send in some patches or something to make it
-	# do better threading so it's actually halfway useful and
-	# I don't need to do these kludges.
-	def __init__(self, request, client_address, server):
+class TCPDataDequeuer(util.DataDequeuer):
+	"""A TCPDataDequeuer takes frames off the session outbound queue
+	   and sends them over the wire.
+	"""
+	def __init__(self, log, sock, session, event, dataq, errEvent, name=None):
+		self.log = log
+		self.sock = sock
+		self.session = session
 
-		threading.Thread.__init__(self)
-		self.shutdown = threading.Event()
+		# Initialise as a DataDequeuer
+		util.DataDequeuer.__init__(self, event, dataq, errEvent, name)
 
-		self.request = request
-		self.connection = request
+		print "DDQ: %s, ev: %s, dq: %s" % (self, self.event, self.dataq)
+
+	def dequeueData(self):
+		try:
+			data = self.dataq.get(0)
+			if data:
+				sent = self.sock.send(data)
+				print "DeQ: sent %d bytes" % sent
+				return 1
+		except Queue.Empty():
+			return 0
+
+		except Exception, e:
+			"Error! %s" % e
+
+class TCPError(exceptions.Exception):
+	def __init__(self, args=None):
+		self.args = args
+
+class TCPTerminalError(TCPError):
+	"""A TCPTerminalError is something that should cause the
+	   connection to be dropped.
+	"""
+
+class TCPSessionTerminated(TCPError):
+	"""This gets set when a ListenerSession or InitiatorSession
+	   terminates. It passes back to the Monitor to let it
+	   know that this thread has exited.
+	"""
+
+class TCPListenerSession(session.ListenerSession, util.isMonitored):
+
+	def __init__(self, sock, client_address, sessmgr, read_timeout=1):
+		self.sock = sock
+
 		self.client_address = client_address
-		self.server = server
+		self.sessmgr = sessmgr
 
-		# Get the log info from the server
-		self.log = self.server.log
+		self.read_timeout = read_timeout
 
-		# initialise as a TCPListenerSession
-		session.ListenerSession.__init__(self, self.server.log, self.server.profileDict)
+		# Using a single monitorEvent from the sessmgr means
+		# that the sessmgr will only create a single Monitor
+		# for the process that will monitor all Sessions
+		# and their TCP I/O threads (Dataqueuers)
+		util.isMonitored.__init__(self, sessmgr.monitorEvent)
 
-		self.log.logmsg(logging.LOG_NOTICE, "Connection from %s[%s]." % self.client_address)
+		session.ListenerSession.__init__(self, sessmgr.log, sessmgr.profileDict)
+
+		# Create TCP I/O Threads
+		self.inputAvailable = threading.Event()
+		self.inputDataQueue = TCPDataEnqueuer(self.log, self.sock, self, self.inputAvailable, self.inbound, self.ismonitoredEvent, read_timeout)
+		self.outputAvailable = threading.Event()
+		self.outputDataQueue = TCPDataDequeuer(self.log, self.sock, self, self.outputAvailable, self.outbound, self.ismonitoredEvent )
+		sessmgr.monitor.startMonitoring(self.inputDataQueue)
+		sessmgr.monitor.startMonitoring(self.outputDataQueue)
+
+		self.inputDataQueue.start()
+		self.log.logmsg(logging.LOG_DEBUG, "Started inputDataQueue: %s" % self.inputDataQueue)
+		self.outputDataQueue.start()
+		self.log.logmsg(logging.LOG_DEBUG, "Started outputDataQueue: %s" % self.outputDataQueue)
+
+		self.log.logmsg(logging.LOG_NOTICE, "Handling session from: %s[%s]" % self.client_address)
+
 		self.start()
 
-	def __del__(self):
-		self.server = None
-		self.log = None
-
 	def _stateINIT(self):
-		# configure as a SocketServer
-		SocketServer.StreamRequestHandler.setup(self)
 
-		# Now, configure the socket as non-blocking
-		self.connection.setblocking(0)
-		self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-#		self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		print "----> In INIT"
 
 		self.createChannelZero()
-		# send the queued greeting message
 		self.queueOutboundFrames()
-		self.sendPendingFrame()
-		while not self.channels[0].profile.receivedGreeting:
-			try:
-				self.getInputFrame()
-				self.processFrames()
 
-			except session.TerminateException, e:
-				self.log.logmsg( logging.LOG_NOTICE, "Terminating SessionID %d: %s" % (self.ID, e))
-				self.transition('error')
-				return
-
-			except Exception, e:
-				self.log.logmsg(logging.LOG_DEBUG, "sessID %d: Error occurred setting up connection: %s" % (self.ID, e))
-				self.transition('error')
-				return
+#		while not self.channels[0].profile.receivedGreeting:
+#			if self._stop.isSet():
+#				self.transition('close')
+#				return
+#			try:
+#				self.processFrames()
+#
+#			except session.TerminateException, e:
+#				self.log.logmsg( logging.LOG_NOTICE, "Terminating SessionID %d: %s" % (self.ID, e))
+#				self.transition('error')
+#				return
+#
+#			except Exception, e:
+#				self.log.logmsg(logging.LOG_DEBUG, "sessID %d: Error occurred setting up connection: %s" % (self.ID, e))
+#				self.transition('error')
+#				return
 
 		self.transition('ok')
 		return
 
 	def _stateACTIVE(self):
-		if self.shutdown.isSet():
+		if self._stop.isSet():
 			self.transition('close')
+			return
 		self._mainLoop()
 
 	def _mainLoop(self):
 		try:
-			# First, try to read a frame
-			self.getInputFrame()
-
-			# Then try to process any pending frames
 			self.processFrames()
-
-			# Finally, send a frame if any are pending
-			self.sendPendingFrame()
 
 		except session.TuningReset, e:
 			self.log.logmsg( logging.LOG_INFO, "Tuning reset: %s" % e )
@@ -360,6 +313,7 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 			except Exception, e:
 				self.log.logmsg(logging.LOG_DEBUG, "exception closing channels: %s" % e)
 				self.transition('error')
+				return
 
 		self.transition('ok')
 
@@ -368,10 +322,6 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 		# Flush all outbound buffers, including channel outbound buffers
 		self.log.logmsg(logging.LOG_DEBUG, "Flushing channel queues...")
 		self.flushChannelOutbound()
-
-		self.log.logmsg(logging.LOG_DEBUG, "Flushing outbound queue...")
-		while not self.outbound.empty():
-			self.sendPendingFrame()
 
 		self.log.logmsg(logging.LOG_DEBUG, "Deleting channels...")
 		self.deleteAllChannels()
@@ -384,47 +334,77 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 		   usually things like loss of synchronisation or remote host
 		   closing the connection.
 		"""
-		SocketServer.StreamRequestHandler.finish(self)
-		self.connection.close()
-		self.request.close()
+		self.inputDataQueue.stop()
+		self.outputDataQueue.stop()
+
+		self.sessmgr.monitor.stopMonitoring(self.inputDataQueue)
+		self.sessmgr.monitor.stopMonitoring(self.outputDataQueue)
+		self.sessmgr.monitor.stopMonitoring(self)
+		self.sessmgr.removeSession(self.ID)
 
 		self.log.logmsg(logging.LOG_INFO, "Session from %s[%s] finished." % self.client_address)
 		self.transition('ok')
 
+	def sendFrame(self, theframe):
+		data = str(theframe)
+		try:
+			self.outbound.put(data, 0)
+			self.outputAvailable.set()
+			self.log.logmsg(logging.LOG_DEBUG, 'sendFrame(): ev: %s(%s), dq: %s' % (self.outputAvailable, self.outputAvailable.isSet(), self.outbound ) )
+		except Queue.Full:
+			self.setError( SessionOutboundQueueFull('Outbound queue full') )
+
+	def recvFrame(self):
+		if not self.inputAvailable.isSet():
+			self.inputAvailable.wait(self.read_timeout)
+
+		try:
+			theframe = self.inbound.get(0)
+			if theframe:
+				return theframe
+		except Queue.Empty:
+			self.inputAvailable.clear()
+
 	def close(self):
-#		self.log.logmsg(logging.LOG_DEBUG, "call to %s.close()" % self)
-		self.shutdown.set()
+		self.stop()
 
-class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMixin):
-
-	server_address = ()		# Address of remote end
-	connection = None		# socket connection to server
-	wfile = None			# File object to access connection outbound
+class TCPInitiatorSession(session.InitiatorSession, util.isMonitored):
 
 	def __init__(self, log, profileDict, host, port, sessmgr):
-		threading.Thread.__init__(self)
-		self.shutdown = threading.Event()
 
 		session.InitiatorSession.__init__(self, log, profileDict)
+		util.isMonitored.__init__(self, sessmgr.monitorEvent)
 		self.server_address = (host, port)
 		self.sessmgr = sessmgr
+
 		self.start()
 
 	def _stateINIT(self):
 		"""INIT for an Initiator attempts to connect to the remote server
 		"""
 		# Attempt to connect to the remote end
-		self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		try:
-			self.connection.connect(self.server_address)
-			self.wfile = self.connection.makefile('wb', constants.MAX_OUTBUF)
+			self.sock.connect(self.server_address)
+
+			# Create TCP I/O Threads
+			self.inputAvailable = threading.Event()
+			self.inputDataQueue = TCPDataEnqueuer(self.log, self.sock, self, self.inputAvailable, self.inbound, self.ismonitoredEvent)
+			self.outputAvailable = threading.Event()
+			self.outputDataQueue = TCPDataDequeuer(self.log, self.sock, self, self.outputAvailable, self.outbound, self.ismonitoredEvent)
+			self.inputDataQueue.start()
+			self.outputDataQueue.start()
+
 			self.createChannelZero()
 			# send the queued greeting message
 			self.log.logmsg(logging.LOG_DEBUG, "Sending greeting...")
+
 			self.queueOutboundFrames()
-			self.sendPendingFrame()
+
 			while not self.channels[0].profile.receivedGreeting:
-				self.getInputFrame()
+				if self._stop.isSet():
+					self.transition('close')
+					return
 				self.processFrames()
 			self.transition('ok')
 
@@ -433,20 +413,15 @@ class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMi
 			self.transition('error')
 
 	def _stateACTIVE(self):
-		if self.shutdown.isSet():
+		if self._stop.isSet():
 			self.transition('close')
+			return
 		self._mainLoop()
 
 	def _mainLoop(self):
 		try:
-			# First, try to read a frame
-			self.getInputFrame()
 
-			# Then try to process any pending frames
 			self.processFrames()
-
-			# Finally, send a frame if any are pending
-			self.sendPendingFrame()
 
 		except session.TuningReset, e:
 			self.log.logmsg( logging.LOG_INFO, "Tuning reset: %s" % e )
@@ -469,6 +444,7 @@ class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMi
 			except Exception, e:
 				self.log.logmsg(logging.LOG_DEBUG, "exception closing channels: %s" % e)
 				self.transition('error')
+				return
 
 		self.transition('ok')
 
@@ -478,43 +454,164 @@ class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMi
 		self.log.logmsg(logging.LOG_DEBUG, "Flushing channel queues...")
 		self.flushChannelOutbound()
 
-		self.log.logmsg(logging.LOG_DEBUG, "Flushing outbound queue...")
-		while not self.outbound.empty():
-			self.sendPendingFrame()
-
 		self.log.logmsg(logging.LOG_DEBUG, "Deleting channels...")
 		self.deleteAllChannels()
 
 		self.transition('ok')
 
 	def _stateTERMINATE(self):
-		self.wfile.flush()
-		self.wfile.close()
-		self.connection.close()
+		self.inputDataQueue.stop()
+		self.outputDataQueue.stop()
 		self.transition('ok')
 
-	def close(self):
-		self.shutdown.set()
+	def sendFrame(self, theframe):
+		data = str(theframe)
+		try:
+			self.outbound.put(data, 0)
+			self.outputAvailable.set()
+		except Queue.Full:
+			self.setError( SessionOutboundQueueFull('Outbound queue full') )
 
-class TCPInitiatorSessionManager(session.InitiatorManager, threading.Thread):
+	def recvFrame(self):
+		if not self.inputAvailable.isSet():
+			self.inputAvailable.wait(self.read_timeout)
+
+		try:
+			theframe = self.inbound.get(0)
+			if theframe:
+				return theframe
+		except Queue.Empty:
+			self.inputAvailable.clear()
+
+	def close(self):
+		self.stop()
+
+class TCPSessionListener(session.SessionListener, util.LoopingThread):
+
+	def __init__(self, log, profileDict, host, port, daemon=0, max_connect=5, max_concurrent=50, accept_timeout=1, read_timeout=1 ):
+
+
+		self.address = (host, port)
+
+		session.SessionListener.__init__(self, log, profileDict)
+		self.addState('PAUSED', self._statePAUSED)
+		self.addTransition('ACTIVE', 'pause', 'PAUSED')
+		self.addTransition('PAUSED', 'ok', 'ACTIVE')
+		self.addTransition('PAUSED', 'close', 'CLOSE')
+		util.LoopingThread.__init__(self)
+
+		self.monitorEvent = threading.Event()
+		self.monitor = SessionMonitor(self.log, self.monitorEvent)
+		self.monitor.start()
+
+		self.max_connect = max_connect
+		self.max_concurrent = max_concurrent
+		self.accept_timeout = accept_timeout
+		self.read_timeout = read_timeout
+
+		self.setDaemon(daemon)
+		self.start()
+
+	def _stateINIT(self):
+		self.log.logmsg(logging.LOG_NOTICE, "Starting listener on %s[%s]..." % self.address )
+
+		try:
+			self.start_socket()
+			self.transition('ok')
+			return
+
+		except Exception, e:
+			self.log.logmsg(logging.LOG_ERR, "Unable to start listener: %s: %s" % (e.__class__, e) )
+			self.transition('error')
+			return
+
+	def _stateACTIVE(self):
+		if self._stop.isSet():
+			self.transition('close')
+			return
+
+		try:
+			# Check for incoming connections
+			inbit, outbit, oobit = select.select([self.sock], [], [], self.accept_timeout)
+			if inbit:
+				# This means an incoming connection has come in
+				client, addr = self.sock.accept()
+				self.log.logmsg(logging.LOG_INFO, "Connection from %s[%s]" % addr)
+				newSession = TCPListenerSession(client, addr, self, self.read_timeout)
+				self.addSession(newSession)
+				self.monitor.startMonitoring(newSession)
+				self.log.logmsg(logging.LOG_DEBUG, "Finished spawning new thread")
+
+				# Now check that we haven't got too many sessions
+				if len(self.sessionList) >= self.max_concurrent:
+					self.log.logmsg(logging.LOG_ERR, 'Maximum concurrent session limit (%d) reached.' % self.max_concurrent )
+					self.log.logmsg(logging.LOG_ERR, 'Not accepting any more connections for now.')
+					self.transition('pause')
+					return
+
+		except Exception, e:
+			self.log.logmsg(logging.LOG_DEBUG, "%s" % traceback.print_exc() )
+			self.transition('error')
+
+	def _statePAUSED(self):
+		if len(self.sessionList) < self.max_concurrent:
+			self.log.logmsg(logging.LOG_ERR, 'Total concurrent sessions below maximum (5d) again.' % self.max_concurrent)
+			self.log.logmsg(logging.LOG_ERR, 'Re-enabling acceptance of new connections...' % self.max_concurrent)
+			self.transition('ok')
+			return
+		time.sleep(5)
+
+	def _stateCLOSING(self):
+		self.log.logmsg(logging.LOG_DEBUG, "closing all ListenerSessions...")
+		while self.sessionList:
+			for sessId in self.sessionList.keys():
+				sess = self.sessionList[sessId]
+				self.log.logmsg(logging.LOG_DEBUG, "closing sessId: %s: %s..." % (sessId, sess))
+				sess.stop()
+				sess.join()
+				self.monitor.stopMonitoring(sess)
+				self.removeSession(sessId)
+
+		self.transition('ok')
+
+	def _stateTERMINATE(self):
+		self.monitor.stop()
+		self.sock.shutdown(2)
+		self.sock.close()
+
+		self.log.logmsg(logging.LOG_NOTICE, "Listener at %s[%s] exited." % self.address)
+		self.transition('ok')
+
+	def removeSession(self, sessId):
+		self.log.logmsg(logging.LOG_DEBUG, 'Removing session: %d.' % sessId )
+		session.SessionListener.removeSession(self, sessId)
+
+	def start_socket(self):
+		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.sock.setblocking(0)
+		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		self.sock.bind(self.address)
+		self.sock.listen(self.max_concurrent)
+		self.log.logmsg(logging.LOG_DEBUG, 'started socket')
+
+	def close(self):
+		self.stop()
+
+class TCPInitiatorSessionManager(session.InitiatorManager, util.LoopingThread):
 
 	def __init__(self, log, profileDict, daemon=1):
-		threading.Thread.__init__(self)
-		self.shutdown = threading.Event()
-
+		util.LoopingThread.__init__(self)
 		session.InitiatorManager.__init__(self, log, profileDict)
 
-		if daemon:
-			self.setDaemon(1)
+		self.setDaemon(daemon)
 		self.start()
 
 	def _stateINIT(self):
 		self.transition('ok')
 
 	def _stateACTIVE(self):
-		if self.shutdown.isSet():
-			self.transition('close')
-		pass
+		self._stop.wait(0)
+		self.transition('close')
 
 	def _stateCLOSING(self):
 		while self.sessionList:
@@ -530,12 +627,29 @@ class TCPInitiatorSessionManager(session.InitiatorManager, threading.Thread):
 		self.deleteAllSessions()
 		self.transition('ok')
 
-	def close(self):
-		self.shutdown.set()
-
 	def connectInitiator(self, host, port, profileDict=None):
 		if not profileDict:
 			profileDict = self.profileDict
 		client = TCPInitiatorSession(self.log, profileDict, host, port, self)
 		self.addSession(client)
 		return client
+
+class SessionMonitor(util.Monitor):
+	"""A SessionMonitor monitors sessions and handles their behaviour
+	   with respect to a SessionManager.
+	"""
+	def __init__(self, log, errEvent, timeout=10, name=None):
+		self.log = log
+		util.Monitor.__init__(self, errEvent, timeout, name)
+		self.log.logmsg(logging.LOG_DEBUG, "Session monitor started.")
+
+	def handleError(self, exc, obj):
+		try:
+			self.log.logmsg(logging.LOG_DEBUG, "%s: %s" % (exc.__class__, exc) )
+			raise exc
+
+		except TCPTerminalError, e:
+			if isinstance(obj, TCPDataEnqueuer):
+				self.log.logmsg(logging.LOG_DEBUG, "Terminating Session: %s" % exc)
+				obj.session.transition('error')
+

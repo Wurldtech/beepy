@@ -1,5 +1,5 @@
-# $Id: tlstcpsession.py,v 1.4 2003/01/04 00:07:14 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: tlstcpsession.py,v 1.5 2003/01/06 07:19:07 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -200,7 +200,8 @@ class TLSTCPListenerSession(TLSTCPCommsMixin, tcpsession.TCPListenerSession, tls
 		self.sessmgr = sessmgr
 		self.oldsession = oldsession
 
-		# Read in the TLS key
+		tlssession.TLSListenerSession.__init__(self, self.sessmgr.log, self.sessmgr.profileDict)
+
 		kfd = open( keyFile, 'r' )
 		cfd = open( certFile, 'r' )
 		md5 = POW.Digest( POW.MD5_DIGEST )
@@ -213,9 +214,15 @@ class TLSTCPListenerSession(TLSTCPCommsMixin, tcpsession.TCPListenerSession, tls
 
 		self.sl = POW.Ssl( POW.TLSV1_SERVER_METHOD )
 		self.sl.useCertificate( self.cert )
-		self.sl.useKey( self.key )
+		#self.sl.useKey( self.key )
 
-		tlssession.TLSListenerSession.__init__(self, self.sessmgr.log, self.sessmgr.profileDict)
+#		self.sl.setVerifyMode( POW.SSL_VERIFY_PEER )
+
+#		if self.sl.checkKey():
+#			self.log.logmsg(logging.LOG_INFO, "TLS Key checks out ok")
+#		else:
+#			self.log.logmsg(logging.LOG_INFO, "TLS Key doesn't check out")
+
 		sessmgr.replaceSession(oldsession.ID, self)
 
 		self.inbound = self.oldsession.inbound
@@ -232,10 +239,21 @@ class TLSTCPListenerSession(TLSTCPCommsMixin, tcpsession.TCPListenerSession, tls
 		self.log.logmsg(logging.LOG_DEBUG, "Tuning reset: reconnected to %s[%s]." % self.client_address )
 
 		# configure TLS
-		self.sl.setFd( self.connection.fileno() )
-		self.connection.setblocking(1)
-		self.sl.accept()
-		self.connection.setblocking(0)
+		try:
+			self.sl.setFd( self.connection.fileno() )
+			self.connection.setblocking(1)
+			self.sl.accept()
+			self.connection.setblocking(0)
+
+		except Exception, e:
+			self.log.logmsg(logging.LOG_DEBUG, "Exception setting up TLS connection: %s: %s" % (e.__class__, e) )
+			self.transition('error')
+
+		# Connect established
+		peerCert = self.sl.peerCertificate()
+		if peerCert:
+			self.log.logmsg(logging.LOG_DEBUG, "==== TLS Cert Parameters ===")
+			self.log.logmsg(logging.LOG_DEBUG, "%s" % peerCert.pprint() )
 
 		tcpsession.TCPListenerSession._stateINIT(self)
 
@@ -260,14 +278,14 @@ class TLSTCPInitiatorSession(TLSTCPCommsMixin, tcpsession.TCPInitiatorSession, t
 		password = md5.digest()
 		kfd = open( keyFile, 'r' )
 		cfd = open( certFile, 'r' )
-		self.key = POW.pemRead( POW.RSA_PUBLIC_KEY, kfd.read(), password )
-#		self.cert = POW.pemRead( POW.X509_CERTIFICATE, cfd.read() )
+		self.key = POW.pemRead( POW.RSA_PRIVATE_KEY, kfd.read(), password )
+		self.cert = POW.pemRead( POW.X509_CERTIFICATE, cfd.read() )
 		kfd.close()
 		cfd.close()
 
 		self.sl = POW.Ssl( POW.TLSV1_CLIENT_METHOD )
-#		self.sl.useCertificate( self.cert )
-#		self.sl.useKey( self.key )
+		self.sl.useCertificate( self.cert )
+		self.sl.useKey( self.key )
 
 		tlssession.TLSInitiatorSession.__init__(self, sessmgr.log, sessmgr.profileDict)
 		sessmgr.replaceSession(oldsession.ID, self)
@@ -291,6 +309,11 @@ class TLSTCPInitiatorSession(TLSTCPCommsMixin, tcpsession.TCPInitiatorSession, t
 			self.connection.setblocking(1)
 			self.sl.connect()
 			self.connection.setblocking(0)
+
+			# Connect established
+			peerCert = self.sl.peerCertificate()
+			self.log.logmsg(logging.LOG_DEBUG, "==== TLS Cert Parameters ===")
+			self.log.logmsg(logging.LOG_DEBUG, "%s" % peerCert.pprint() )
 
 			self.createChannelZero()
 			self.queueOutboundFrames()

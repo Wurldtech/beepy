@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: session.py,v 1.2 2003/01/06 07:19:07 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -81,8 +81,10 @@ class Session(statemachine.StateMachine):
 		self.addTransition('CLOSING', 'close', 'CLOSING')
 		self.addTransition('TUNING', 'ok', 'EXITED')
 		self.addTransition('TUNING', 'close', 'TUNING')
+		self.addTransition('TUNING', 'error', 'TERMINATE')
 		self.addTransition('TERMINATE', 'ok', 'EXITED')
 		self.addTransition('TERMINATE', 'close', 'TERMINATE')
+		self.addTransition('TERMINATE', 'error', 'TERMINATE')
 		self.addTransition('EXITED', 'close', 'EXITED')
 
 		self.log = log
@@ -116,7 +118,7 @@ class Session(statemachine.StateMachine):
 		raise NotImplementedError
 
 	def _stateTERMINATE(self):
-		"""performs a tuning reset
+		"""The session is terminating
 		"""
 		raise NotImplementedError
 
@@ -218,7 +220,7 @@ class Session(statemachine.StateMachine):
 
 	# Open a new channel
 	def createChannel(self, channelnum, profile):
-		newchan = channel.Channel(self.log, channelnum, profile)
+		newchan = channel.Channel(self.log, channelnum, profile, self.outbound)
 		self.channels[channelnum] = newchan
 
 	def createChannelFromURIList(self, channelnum, uriList, profileInit=None):

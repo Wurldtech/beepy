@@ -1,5 +1,5 @@
-# $Id: test_tlsprofile.py,v 1.1 2003/01/04 00:07:15 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: test_tlsprofile.py,v 1.2 2003/01/06 07:19:08 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -47,8 +47,8 @@ class TLSProfileTest(unittest.TestCase):
 		self.log = logging.Log()
 		self.log.debuglevel = 5
 
-		self.keyFile = 'TLSpublic.key'
-		self.certFile = 'TLScert.pem'
+		self.keyFile = 'TLSClientPrivate.key'
+		self.certFile = 'TLSClientCert.pem'
 		self.passphrase = 'TeSt'
 
 	def test_createTLSSession(self):
@@ -89,7 +89,7 @@ class TLSProfileTest(unittest.TestCase):
 			sys.exit()
 
 		# Now configure authentication parameters
-		channel.profile.configure(self.keyFile, self.certFile, self.passphrase)
+		channel.profile.configureClient(self.keyFile, self.certFile, self.passphrase)
 
 		while client.isAlive():
 			pass

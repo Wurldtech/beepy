@@ -1,5 +1,5 @@
-# $Id: start_server.py,v 1.3 2003/01/02 00:46:17 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: start_server.py,v 1.4 2003/01/06 07:19:08 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,18 +23,16 @@ import unittest
 import sys
 import time
 
-import md5
-
 try:
 	from beepy.core import constants
 	from beepy.core import logging
-	from beepy.transports import tcpsession
+	from beepy.transports import sleepytcpsession as tcpsession
 	from beepy.profiles import profile
 except ImportError:
 	sys.path.append('../')
 	from beepy.core import constants
 	from beepy.core import logging
-	from beepy.transports import tcpsession
+	from beepy.transports import sleepytcpsession as tcpsession
 	from beepy.profiles import profile
 
 if __name__ == '__main__':
@@ -46,9 +44,17 @@ if __name__ == '__main__':
 	pdict = profile.ProfileDict()
 	pdict['http://www.eigenmagic.com/beep/ECHO'] = 'echoprofile'
 	listener = tcpsession.TCPSessionListener(log, pdict, 'localhost', 1976)
+
+	def quit():
+		listener.close()
+		while listener.isActive():
+			time.sleep(0.1)
+
+	sys.exitfunc = quit
+
 	# run forever
 	while(1):
-		pass
+		time.sleep(30)
 else:
 	print "This isn't a module you should import, dude."
 

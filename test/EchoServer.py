@@ -1,5 +1,5 @@
-# $Id: EchoServer.py,v 1.3 2003/01/02 00:46:17 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: EchoServer.py,v 1.4 2003/01/06 07:19:07 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -25,6 +25,8 @@
 # the sender as a RPY to the MSG.
 
 import sys
+import time
+
 try:
 	from beepy.core.logging import *
 	import beepy.profiles.profile
@@ -52,7 +54,7 @@ if __name__ == '__main__':
 	sys.exitfunc = cleanup
 
 	while(1):
-		pass
+		time.sleep(30)
 
 else:
 	print "You're not supposed to load this as a module."

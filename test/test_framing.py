@@ -1,5 +1,5 @@
-# $Id: test_framing.py,v 1.2 2003/01/01 23:37:39 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: test_framing.py,v 1.3 2003/01/06 07:19:08 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -24,6 +24,7 @@
 import unittest
 
 import sys
+import time
 
 try:
 	from beepy.core import constants
@@ -53,24 +54,24 @@ class FramingTest(unittest.TestCase):
 		# create a listener
 		pdict = profile.ProfileDict()
 		pdict[echoprofile.uri] = echoprofile
-		self.listener = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
+		self.listener = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976, accept_timeout=0, read_timeout=0)
 		# wait for it to become active
 		while not self.listener.isActive():
-			pass
+			time.sleep(0.5)
 		self.client = dummyclient.DummyClient()
 
 	def tearDown(self):
 		self.client.terminate()
-		self.listener.close()
+		self.listener.stop()
 		while not self.listener.isExited():
-			pass
+			time.sleep(0.5)
 
 	def test_FR001(self):
 		"""Test frame with invalid header format"""
 
 		data = self.client.getmsg(1)
 		self.client.sendmsg("test\r\nEND\r\n")
-		data = self.client.getmsg()
+		data = self.client.getmsg(0)
 
 		self.assertEqual( data, None )
 

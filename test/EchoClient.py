@@ -1,5 +1,5 @@
-# $Id: EchoClient.py,v 1.3 2003/01/02 00:46:17 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: EchoClient.py,v 1.4 2003/01/06 07:19:07 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -22,6 +22,7 @@
 
 import sys
 import time
+
 try:
 	from beepy.core.logging import *
 	import beepy.profiles.profile

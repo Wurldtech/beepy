@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.2 2003/01/03 02:39:10 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: channel.py,v 1.3 2003/01/06 07:19:07 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -28,6 +28,7 @@ import constants
 import errors
 import logging
 import frame
+import traceback
 
 import Queue
 
@@ -47,7 +48,7 @@ class Channel:
 	state = 0
 
 	# Create a new channel object
-	def __init__(self, log, channelnum, profile):
+	def __init__(self, log, channelnum, profile, outbound):
 		self.log = log
 		try:
 			assert( constants.MIN_CHANNEL <= channelnum <= constants.MAX_CHANNEL)
@@ -61,7 +62,7 @@ class Channel:
 			self.remoteSeqno = 0
 			self.ansno = 0
 			self.inbound = Queue.Queue(constants.MAX_INPUT_QUEUE_SIZE)
-			self.outbound = Queue.Queue(constants.MAX_INPUT_QUEUE_SIZE)
+			self.outbound = outbound	# this is the same as the session outbound
 			self.profile = profile
 
 			# This binds the profile to this channel, readying it for operation.
@@ -281,13 +282,14 @@ class Channel:
 		seqno = self.allocateLocalSeqno(size)
 		msgno = self.allocateMsgno()
 		try:
-			msg = frame.DataFrame(self.log, self.number, msgno, more, seqno, size, constants.DataFrameTypes['MSG'])
+			msg = frame.DataFrame(self.number, msgno, more, seqno, size, constants.DataFrameTypes['MSG'])
 			msg.setPayload(data)
 			self.send(msg)
 			return msgno
 
 		except frame.DataFrameException, e:
 			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed: %s" % e)
+			self.log.logmsg(logging.LOG_DEBUG, "%s" % traceback.print_exc() )
 
 
 	# msgno here is the msgno to which this a reply
@@ -302,12 +304,13 @@ class Channel:
 		size = len(data)
 		seqno = self.allocateLocalSeqno(size)
 		try:
-			msg = frame.DataFrame(self.log, self.number, msgno, more, seqno, size, constants.DataFrameTypes['RPY'])
+			msg = frame.DataFrame(self.number, msgno, more, seqno, size, constants.DataFrameTypes['RPY'])
 			msg.setPayload(data)
 			self.send(msg)
 
 		except frame.DataFrameException, e:
 			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed: %s" % e)
+			self.log.logmsg(logging.LOG_DEBUG, "%s" % traceback.print_exc() )
 
 
 	def sendGreetingReply(self, data):
@@ -319,12 +322,13 @@ class Channel:
 		size = len(data)
 		seqno = self.allocateLocalSeqno(size)
 		try:
-			msg = frame.DataFrame(self.log, self.number, 0, constants.MoreTypes['.'], seqno, size, constants.DataFrameTypes['RPY'])
+			msg = frame.DataFrame(self.number, 0, constants.MoreTypes['.'], seqno, size, constants.DataFrameTypes['RPY'])
 			msg.setPayload(data)
 			self.send(msg)
 
 		except frame.DataFrameException, e:
 			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed: %s" % e)
+			self.log.logmsg(logging.LOG_DEBUG, "%s" % traceback.print_exc() )
 
 
 	# seqno and more are not required for ERR frames
@@ -337,12 +341,13 @@ class Channel:
 		size = len(data)
 		seqno = self.allocateLocalSeqno(size)
 		try:
-			msg = frame.DataFrame(self.log, self.number, msgno, constants.MoreTypes['.'], seqno, size, constants.DataFrameTypes['ERR'])
+			msg = frame.DataFrame(self.number, msgno, constants.MoreTypes['.'], seqno, size, constants.DataFrameTypes['ERR'])
 			msg.setPayload(data)
 			self.send(msg)
 
 		except frame.DataFrameException, e:
 			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed: %s" % e)
+			self.log.logmsg(logging.LOG_DEBUG, "%s" % traceback.print_exc() )
 
 	# msgno here is the msgno to which this an answer
 	def sendAnswer(self, msgno, data, more=constants.MoreTypes['.']):
@@ -355,12 +360,13 @@ class Channel:
 		ansno = self.allocateLocalAnsno(msgno)
 
 		try:
-			msg = frame.DataFrame(self.log, self.number, msgno, more, seqno, size, constants.DataFrameTypes['ANS'], ansno)
+			msg = frame.DataFrame(self.number, msgno, more, seqno, size, constants.DataFrameTypes['ANS'], ansno)
 			msg.setPayload(data)
 			self.send(msg)
 
 		except frame.DataFrameException, e:
 			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed: %s" % e)
+			self.log.logmsg(logging.LOG_DEBUG, "%s" % traceback.print_exc() )
 
 	def sendNul(self, msgno):
 		"""sendNul() is used for sending a frame of type NUL
@@ -371,7 +377,7 @@ class Channel:
 		"""
 		try:
 			seqno = self.allocateLocalSeqno(0)
-			msg = frame.DataFrame(self.log, self.number, msgno, constants.MoreTypes['.'], seqno, 0, constants.DataFrameTypes['NUL'])
+			msg = frame.DataFrame(self.number, msgno, constants.MoreTypes['.'], seqno, 0, constants.DataFrameTypes['NUL'])
 			self.send(msg)
 			# Once we've sent a NUL, we don't need to maintain a list of
 			# ansno's for this msgno any more.
@@ -379,6 +385,7 @@ class Channel:
 
 		except frame.DataFrameException, e:
 			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed: %s" % e)
+			self.log.logmsg(logging.LOG_DEBUG, "%s" % traceback.print_exc() )
 
 
 	def processFrames(self):

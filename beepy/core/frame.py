@@ -1,5 +1,5 @@
-# $Id: frame.py,v 1.3 2003/01/04 00:07:14 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: frame.py,v 1.4 2003/01/06 07:19:07 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,7 +23,6 @@
 
 import errors
 import constants
-import logging
 
 import string
 
@@ -35,8 +34,7 @@ import string
 # Frame. All the guts are in DataFrame, but that's what the RFC says.
 
 class Frame:
-	def __init__(self, log, frameType):
-		self.log = log
+	def __init__(self, frameType):
 		if( frameType not in constants.FrameTypes ):	# bad FrameType
 			raise FrameException("Invalid Type")
 		else:
@@ -61,8 +59,8 @@ class DataFrame( Frame ):
 #	size = -1
 #	ansno = None
 
-	def __init__(self, log, channelnum=None, msgno=None, more=None, seqno=None, size=None, type='MSG', ansno=None, databuffer=None):
-		Frame.__init__(self, log, self.frameType)
+	def __init__(self, channelnum=None, msgno=None, more=None, seqno=None, size=None, type='MSG', ansno=None, databuffer=None):
+		Frame.__init__(self, self.frameType)
 
 		# This lets us pass in a string type databuffer
 		# to create a frame object
@@ -125,7 +123,6 @@ class DataFrame( Frame ):
 		if len(headerbits) != 6 and len(headerbits) != 7:
 			raise DataFrameException("Header Format Invalid")
 		self.type = headerbits[0]
-#		self.log.logmsg(logging.LOG_DEBUG, "frame.py: type is: %s" % self.type )
 
 		try:
 			self.channelnum = string.atol(headerbits[1])
@@ -174,7 +171,7 @@ class DataFrame( Frame ):
 
 		if ansno is not None:
 			if not type == constants.DataFrameTypes['ANS']:
-				raise DataFrameException("ANSNO in non ANS frame" % ansno)
+				raise DataFrameException("ANSNO in non ANS frame")
 
 			elif not constants.MIN_ANSNO <= ansno <= constants.MAX_ANSNO:
 				raise DataFrameException("ANSNO (%s) out of bounds" % ansno)
@@ -214,8 +211,8 @@ class SEQFrame(Frame):
 #	ackno = -1L
 #	window = -1
 
-	def __init__(self, log, channelnum=None, ackno=None, window=None, databuffer=None):
-		Frame.__init__(self, log, self.frameType)
+	def __init__(self, channelnum=None, ackno=None, window=None, databuffer=None):
+		Frame.__init__(self, self.frameType)
 
 		# This lets us pass in a string type databuffer
 		# to create a frame object
@@ -224,7 +221,7 @@ class SEQFrame(Frame):
 		else:
 			self._checkValues(channelnum, ackno, window)
 			self.channelnum = channelnum
-			self.msgno = ackno
+			self.ackno = ackno
 			self.window = window
 
 	def _bufferToFrame(self, data):

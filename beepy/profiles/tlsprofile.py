@@ -1,5 +1,5 @@
-# $Id: tlsprofile.py,v 1.1 2003/01/04 00:10:32 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: tlsprofile.py,v 1.2 2003/01/06 07:19:07 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -37,7 +37,7 @@ class TLSProfile(profile.Profile):
 	   encrypted TCP session.
 	"""
 
-	def __init__(self, log, session, profileInit=None, keyFile='TLSprivate.key', certFile='TLScert.pem', passphrase='TeSt'):
+	def __init__(self, log, session, profileInit=None, keyFile='TLSServerPrivate.key', certFile='TLSServerCert.pem', passphrase='TeSt'):
 		"""This generic TLS profile has no way of determining your
 		   application specific key and certificate files. To do any sort
 		   of funky processing (such as picking specific keyfiles or
@@ -84,8 +84,9 @@ class TLSProfile(profile.Profile):
 					raise profile.TuningReset("Enabling client side TLS...")
 
 
-	def configure(self, keyFile, certFile, passphrase):
+	def configureClient(self, keyFile, certFile, passphrase):
 		self.keyFile = keyFile
 		self.certFile = certFile
 		self.passphrase = passphrase
 		self.clientConfigured = 1
+

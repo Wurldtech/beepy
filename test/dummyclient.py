@@ -1,5 +1,5 @@
-# $Id: dummyclient.py,v 1.3 2003/01/02 00:46:17 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: dummyclient.py,v 1.4 2003/01/06 07:19:08 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -36,7 +36,6 @@ class DummyClient:
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		try:
 			self.sock.connect(self.server)
-			self.wfile = self.sock.makefile('wb', self.bufsize)
 			self.sock.setblocking(0)
 			self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 		except:
@@ -62,13 +61,14 @@ class DummyClient:
 			return self._getdata()
 
 	def _getdata(self):
-		inbit, outbit, oobit = select.select([self.sock], [], [], 0)
+#		data = self.sock.recv(self.bufsize)
+#		return data
+		inbit, outbit, oobit = select.select([self.sock], [], [], 5)
 		if inbit:
 			data = self.sock.recv(self.bufsize)
 			if data:
 				return data
 
 	def terminate(self):
-		self.wfile.flush()
-		self.wfile.close()
+		self.sock.shutdown(2)
 		self.sock.close()

@@ -1,5 +1,5 @@
-# $Id: AddOTP.py,v 1.2 2003/01/01 23:37:39 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: AddOTP.py,v 1.3 2003/01/02 00:46:17 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -22,12 +22,12 @@
 import sys
 
 try:
-	from beep.core import logging
-	from beep.profiles import saslotpprofile
+	from beepy.core import logging
+	from beepy.profiles import saslotpprofile
 except ImportError:
 	sys.path.append('../')
-	from beep.core import logging
-	from beep.profiles import saslotpprofile
+	from beepy.core import logging
+	from beepy.profiles import saslotpprofile
 
 import dummyclient
 

@@ -1,5 +1,5 @@
-# $Id: test_saslotpprofile.py,v 1.3 2003/01/01 23:53:35 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: test_saslotpprofile.py,v 1.4 2003/01/02 00:46:17 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -53,6 +53,15 @@ class SASLOTPProfileTest(unittest.TestCase):
 	def setUp(self):
 		self.log = logging.Log()
 		self.log.debuglevel = 5
+		# We have to create a OTP database to use for the tests.
+		generator = saslotpprofile.OTPGenerator(self.log)
+		self.username = 'justin'
+		self.passphrase = 'This is a test.'
+		self.seed = 'TeSt'
+		self.algo = 'md5'
+		self.sequence = 99
+
+		passhash = generator.createOTP(self.username, self.algo, self.seed, self.passphrase, self.sequence)
 
 	def test_createSASLOTPSession(self):
 		"""Test SASL OTP with no CDATA init"""
@@ -92,7 +101,7 @@ class SASLOTPProfileTest(unittest.TestCase):
 			sys.exit()
 
 		# Send our authentication information
-		msgno = channel.profile.sendAuth('This is a test.', 'justin', 'justin')
+		msgno = channel.profile.sendAuth(self.passphrase, self.username, self.username)
 		while channel.isMessageOutstanding(msgno):
 			pass
 

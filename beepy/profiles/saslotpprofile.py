@@ -1,5 +1,5 @@
-# $Id: saslotpprofile.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: saslotpprofile.py,v 1.2 2003/01/02 00:46:16 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -60,10 +60,11 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 		if theframe:
 			error = self.parseError(theframe.payload)
 			if error:
-				self.log.logmsg(logging.LOG_NOTICE, "Error while authenticating: %s: %s" % (error[1], error[2]))
+				self.channel.deallocateMsgno(theframe.msgno)
+				self.log.logmsg(logging.LOG_NOTICE, "Error while authenticating: %s: %s" % (error[0], error[1]))
 				# Hmm.. what to do if we encounter an error.
 				# Simplest action is to close the channel
-				raise ProfileException('Authentication failed.')
+				raise ProfileException('Authentication failed')
 
 			status = self.parseStatus(theframe.payload)
 			if status:
@@ -240,10 +241,16 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 		"""sendChallenge() formats and sends a reply to the client
 		   based on the authid and authentid sent as a message
 		"""
-		challenge = self.generator.getChallenge(self.authid)
-		data = self.encodeBlob(challenge)
-		self.channel.sendReply(msgno, data)
-		self.sentchallenge = 1
+		try:
+			challenge = self.generator.getChallenge(self.authid)
+			data = self.encodeBlob(challenge)
+			self.channel.sendReply(msgno, data)
+			self.sentchallenge = 1
+
+		except KeyError, e:
+			self.log.logmsg(logging.LOG_DEBUG, 'KeyError fetching challenge. User not in dbase?')
+			data = '<error code="535">Authentication Failed</error>'
+			self.channel.sendError(msgno, data)
 
 class OTPUserEntry:
 	def __init__(self, username, algo, seed, passphrasehash, sequence):

@@ -1,5 +1,5 @@
-# $Id: EchoServer.py,v 1.2 2003/01/01 23:37:39 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: EchoServer.py,v 1.3 2003/01/02 00:46:17 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -26,23 +26,23 @@
 
 import sys
 try:
-	from beep.core.logging import *
-	import beep.profiles.profile
-	import beep.transports.tcpsession
-	import beep.profiles.echoprofile
+	from beepy.core.logging import *
+	import beepy.profiles.profile
+	import beepy.transports.tcpsession
+	import beepy.profiles.echoprofile
 except ImportError:
 	sys.path.append('../')
-	from beep.core.logging import *
-	import beep.profiles.profile
-	import beep.transports.tcpsession
-	import beep.profiles.echoprofile
+	from beepy.core.logging import *
+	import beepy.profiles.profile
+	import beepy.transports.tcpsession
+	import beepy.profiles.echoprofile
 
 if __name__ == '__main__':
 	log = Log()
 
-	profileDict = beep.profiles.profile.ProfileDict()
-	profileDict['http://www.eigenmagic.com/beep/ECHO'] = beep.profiles.echoprofile
-	server = beep.transports.tcpsession.TCPSessionListener(log, profileDict, 'localhost', 1976)
+	profileDict = beepy.profiles.profile.ProfileDict()
+	profileDict['http://www.eigenmagic.com/beep/ECHO'] = beepy.profiles.echoprofile
+	server = beepy.transports.tcpsession.TCPSessionListener(log, profileDict, 'localhost', 1976)
 
 	def cleanup():
 		server.close()

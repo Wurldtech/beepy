@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: profile.py,v 1.2 2003/01/02 00:46:16 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -31,6 +31,10 @@ from beepy.core import logging
 # library here.
 import StringIO
 import mimetools, mimetypes, MimeWriter
+
+# Traceback information is useful for unexpected exceptions when
+# developing profiles, so I've put this in here.
+import traceback
 
 # This is a special variable. It is used to dynamically instanciate
 # the Profile by the Session (actually, the BEEPManagementProfile does it).
@@ -89,6 +93,9 @@ class Profile:
 				raise
 
 			except Exception, e:
+				self.log.logmsg(logging.LOG_DEBUG, 'Unmanaged exception: %s' % e)
+				self.log.logmsg(logging.LOG_DEBUG, 'Generating traceback...')
+				traceback.print_exc(file=self.log.log)
 				raise ProfileException("Unmanaged exception in %s: %s" % (self.__class__, e) )
 
 	def mimeDecode(self, payload):

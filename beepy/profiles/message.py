@@ -1,5 +1,5 @@
-# $Id: message.py,v 1.1 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: message.py,v 1.2 2004/06/27 07:38:31 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -27,9 +27,12 @@ Channel 0 of all sessions.
 Management messages are XML formatted, so we use minidom
 to represent them.
 
-@version: $Revision: 1.1 $
+@version: $Revision: 1.2 $
 @author: Justin Warren
 """
+import logging
+from beepy.core import debug
+log = logging.getLogger('beepy')
 
 import xml.dom.minidom
 import string
@@ -37,9 +40,6 @@ import re
 
 from beepy.core import errors
 
-import logging
-from beepy.core import debug
-log = logging.getLogger('Message')
 
 MessageTypes = ('greeting', 'start', 'close', 'ok', 'error', 'profile')
 numberRegex = re.compile(r'[^0-9]')

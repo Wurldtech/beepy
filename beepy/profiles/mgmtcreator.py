@@ -1,5 +1,5 @@
-# $Id: mgmtcreator.py,v 1.1 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: mgmtcreator.py,v 1.2 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -26,18 +26,17 @@ for channel management of BEEP.
 
 This implementation uses DOM via xml.dom.minidom.
 
-@version: $Revision: 1.1 $
+@version: $Revision: 1.2 $
 @author: Justin Warren
 """
+import logging
+from beepy.core import debug
+log = logging.getLogger('beepy')
 
 import types
 import xml.dom.minidom
 
 from beepy.core import errors
-
-import logging
-from beepy.core import debug
-log = logging.getLogger('MgmtCreator')
 
 class Creator:
     """

@@ -1,5 +1,5 @@
-# $Id: CHANGES,v 1.18 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.18 $
+# $Id: CHANGES,v 1.19 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.19 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -22,6 +22,10 @@
 0.4 -> 0.5
 ----------
 - Now using epydoc for code documentation.
+- SEQ frame processing implemented. This enables frame fragmentation
+  and the basic pre-requisites for implementing per-channel throttling.
+- Very basic channel priority mechanism that makes use of SEQ frames
+  implemented. Extreme beta! Beware!
 - Basic non-twisted transport code. Bare bones functionality only.
   Likely to contain plenty of bugs. Use twisted folks, it rocks.
 - Refactored transport layer code into 3 modules:
@@ -30,6 +34,12 @@
   beepy.transports.tls: TLS specific code
 - Moved message.py, mgmtparser.pt and mgmtcreator.py to beepy.profiles
   where they should have been.
+- Logging streamlined somewhat.
+- More asynchronous API migration work. DEBUG mode is still very verbose.
+- BeepClientFactory no longer calls reactor.stop() in clientConnectionLost()
+  or clientConnectionFailed(). You can no take other actions if you wish.
+  Example servers now implement their own test protocol to cause the server
+  to exit when the single client session disconnects.
 
 0.3 -> 0.4
 ----------

@@ -1,5 +1,5 @@
-# $Id: tcp.py,v 1.2 2004/04/17 07:28:12 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: tcp.py,v 1.3 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -18,12 +18,15 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
+import logging
+from beepy.core import debug
+log = logging.getLogger('beepy')
 
 ## If we have twisted, use this stuff
 try:
     from twisted.internet import reactor
     from twisted.internet.protocol import ClientFactory, ServerFactory
-    from twisted.internet.error import ConnectionDone
+    from twisted.internet.error import ConnectionDone, ConnectionLost
     from twisted.protocols.basic import LineReceiver
 except:
 ## otherwise, use our own classes
@@ -33,19 +36,17 @@ except:
     from base import LineReceiver
 
 import re
-import logging
+
 import traceback
 
-from beepy.core.session import Session, Listener, Initiator
+from beepy.core.session import Session, Listener, Initiator, SessionException
 from beepy.profiles import profile
 from beepy.core import constants
 from beepy.core import frame
 from beepy.core import errors
 from beepy.core import debug
 from beepy.core.message import Message
-
-log = logging.getLogger('tcp')
-log.setLevel(logging.DEBUG)
+from beepy.core.channel import ChannelException
 
 class SEQBuffer:
     """
@@ -54,7 +55,7 @@ class SEQBuffer:
     processing to tune window sizes and queue pending
     data, if any.
     """
-    MAX_BUFLEN = 1024    # Maximum size of input channel buffer
+    MAX_WINDOWSIZE = 2048
     
     def __init__(self, channelnum):
         self.channelnum = channelnum
@@ -63,7 +64,7 @@ class SEQBuffer:
         self.databuf = []
         self.cb = None
 
-        log.debug('created SEQBuffer for channel %d' % channelnum)
+#        log.debug('created SEQBuffer for channel %d' % channelnum)
 
     def __str__(self):
         return 'SEQBuffer: %d %d %d (%s) %s' % (self.channelnum, self.windowsize, self.availspace, self.cb, self.databuf) 
@@ -122,14 +123,14 @@ class BeepProtocol(LineReceiver):
                 pass
 
             while 1:
-                log.debug('fb: %s' % self.framebuffer)
+#                log.debug('fb: %s' % self.framebuffer)
                 theframe = self.findFrame()
                 if theframe:
                     ## We have received a frame, so process it
-                    log.debug('processFrame(): %s' % repr(theframe) )
+#                    log.debug('processFrame(): %s' % repr(theframe) )
 
                     if isinstance(theframe, frame.SEQFrame):
-                        log.debug('processing SEQ frame')
+#                        log.debug('processing SEQ frame')
                         self.processSEQFrame(theframe)
                         
                     elif isinstance(theframe, frame.DataFrame):
@@ -142,11 +143,32 @@ class BeepProtocol(LineReceiver):
                         log.error('Unknown frame type. Ignoring.')
 
                 else:
-                    log.debug('no more frames')
+#                    log.debug('no more frames')
                     break
+
+
+        except frame.DataFrameException, e:
+            log.error('%s: %s', e.__class__.__name__, e )
+            log.info('Dropping connection...')
+            self.transport.loseConnection()
+
+        except ChannelException, e:
+            log.error('%s: %s', e.__class__.__name__, e )
+            log.info('Dropping connection...')
+            self.transport.loseConnection()
+
+        except SessionException, e:
+            log.error('%s: %s', e.__class__.__name__, e )
+            log.info('Dropping connection...')
+            self.transport.loseConnection()
+
+        except profile.TerminalProfileException, e:
+            log.error('%s: %s', e.__class__.__name__, e )
+            log.info('Dropping connection...')
+            self.transport.loseConnection()
             
         except Exception, e:
-            log.error('Erk: %s', e)
+            log.error('Unexpected exception: %s: %s', e.__class__.__name__, e )
             traceback.print_exc()
             log.info('Dropping connection...')
             self.transport.loseConnection()
@@ -156,6 +178,18 @@ class BeepProtocol(LineReceiver):
         Search for a frame in the databuffer. Return a frame
         object for the first frame found.
         """
+        ## This needs to be looked at again at some point.
+        ## It's not as efficient as it could be, in that it
+        ## waits for either a SEQ frame or DataFrame trailer
+        ## to appear before doing any more parsing. It really
+        ## should drop your connection if you send a single
+        ## line (ending in \r\n) that doesn't match any known
+        ## header format.
+        ## Coding that up is a little trickier than what is
+        ## currently happening, so I'll tackle that another day
+        ## when we're in full cleanup and refactor mode.
+        ## This is Good Enough(tm) for now.
+        
         ## Look for a SEQ frame
         match = self.SEQFramePattern.search(self.framebuffer)
         if match:
@@ -181,11 +215,11 @@ class BeepProtocol(LineReceiver):
         ## adding the new message to the end of the queue
         ## Otherwise, attempt to just send the message
         
-        log.debug('current queue: %s' % self.channelbuf[channelnum])
+#        log.debug('current queue: %s' % self.channelbuf[channelnum])
         ## If there are pending messages, send them first
         if len( self.channelbuf[channelnum].databuf ) > 0:
             pendingMsg = self.channelbuf[channelnum].databuf.pop(0)
-            log.debug('Pending data to be sent: %s' % pendingMsg)
+#            log.debug('Pending data to be sent: %s' % pendingMsg)
             ## Save the new message to be sent later
             self.channelbuf[channelnum].databuf.append(msg)
             ## Swap with 'msg' so below code stays the same
@@ -206,7 +240,7 @@ class BeepProtocol(LineReceiver):
 
             ## Check to see if the Message has to be fragmented.
         elif self.channelbuf[channelnum].availspace < len(msg):
-            log.debug('Fragmenting message...')
+#            log.debug('Fragmenting message (%d availspace)...' % self.channelbuf[channelnum].availspace)
             ## Split the message into 2 pieces.
             msgFragment = Message(None, msg.msgType, msg.msgno, msg.payload[:self.channelbuf[channelnum].availspace], msg.ansno)
 #            msgFragment.payload[:self.channelbuf[channelnum].availspace]
@@ -217,6 +251,7 @@ class BeepProtocol(LineReceiver):
 
             ## Put the rest into a buffer to be sent later
             self.channelbuf[channelnum].databuf.append(msg)
+#            log.debug('queued %d bytes on channel %d' % (len(msg.payload), channelnum))
             pass
 
         else:
@@ -243,11 +278,11 @@ class BeepProtocol(LineReceiver):
         A sequence of fragments may only be one frame long,
         with that single frame containing the whole message.
         """
-        log.debug('Sending without fragmenting...')
+#        log.debug('Sending without fragmenting...')
         ## Plenty of space, send the whole message
         size = len(msg.payload)
         seqno = self.channels[channelnum].allocateLocalSeqno(size)
-        theframe = frame.DataFrame(channelnum, msg.msgno, seqno, size, msg.msgType)
+        theframe = frame.DataFrame(channelnum, msg.msgno, seqno, size, msg.msgType, ansno = msg.ansno)
         if msg.isANS():
             theframe.ansno = msg.ansno
         theframe.setPayload(msg.payload)
@@ -276,11 +311,11 @@ class BeepProtocol(LineReceiver):
         """
         try:
             data = str(theframe)
-            log.debug('sending frame: %s' % data)
-            self.transport.write(data)
-        except:
+            result = self.transport.write(data)
+
+        except Exception, e:
+            log.debug('Exception sending frame: %s: %s' % (e.__class__, e))
             traceback.print_exc()
-            raise
 
     def doSEQFrame(self):
         """
@@ -294,16 +329,17 @@ class BeepProtocol(LineReceiver):
 
     def processSEQFrame(self, theframe):
         """
-        Perform window size management for SEQ frames.
+        Perform window size management for inbound SEQ frames.
         """
-        log.debug('Received SEQ frame: %s' % theframe)
+#        log.debug('Received SEQ frame: %s' % theframe)
 
         ## Validate the sequence number
 
         ## Reset the window size
         if self.channelbuf.has_key(theframe.channelnum):
             self.channelbuf[theframe.channelnum].windowsize = theframe.window
-            self.channelbuf[theframe.channelnum].availspace = theframe.window        
+            self.channelbuf[theframe.channelnum].availspace = theframe.window
+#            log.debug('Reset channel %d windowsize to %d' % (theframe.channelnum, theframe.window))
         ## send pending data
         try:
             if self.channelbuf.has_key(theframe.channelnum):
@@ -311,7 +347,7 @@ class BeepProtocol(LineReceiver):
                 self.sendMessage(msg, theframe.channelnum)
 
         except IndexError:
-            log.debug('No pending data.')
+#            log.debug('No pending data.')
             pass
         
         except Exception, e:
@@ -324,11 +360,46 @@ class BeepProtocol(LineReceiver):
         window to max, allowing the remote peer to send
         more data on this channel.
         """
+        ## This gets called every time we receive an inbound
+        ## frame. This is the defined behaviour within RFC 2030
+        ## somewhere.. I have to go look it up.
+        ##
+        ## We want to modify this to be a bit more intelligent
+        ## soon so that we can alter the way in which channels
+        ## behave. We want to be able to set relative channel
+        ## priorities and have this method check the current channel
+        ## priority before changing the window size.
+        ##
+        ## We need to develop a tuning algorithm so that we can have
+        ## channels share the available bandwidth according to their
+        ## priority. I'll have to look up the algorithm used for unix
+        ## process scheduling so that I can hopefully use the same
+        ## concept. No sense reinventing the wheel, and that one seems
+        ## to work well.
+        ##
+        ## The idea is that there is a total amount of bandwidth,
+        ## represented by the total of all the channel's max window
+        ## size. If all channels are of equal priority, they should share
+        ## this bandwidth equally. If a channel is of lesser priority,
+        ## it should get a proportionally lower amount of bandwidth.
+        
         try:
             ## Make sure the channel is still open
             if self.channels.has_key(channelnum):
                 ackno = self.channels[channelnum].localSeqno
-                seqf = frame.SEQFrame(channelnum, ackno, self.channelbuf[channelnum].windowsize)
+
+                ## Work out the correct window size value based
+                ## on the channel priority.
+                ## priority 0 = 1024, -10 = 3, +10 = 2044
+                ## !!FIXME!!
+                ## This is super-dodgy at the moment, though it may work
+                if channelnum != 0:
+                    newwindow = 1024 + (self.channels[channelnum].priority * 102)
+                else:
+                    newwindow = 2048
+
+#                log.debug('Setting new windowsize: %d' % newwindow)
+                seqf = frame.SEQFrame(channelnum, ackno, newwindow)
                 self.sendFrame(seqf)
 
         except KeyError:
@@ -356,18 +427,18 @@ class BeepProtocol(LineReceiver):
         Performs transport specific channel creation
         """
         self.channelbuf[channelnum] = SEQBuffer(channelnum)
-        log.debug('created transport for channel %d' % channelnum)
+#        log.debug('created transport for channel %d' % channelnum)
 
     def deleteTransportChannel(self, channelnum):
         """
         Performs transport specific channel deletion
         """
-        log.debug('Trying to delete channel buffer for %s: %s' % (channelnum, self.channelbuf))
+#        log.debug('Trying to delete channel buffer for %s: %s' % (channelnum, self.channelbuf))
         ## Ensure we've sent all pending data
         self.flushDatabuf(channelnum)
 
         del self.channelbuf[channelnum]
-        log.debug('deleted SEQ Buffer for channel %s' % channelnum)
+#        log.debug('deleted SEQ Buffer for channel %s' % channelnum)
 
     def flushDatabuf(self, channelnum):
         try:
@@ -420,18 +491,23 @@ class BeepClientFactory(BeepFactory, ClientFactory):
     lostReason = None
     
     def clientConnectionFailed(self, connector, reason):
+        """
+        Override this to change client functionality
+        """
         self.reason = reason
         log.error('connection failed: %s' % reason.getErrorMessage() )
-        reactor.stop()
     
     def clientConnectionLost(self, connector, reason):
+        """
+        Override this to change client functionality
+        """
         why = reason.trap(ConnectionDone)
         if not why:
             log.error('connection lost: %s' % reason.getErrorMessage() )
             self.lostReason = reason
+            self.reason = reason
 
         log.debug('Client finished. Stopping reactor.')
-        reactor.stop()
         pass
     pass
 

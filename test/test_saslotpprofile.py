@@ -1,5 +1,5 @@
-# $Id: test_saslotpprofile.py,v 1.11 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.11 $
+# $Id: test_saslotpprofile.py,v 1.12 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.12 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -25,6 +25,11 @@ import time
 
 sys.path.append('..')
 
+import logging
+from beepy.core import debug
+log = logging.getLogger('beepy')
+
+from beepy.transports.tcp import SASLServerProtocol
 from beepy.transports.tcp import SASLServerFactory
 from beepy.transports.tcp import SASLClientProtocol
 from beepy.transports.tcp import SASLClientFactory
@@ -33,10 +38,6 @@ from beepy.transports.tcp import reactor
 
 from beepy.profiles import saslotpprofile
 from beepy.profiles import echoprofile
-
-import logging
-from beepy.core import debug
-log = logging.getLogger('SASL/OTP Test')
 
 class SASLOTPClientProtocol(SASLClientProtocol):
     """ We subclass from SASLClientProtocol to define
@@ -78,23 +79,29 @@ class SASLOTPClientProtocol(SASLClientProtocol):
         self.echochannel = self.newChannel(echoprofile)
 
 class SASLOTPClientFactory(SASLClientFactory):
-    """ This is a short factory for echo clients
-    """
+
     protocol = SASLOTPClientProtocol
+
+class SASLOTPServerProtocol(SASLServerProtocol):
+
+    def connectionLost(self, reason):
+        reactor.stop()
+
+class SASLOTPServerFactory(SASLServerFactory):
+  
+    protocol = SASLOTPServerProtocol
 
 class SASLOTPProfileTest(unittest.TestCase):
 
     def setUp(self):
-        factory = SASLServerFactory()
+        factory = SASLOTPServerFactory()
         factory.addProfile(echoprofile)
-        factory.addProfile(saslotpprofile)        
+        factory.addProfile(saslotpprofile)
         reactor.listenTCP(1976, factory, interface='127.0.0.1')
-        reactor.iterate()
-        
+
         ## We create a new testing OTP database for
         ## testing the library. This assumes the server
         ## is running in the same directory as this tester
-
         generator = saslotpprofile.OTPGenerator()
         username = 'fred'
         seed = 'TeSt'
@@ -103,9 +110,6 @@ class SASLOTPProfileTest(unittest.TestCase):
         sequence = 99
 
         passhash = generator.createOTP(username, algo, seed, passphrase, sequence)
-    def tearDown(self):
-        reactor.stop()
-        reactor.iterate()
 
     def test_createSASLOTPSession(self):
         """Test SASL OTP with no CDATA init"""
@@ -114,11 +118,15 @@ class SASLOTPProfileTest(unittest.TestCase):
         factory.addProfile(echoprofile)
         factory.addProfile(saslotpprofile)
 
+#        log.debug("Reactor state: %s" % reactor.removeAll())
+
         reactor.connectTCP('localhost', 1976, factory)
         reactor.run()
 
         if factory.reason:
+            log.error("Error occurred in factory: %s" % factory.reason)
             raise Exception(factory.reason.getErrorMessage())
+
 
 if __name__ == '__main__':
 

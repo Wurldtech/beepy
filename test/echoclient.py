@@ -1,5 +1,5 @@
-# $Id: echoclient.py,v 1.4 2004/04/17 07:28:12 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: echoclient.py,v 1.5 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -18,7 +18,6 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-
 
 import sys
 sys.path.append('..')
@@ -61,6 +60,9 @@ class EchoClientFactory(BeepClientFactory):
     """
     protocol = EchoClientProtocol
 
+    def clientConnectionLost(self, connection, reason):
+        BeepClientFactory.clientConnectionLost(self, connection, reason)
+        reactor.stop()
 
 if __name__ == '__main__':
     factory = EchoClientFactory()

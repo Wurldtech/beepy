@@ -1,5 +1,5 @@
-# $Id: dummyclient.py,v 1.7 2004/04/17 07:28:12 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: dummyclient.py,v 1.8 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -23,20 +23,43 @@
 
 import sys
 import socket, select
+import re
+
+sys.path.append('..')
+
+from beepy.core import frame
+from beepy.transports import tcp
 
 import logging
 log = logging.getLogger('dummyclient')
 
 class DummyClient:
+    """
+    A dummy client that uses almost raw frames to test a remote server.
+    """
 
     sock = None
     wfile = None
     server = ("localhost", 1976)
     bufsize = 8096
-    inbuf = ''
+    framebuffer = ''
+
+    frameHeaderPattern = re.compile('.*\r\n')
+    dataFrameTrailer = re.compile(frame.DataFrame.TRAILER)
+    SEQFrameRE = '^' + frame.SEQFrame.dataFrameType
+    SEQFrameRE += '.*'
+    SEQFrameRE += frame.SEQFrame.TRAILER
+
+    DataFrameRE = '.*'
+    DataFrameRE += frame.DataFrame.TRAILER
+
+    SEQFramePattern = re.compile(SEQFrameRE)
+    DataFramePattern = re.compile(DataFrameRE)
 
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        self.numDataFrames = 0
         try:
             self.sock.connect(self.server)
             self.sock.setblocking(0)
@@ -48,7 +71,7 @@ class DummyClient:
         self.sock.send(msg)
 	pass
 
-    def getmsg(self, blocking=0):
+    def getmsg(self, blocking=1, ignoreSEQ=True):
         """
         This method needs to be smarter now that we're using SEQ frames.
         It needs to differentiate between the two frame types and only
@@ -56,26 +79,62 @@ class DummyClient:
 
         Simple pattern matching should do the trick.
         """
-        if blocking:
-            self.sock.setblocking(1)
-            data = None
-            try:
-                data = self.sock.recv(self.bufsize)
-                return data
+        try:
+            if blocking:
+                while 1:                
+                    self.sock.setblocking(1)
+                    data = self.sock.recv(self.bufsize)
+                    
+                    self.framebuffer += data
+                    theframe = self.findFrame()
+                    if isinstance(theframe, frame.SEQFrame):
+                        ## Only return SEQ frames if told to
+                        if ignoreSEQ:
+                            pass
+                        else:
+                            return theframe
 
-            except Exception, e:
-                print "Exception occurred in dummyclient: %s: %s" % (e.__class__, e)
-                raise
+                    else:
+                        if theframe is None:
+                            return ''
+                        else:
+                            self.numDataFrames += 1
+#                            log.debug('Data frame %d found: %s' % (self.numDataFrames, theframe))
+                            return '%s' % theframe
+                    
+            else:
+                self.sock.setblocking(0)
+                data = self._getdata()
 
-        else:
-            self.sock.setblocking(0)
-            return self._getdata()
+        except Exception, e:
+            print "Exception occurred in dummyclient: %s: %s" % (e.__class__, e)
+            raise
 
     def _getdata(self):
         inbit, outbit, oobit = select.select([self.sock], [], [], 0.25)
         if inbit:
             data = self.sock.recv(self.bufsize)
             return data
+
+    def findFrame(self):
+        """
+        Search for a frame in the databuffer. Return a frame
+        object for the first frame found.
+        """
+        ## Look for a SEQ frame
+        match = self.SEQFramePattern.search(self.framebuffer)
+        if match:
+            ## Found a SEQ frame
+            data = self.framebuffer[:match.end()]
+            self.framebuffer = self.framebuffer[match.end():]
+            return frame.SEQFrame(databuffer=data)
+
+        ## Look for a Data frame
+        match = self.DataFramePattern.search(self.framebuffer)
+        if match:
+            data = self.framebuffer[:match.end()]
+            self.framebuffer = self.framebuffer[match.end():]
+            return frame.DataFrame(databuffer=data)
 
     def terminate(self):
 #        self.sock.shutdown(2)

@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.14 2004/04/17 07:28:11 jpwarren Exp $
-# $Revision: 1.14 $
+# $Id: session.py,v 1.15 2004/06/27 07:38:31 jpwarren Exp $
+# $Revision: 1.15 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -33,16 +33,14 @@ import traceback
 import logging
 
 import debug
+log = logging.getLogger('beepy')
+
 import constants
 import errors
 import channel
 import frame
-
 from beepy.profiles import profile
 from beepy.profiles import beepmgmtprofile
-
-log = logging.getLogger('Session')
-log.setLevel(logging.DEBUG)
 
 ## Set some state definitions
 PRE_GREETING = 0
@@ -81,12 +79,6 @@ class Session:
 
         Is overridden in subclasses.
         """
-        print "Called as a", self
-        if isinstance(self, Listener):
-            print "I am a listener"
-        else:
-            print "I am not a listener"
-        
         raise NotImplementedError
 
     def _setID(self, sessId):
@@ -108,7 +100,6 @@ class Session:
                 self.close()
                 
             except Exception, e:
-                traceback.print_exc()
                 raise
         else:
             log.info('Attempt to send to non-existant channel: %d' % theframe.channelnum)
@@ -170,7 +161,6 @@ class Session:
         # Now, find a supported URI in our list
         for uri in uriList:
             if uri in myURIList:
-                log.debug("uri found in profileDict: %s" % uri)
 
                 # Attempt to instanciate the profile
                 profileClassName = self.profileDict[uri].__profileClass__
@@ -188,7 +178,7 @@ class Session:
                 return uri
 
             # If we get here, then no supported profile URI was found
-            log.debug("%s: uri not found in profileDict: %s" % (self, self.profileDict))
+            #log.warning("%s: uri not found in profileDict: %s" % (self, self.profileDict))
 
         raise SessionException("Profile not supported by Session")
 
@@ -198,7 +188,6 @@ class Session:
         """
         try:
             chanlist = self.channels.keys()
-            log.debug("Channels to close: %s" % chanlist)
             for channelnum in chanlist:
                 if channelnum != 0:
                     doneEvent = threading.Event()
@@ -210,7 +199,7 @@ class Session:
         except Exception, e:
             # If we can't close a channel, we must remain active
             # FIXME: more detailed error handling required here
-            log.debug("Unable to close Session: %s" % e)
+            log.error("Unable to close Session: %s" % e)
             traceback.print_exc()
 
     def shutdown(self):
@@ -245,7 +234,6 @@ class Session:
         @param channelnum: the channel number to delete
         @type channelnum: integer
         """
-        log.debug("Deleting channel %d..." % channelnum )
         self.deleteTransportChannel(channelnum)
         del self.channels[channelnum]
         log.debug("Channel %d deleted." % channelnum )
@@ -382,7 +370,6 @@ class Session:
         @param chardata: initialisation data to send as part of the
         channel start request.
         """
-        log.debug('trying to start channel with %s' % profile.uri)
         return self.startChannel([[profile.uri, encoding, chardata]])
 
     def startChannel(self, profileList):
@@ -412,7 +399,6 @@ class Session:
         More complex scenarios are possible.
         
         """
-        log.debug('profileList: %s' % profileList)
 
         ## We can only start channels if we're in the ACTIVE state
         if self.state == ACTIVE:
@@ -517,7 +503,6 @@ class Listener(Session):
         """
         Listeners only start even numbered channels.
         """
-        log.debug('setting server starting number...')
         self.nextChannelNum = 2
 
 class Initiator(Session):
@@ -532,7 +517,6 @@ class Initiator(Session):
         """
         Initiators only start odd numbered channels.
         """
-        log.debug('Setting client starting number')
         self.nextChannelNum = 1
 
 # Exception classes

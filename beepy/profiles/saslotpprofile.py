@@ -1,5 +1,5 @@
-# $Id: saslotpprofile.py,v 1.8 2004/04/17 07:28:12 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: saslotpprofile.py,v 1.9 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -22,6 +22,9 @@
 This module implements the SASL OTP (One Time Password)
 mechanism as a BEEPy profile.
 """
+import logging
+from beepy.core import debug
+log = logging.getLogger('beepy')
 
 import saslprofile
 
@@ -36,9 +39,6 @@ import struct
 import string
 
 import traceback
-import logging
-from beepy.core import debug
-log = logging.getLogger('SASLOTPProfile')
 
 __profileClass__ = "SASLOTPProfile"
 uri = "http://iana.org/beep/SASL/OTP"
@@ -329,7 +329,7 @@ class OTPGenerator(OTPdbase):
             return self.createOTP(username, algo, seed, passphrase, sequence)
 
         except ValueError, e:
-            print "Error: %s" % e
+            log.error("Error: %s" % e)
 
     def createOTP(self, username, algo, seed, passphrase, sequence):
         """

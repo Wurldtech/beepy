@@ -1,5 +1,5 @@
-# $Id: tlsserver.py,v 1.2 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: tlsserver.py,v 1.3 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -23,12 +23,10 @@
 import sys
 sys.path.append('..')
 
-from beepy.profiles import echoprofile
 from beepy.profiles import tlsprofile
-from beepy.transports.tlsbeepsession import TLSProtocol
-from beepy.transports.tlsbeepsession import TLSServerFactory
+from beepy.profiles import echoprofile
 
-from beepy.transports.beepsession import reactor
+from beepy.transports.tls import TLSServerFactory
 
 from twisted.application import internet, service
 
@@ -36,7 +34,7 @@ from twisted.application import internet, service
 import logging
 from beepy.core import debug
 
-log = debug.log
+log = logging.getLogger('tls-server')
 
 factory = TLSServerFactory()
 factory.addProfile(echoprofile)
@@ -45,7 +43,7 @@ factory.addProfile(tlsprofile)
 factory.privateKeyFileName = 'serverKey.pem'
 factory.certificateFileName = 'serverCert.pem'
 
-application = service.Application('tlsbeep')
+application = service.Application('tls-server')
 serviceCollection = service.IServiceCollection(application)
 internet.TCPServer(1976, factory).setServiceParent(serviceCollection)
 

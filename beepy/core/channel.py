@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.9 2004/04/17 07:28:11 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: channel.py,v 1.10 2004/06/27 07:38:31 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -22,9 +22,12 @@
 """
 Channel related code
 
-@version: $Revision: 1.9 $
+@version: $Revision: 1.10 $
 @author: Justin Warren
 """
+import logging
+import debug
+log = logging.getLogger('beepy')
 
 import constants
 import errors
@@ -35,8 +38,6 @@ import traceback
 from message import Message
 
 #import Queue
-
-log = logging.getLogger('Channel')
 
 class Channel:
     """
@@ -68,6 +69,7 @@ class Channel:
             assert( constants.MIN_CHANNEL <= channelnum <= constants.MAX_CHANNEL)
             self.state = constants.CHANNEL_STARTING
             self.channelnum = channelnum
+            self.priority = 0
             self.allocatedMsgnos = []
             self.receivedMsgnos = []
             self.nextMsgno = constants.MIN_MSGNO + 1
@@ -111,7 +113,7 @@ class Channel:
         @type cb: a method callback
         @param cb: a callback to call when the message is completely sent
         """
-        log.debug('sending message...')
+#        log.debug('sending message...')
         self.session.sendMessage(msg, self.channelnum)
 
     def _recv(self):
@@ -152,7 +154,7 @@ class Channel:
 #            raise ChannelStateException('Channel not active')
         # check sequence number
         if theframe.seqno != self.remoteSeqno:
-            raise ChannelOutOfSequence("Expected seqno: %i but got %i" % (self.remoteSeqno, theframe.seqno))
+            raise ChannelException("Expected seqno: %i but got %i" % (self.remoteSeqno, theframe.seqno))
         else:
             # update my seqno
             self.allocateRemoteSeqno(theframe.size)
@@ -211,7 +213,6 @@ class Channel:
             if theframe.more == constants.MoreTypes['.']:
                     
                 self.profile.processMessage(self.ansbuf[theframe.ansno])
-                self.deallocateMsgno(theframe.msgno)
                 del self.ansbuf[theframe.ansno]
 
         ## If we've already got part of a message, append the payload
@@ -226,9 +227,9 @@ class Channel:
             ## Check to see if this is the last Frame for the message.
             ## If it is, pass it to the profile for processing.
             if theframe.more == constants.MoreTypes['.']:
-                log.debug('Message complete. Processing...')
+#                log.debug('Message complete. Processing...')
                 if theframe.dataFrameType == constants.DataFrameTypes['MSG']:
-                    log.debug('Message received. Appending to receivedMsgnos')
+#                    log.debug('Message received. Appending to receivedMsgnos')
                     self.receivedMsgnos.append(theframe.msgno)
 
                 self.profile.processMessage(self.msgbuf[theframe.msgno])
@@ -286,7 +287,7 @@ class Channel:
         should be removed from the list when the complete reply
         to the message is received. See deallocateMsgno().
         
-        @raise ChannelOutOfMsgnos: if no more msgnos can be allocated for
+        @raise ChannelException: if no more msgnos can be allocated for
         this channel. This shouldn't ever happen, but if it does, messages
         are not being acknowledged by the remote peer. Alternately, the
         transport layer may be experiencing delays.
@@ -303,7 +304,7 @@ class Channel:
             # Not sure what should happen. Probably terminate
             # the channel immediately.
             if msgno > constants.MAX_MSGNO:
-                raise ChannelOutOfMsgnos('No available msgnos on channel', self.channelnum)
+                raise ChannelException('No available msgnos on channel', self.channelnum)
         # If we got here, then we've found the lowest
         # available msgno, so allocate it
         self.allocatedMsgnos.append(msgno)
@@ -454,7 +455,7 @@ class Channel:
         @param msgno: the msgno all previous ANS frames have been in
         response to, and to which this is the final response frame.
         """
-        msg = Message(None, constants.MessageType['ANS'], msgno)
+        msg = Message(None, constants.MessageType['NUL'], msgno)
         self.send(msg)
         # Once we've sent a NUL, we don't need to maintain a list of
         # ansno's for this msgno any more.
@@ -477,20 +478,17 @@ class Channel:
 #        del self.inbound
         del self.profile
 
+    def setPriority(self, priority):
+        """
+        Set the priority level of this channel to priority.
+        priority must be between -10 and 10.
+        """
+        if not -10 <= priority <= 10:
+            raise ChannelException("Priority value %d out of bounds" % priority)
+        self.priority = priority
+
 # Exception classes
 class ChannelException(errors.BEEPException):
-    def __init__(self, args=None):
-        self.args = args
-
-class ChannelQueueFull(ChannelException):
-    def __init__(self, args=None):
-        self.args = args
-
-class ChannelOutOfMsgnos(ChannelException):
-    def __init__(self, args=None):
-        self.args = args
-
-class ChannelOutOfSequence(ChannelException):
     def __init__(self, args=None):
         self.args = args
 
@@ -503,13 +501,5 @@ class ChannelNotStarted(ChannelException):
         self.args = args
 
 class ChannelMessagesOutstanding(ChannelException):
-    def __init__(self, args=None):
-        self.args = args
-
-class ChannelCannotTransition(ChannelException):
-    def __init__(self, args=None):
-        self.args = args
-
-class ChannelStateException(ChannelException):
     def __init__(self, args=None):
         self.args = args

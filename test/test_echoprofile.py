@@ -1,5 +1,5 @@
-# $Id: test_echoprofile.py,v 1.11 2004/04/17 07:28:12 jpwarren Exp $
-# $Revision: 1.11 $
+# $Id: test_echoprofile.py,v 1.12 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.12 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -38,13 +38,7 @@ from beepy.profiles import echoprofile
 
 class EchoProfileTest(unittest.TestCase):
 
-    def my_callback(self, profile):
-        """ This is a test of the profile callback functionality
-        """
-        print "I am a callback from object: %s" % profile
-
     def setUp(self):
-
         factory = BeepServerFactory()
         factory.addProfile(echoprofile)
         reactor.listenTCP(1976, factory, interface='127.0.0.1')
@@ -63,28 +57,32 @@ class EchoProfileTest(unittest.TestCase):
         # send a greeting msg
         self.client.sendmsg('RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n')
         reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg(1)
 
         # create a channel with the ECHO profile
         self.client.sendmsg('MSG 0 0 . 51 120\r\nContent-type: application/beep+xml\r\n\r\n<start number="1">\r\n<profile uri="http://www.eigenmagic.com/beep/ECHO"/>\r\n</start>END\r\n')
         reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg(1)
 
         self.client.sendmsg('MSG 1 0 . 0 8\r\nHello!\r\nEND\r\n')
         reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg(1)
         self.assertEqual(data, 'RPY 1 0 . 0 8\r\nHello!\r\nEND\r\n')
 
         self.client.sendmsg('MSG 1 1 . 8 8\r\nHello!\r\nEND\r\n')
         reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg(1)
         self.assertEqual(data, 'RPY 1 1 . 8 8\r\nHello!\r\nEND\r\n')
 
         self.client.sendmsg('MSG 0 1 . 171 70\r\nContent-type: application/beep+xml\r\n\r\n<close code="200" number="1"/>\r\nEND\r\n')
         reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg(1)
         self.assertEqual(data, 'RPY 0 1 . 207 43\r\nContent-Type: application/beep+xml\n\n<ok/>\r\nEND\r\n')
-        print data
 
 if __name__ == '__main__':
 

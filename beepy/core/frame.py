@@ -1,5 +1,5 @@
-# $Id: frame.py,v 1.7 2004/04/17 07:28:11 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: frame.py,v 1.8 2004/06/27 07:38:31 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -29,18 +29,19 @@ general and subclassed it to a DataFrame. This way, if other
 frames are used for some reason, they can also subclass from
 Frame. All the guts are in DataFrame, but that's what the RFC says.
 
-@version: $Revision: 1.7 $
+@version: $Revision: 1.8 $
 @author: Justin Warren
 
 """
+import string
+import traceback
+
+import logging
+import debug
+log = logging.getLogger('beepy')
 
 import errors
 import constants
-import string
-
-import logging
-from beepy.core import debug
-log = logging.getLogger('Frame')
 
 class Frame:
     """
@@ -222,11 +223,16 @@ class DataFrame( Frame ):
                 self.ansno = None
             self.setPayload(payload)
 
+        except DataFrameException:
+            raise
+
         except ValueError, e:
             raise DataFrameException("Non-numeric value in frame header")
 
         except Exception, e:
+            traceback.print_exc()
             raise DataFrameException("Unhandled exception in _bufferToFrame: %s: %s" % (e.__class__, e) )
+        
 
         self._checkValues(self.channelnum, self.msgno, self.more, self.seqno, self.size, self.dataFrameType, self.ansno)
 
@@ -281,7 +287,7 @@ class DataFrame( Frame ):
         """
         mysize = len(payload)
         if mysize != self.size:
-            raise DataFrameException('Size mismatch %i != %i' % (mysize, size))
+            raise DataFrameException('Size mismatch %i != %i' % (mysize, self.size))
         self.payload = payload
 
     def __repr__(self):
@@ -336,7 +342,6 @@ class SEQFrame(Frame):
 
         @raise SEQFrameException: if format of frame is invalid
         """
-        log.debug('creating SEQ frame: %s' % data)
         # Now split the frame into bits
         headerbits = string.split(data)
 

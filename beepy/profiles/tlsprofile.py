@@ -1,5 +1,5 @@
-# $Id: tlsprofile.py,v 1.8 2004/04/17 07:28:12 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: tlsprofile.py,v 1.9 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -23,14 +23,15 @@
 __profileClass__ = "TLSProfile"
 uri = "http://iana.org/beep/TLS"
 
+import logging
+from beepy.core import debug
+log = logging.getLogger('beepy')
+
 import profile
 from profile import TerminalProfileException
 import re
 
 import traceback
-import logging
-from beepy.core import debug
-log = logging.getLogger('TLSProfile')
 
 class TLSProfile(profile.Profile):
     """A TLSProfile is a profile that implements the TLS

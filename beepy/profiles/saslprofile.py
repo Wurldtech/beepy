@@ -1,5 +1,5 @@
-# $Id: saslprofile.py,v 1.4 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: saslprofile.py,v 1.5 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -50,10 +50,8 @@ class SASLProfile(profile.Profile):
         blobPattern = r'<blob>(.*)</blob>'
         blobRE = re.compile(blobPattern, re.IGNORECASE | re.DOTALL)
 
-#        self.log.logmsg(logging.LOG_DEBUG, "decoding blob: %s" % data)
         match = re.search(blobRE, data)
         if match:
-#            self.log.logmsg(logging.LOG_DEBUG, "match group: %s" % match.group(1))
             try:
                 decoded_data = base64.decodestring(match.group(1))
                 return decoded_data
@@ -75,7 +73,6 @@ class SASLProfile(profile.Profile):
     def parseStatus(self, data):
         """parseStatus() extracts the status code from the <blob> block
         """
-#        self.log.logmsg(logging.LOG_DEBUG, "parsing status: %s" % data)
         blobStatusPattern = '<blob\sstatus=[\'"](.*)[\'"]\s*/>'
         blobStatusRE = re.compile(blobStatusPattern, re.IGNORECASE)
 
@@ -88,7 +85,6 @@ class SASLProfile(profile.Profile):
     def parseError(self, data):
         """parseError() extracts the error code from the <error> block
         """
-#        self.log.logmsg(logging.LOG_DEBUG, "parsing error: %s" % data)
         blobErrorPattern = '<error\scode=[\'"](.*)[\'"]\s*>(.*)</error>'
         blobErrorRE = re.compile(blobErrorPattern, re.IGNORECASE)
 

@@ -1,5 +1,5 @@
-# $Id: tls.py,v 1.1 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: tls.py,v 1.2 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -21,7 +21,7 @@
 
 import logging
 from beepy.core import debug
-log = logging.getLogger('tls')
+log = logging.getLogger('beepy')
 
 ##
 ## TLS related code
@@ -78,11 +78,11 @@ class TLSClientProtocol(TLSProtocol, TLSInitiator):
     """
 
     def startTLS(self):
-        log.debug('Starting TLS in TLSProtocol...')
+        log.debug('Starting client side TLS...')
 
         self.transport.startTLS(ClientTLSContext())
         self.TLS = 1
-        log.debug('Started TLS in TLSProtocol.')
+        log.debug('Started client side TLS.')
         
 class TLSServerFactory(BeepServerFactory):
     protocol = TLSServerProtocol

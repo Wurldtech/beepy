@@ -1,5 +1,5 @@
-# $Id: reverbprofile.py,v 1.3 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: reverbprofile.py,v 1.4 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -29,6 +29,9 @@ Each echo is sent as an ANS frame.
 MSG frames that are not in the above format and replied to with an
 ERR frame.
 """
+import logging
+from beepy.core import debug
+log = logging.getLogger('beepy')
 
 __profileClass__ = "ReverbProfile"
 uri = "http://www.eigenmagic.com/beep/REVERB"
@@ -38,75 +41,105 @@ import profile
 import string
 import time
 
-import logging
-log = logging.getLogger(__profileClass__)
-
 class ReverbProfile(profile.Profile):
 
-    def __init__(self, session, profileInit=None):
-        profile.Profile.__init__(self, log, session, profileInit)
+    def __init__(self, session, profileInit=None, init_callback=None):
+        self.callLater = None
+
+        self.msgno = 0
+        
+        profile.Profile.__init__(self, session, profileInit, init_callback)
 
         self.reverbDict = {}
+        self.replyDict = {}
 
-    def processFrame(self, theframe):
+    def processMessage(self, msg):
 
-        # Do any historical echoing
-        for msgno in self.reverbDict.keys():
-            if self.reverbDict[msgno][0] + self.reverbDict[msgno][2] <= time.time():
-                self.channel.sendAnswer(msgno, self.reverbDict[msgno][3])
-                self.reverbDict[msgno][1] -= 1
-                self.reverbDict[msgno][0] = time.time()
-
-                log.debug("Reverb sent for msgno %d. %d reverbs left to do." % (msgno, self.reverbDict[msgno][1]) )
-
-                if self.reverbDict[msgno][1] <= 0:
-                    self.channel.sendNul(msgno)
-                    del self.reverbDict[msgno]
-                    pass
-                pass
-            pass
-        
 	try:
-            if theframe.isMSG():
+            if msg.isMSG():
                 # MSG frame, so parse out what to do
-                self.parseMSG(theframe)
+                self.parseMSG(msg)
                 pass
 
-            if theframe.isRPY():
-                self.channel.deallocateMsgno(theframe.msgno)
+            if msg.isANS():
+                log.debug('Got reverb reply: %s' % msg.payload)
+
+            if msg.isRPY():
+                self.channel.deallocateMsgno(msg.msgno)
                 pass
 
-            if theframe.isERR():
-                self.channel.deallocateMsgno(theframe.msgno)
+            if msg.isERR():
+                self.channel.deallocateMsgno(msg.msgno)
                 pass
 
-            if theframe.isNUL():
-                self.channel.deallocateMsgno(theframe.msgno)
+            if msg.isNUL():
+
+                log.debug('Got final message for %s' % msg.msgno)
+                del self.replyDict[msg.msgno]
+                self.channel.deallocateMsgno(msg.msgno)
+                ## If I've got all my reverb replies, finish
+                if len(self.replyDict) == 0:
+                    log.debug('All reverbs received. Finishing...')
+                    self.session.shutdown()
                 pass
             pass
 
         except Exception, e:
-            raise profile.TerminalProfileException("Exception reverbing: %s" % e)
+            raise profile.TerminalProfileException("Exception reverbing: %s: %s" % ( e.__class__, e) )
 
-    def parseMSG(self, theframe):
+    def parseMSG(self, msg):
         """parseMSG grabs the MSG payload and works out what to do
         """
         try:
-            number, delay, content = string.split(theframe.payload, ' ', 3)
-            number = string.atoi(number)
-            delay = string.atoi(delay)
-            self.log.logmsg(logging.LOG_DEBUG, "number: %d" % number)
-            self.log.logmsg(logging.LOG_DEBUG, "delay: %d" % delay)
-            self.log.logmsg(logging.LOG_DEBUG, "content: %s" % content)
+            number, delay, content = string.split(msg.payload, ' ', 2)
+            number = int(number)
+            delay = int(delay)
+            log.debug("number: %d" % number)
+            log.debug("delay: %d" % delay)
+            log.debug("content: %s" % content)
 
             if number <= 0:
-                self.channel.sendError(theframe.msgno, 'Cannot echo a frame %d times.\n' % number)
+                self.channel.sendError(msg.msgno, 'Cannot echo a frame %d times.\n' % number)
 
             else:
-                log.debug("Adding reverb for msgno: %d, %d times with %d second delay" % (theframe.msgno, number, delay) )
-                self.reverbDict[theframe.msgno] = [time.time(), number, delay, content]
+                log.debug("Adding reverb for msgno: %d, %d times with %d second delay" % (msg.msgno, number, delay) )
+                self.reverbDict[msg.msgno] = [number, delay, content]
+                self.callLater(delay, self.sendReverb, (msg.msgno) )
 
-        except ValueError:
+        except ValueError, e:
             # A ValueError means the payload format is wrong.
-            self.channel.sendError(theframe.msgno, 'Payload format incorrect\n')
+            log.error('Payload format incorrect: %s' % e)
+            self.channel.sendError(msg.msgno, 'Payload format incorrect\n')
 
+    def sendReverb(self, msgno):
+        """
+        Send the reverb for the given msgno.
+        """
+        number, delay, content = self.reverbDict[msgno]
+
+        ## send the reverb
+
+        ## Check to see if this is the last response
+        number -= 1
+        if number <= 0:
+            self.channel.sendAnswer(msgno, content)
+            self.channel.sendNul(msgno)
+            del self.reverbDict[msgno]
+
+        ## Otherwise, set up the next reverb call
+        else:
+            self.channel.sendAnswer(msgno, content)
+            self.reverbDict[msgno][0] = number
+            self.callLater(delay, self.sendReverb, (msgno) )
+        
+    def requestReverb(self, number, delay, content):
+        """
+        Ask the remote end to reverb back to me
+        """
+        msgno = self.channel.sendMessage('%s %s %s' % (number, delay, content) )
+
+        ## Record what I've asked for
+        self.replyDict[msgno] = [ number, delay, content ]
+        log.debug('Started replyDict: %s' % self.replyDict)
+
+        return msgno

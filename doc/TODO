@@ -1,5 +1,5 @@
-# $Id: TODO,v 1.19 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.19 $
+# $Id: TODO,v 1.20 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.20 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -23,27 +23,27 @@
 # me while doing something else. It's easier to import into CVS than
 # yellow sticky notes. :)
 
-- Refactor code in default transport classes to provide a non-twisted
-  asyncore based implementation.
-- Allow auto-selection of twisted implementation if available, and
-  fall back to basic asyncore implementation if it isn't.
-- beep.core.message should probably be moved to beep.core.profiles since
-  message is an enabling class for the BEEPMgmtProfile class. mgmtcreator
-  and mgmtparser can probably be moved too, since the mgmt thingo is
-  structured in as a profile, not core anymore.
-- Where does fragmentation get handled? Probably should be in the
-  transport code somewhere, so we need to be careful with buffer overflows
-  in the rest of the code. This is for sending of frames only as frame
-  reassembly works correctly on reception, including DoS prevention
-  and checking for buffer overflow.
+- Fix channel priority algorithm to provide a more intelligent window
+  sizing mechanism. The priority level in the Channel should map to an
+  intuitive real bandwidth priority at the transport layer. The current
+  method seem to exhibit no real difference between the levels. Need to
+  review what is provided for in the RFCs.
+
 - Add profile priorities for when a client might ask to start a channel
   and give a list of profiles. The server will then pick the one that it
   knows about that has the highest priority. This allows the server to
   prefer SASL/OTP over SASL/ANONYMOUS, for example.
-- Need to implement SEQ frame processing now that I understand it as a
-  mechanism to partition the total bandwidth of a TCP session among the
-  channels, similar to IP/MPLS ToS/QoS stuff for data and VoIP.
-- Much work on test scripts required.
+
 - Add a Stress and Volume test to the test suite to see how the library
   performs under load. This will probably have to wait a little while until
   the library is a little bit more stable.
+  Some work on this item has been done, but more is required as the
+  library API stabilises.
+
+- More use of twisted mechanisms such as Deferreds now that I have a better
+  idea of how they work.
+
+- General review of class structure and API. Should be cleaned up and made
+  more intuitive. Do this in conjunction with beepy-devel list.
+
+- Write a test application to show off BEEP and beepy. Any suggestions?

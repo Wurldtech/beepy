@@ -1,5 +1,5 @@
-# $Id: echoprofile.py,v 1.5 2004/04/17 07:28:12 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: echoprofile.py,v 1.6 2004/06/27 07:38:31 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -26,11 +26,11 @@ It sends a Reply to each Message it receives.
 __profileClass__ = "EchoProfile"
 uri = "http://www.eigenmagic.com/beep/ECHO"
 
-import profile
 import logging
 from beepy.core import debug
+log = logging.getLogger('beepy')
 
-log = logging.getLogger(__profileClass__)
+import profile
 
 class EchoProfile(profile.Profile):
     """
@@ -53,7 +53,7 @@ class EchoProfile(profile.Profile):
         @raise profile.TerminalProfileException: if any exception occurs
         during processing.
         """
-        log.debug("EchoProfile: processing message: %s" % msg)
+#        log.debug("EchoProfile: processing message: %s" % msg)
         try:
             if msg.isMSG():
                 log.debug("EchoProfile: sending RPY")

@@ -1,5 +1,5 @@
-# $Id: debug.py,v 1.2 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: debug.py,v 1.3 2004/06/27 07:38:31 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -21,7 +21,7 @@
 """
 Customised debugging code.
 
-@version: $Revision: 1.2 $
+@version: $Revision: 1.3 $
 @author: Justin Warren
 """
 
@@ -40,12 +40,15 @@ class MyLogger(logging.Logger):
         ## Check to see if we're using the twisted logger
         ## and don't log as verbosely if we are, since the twisted
         ## logger already spews an imperial bucketload of information.
-        ## We prefer the metric system, but what can you do.
+        ## We prefer the metric system, but what can you do?
         ## Those crazy Americans!
         if sys.modules.has_key('twisted.python.log'):
-            FORMAT = "%(levelname)s: %(name)s: %(message)s"
+#            FORMAT = "%(module)11s %(levelname)7s: %(name)s: %(message)s"
+            FORMAT = "%(module)15s %(levelname)7s: %(message)s"
         else:
-            FORMAT = "%(asctime)s [" + str(pid) + "] %(levelname)8s: %(name)s: %(message)s"
+#            FORMAT = "%(asctime)s [" + str(pid) + "] %(levelname)8s: %(name)s: %(message)s"
+            FORMAT = "%(asctime)s [" + str(pid) + "] %(module)15s %(levelname)7s: %(message)s"
+
         level = logging.DEBUG
         logging.Logger.__init__(self, name, level)
 

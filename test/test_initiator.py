@@ -1,5 +1,5 @@
-# $Id: test_initiator.py,v 1.9 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: test_initiator.py,v 1.10 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -23,18 +23,15 @@ import unittest
 import sys
 import time
 
-import threading
-
 sys.path.append('../')
-
-from beepy.transports.tcp import BeepServerFactory
-from beepy.transports.tcp import BeepClientProtocol, BeepClientFactory
-from beepy.transports.tcp import reactor
 
 import logging
 from beepy.core import debug
+log = logging.getLogger('beepy')
 
-log = logging.getLogger('test_initiator')
+from beepy.transports.tcp import BeepServerProtocol, BeepServerFactory
+from beepy.transports.tcp import BeepClientProtocol, BeepClientFactory
+from beepy.transports.tcp import reactor
 
 class InitiatorTestProtocol(BeepClientProtocol):
 
@@ -42,16 +39,28 @@ class InitiatorTestProtocol(BeepClientProtocol):
         log.info('Greeting received in client')
         self.shutdown()
 
+    def connectionLost(self, reason):
+        reactor.stop()
+
 class InitiatorTestFactory(BeepClientFactory):
     protocol = InitiatorTestProtocol
+
+class InitTestServerProtocol(BeepServerProtocol):
+
+    def connectionLost(self, reason):
+        reactor.stop()
+
+class InitTestServerFactory(BeepServerFactory):
+
+    protocol = InitTestServerProtocol
 
 class TCPInitatorSessionTest(unittest.TestCase):
 
     def setUp(self):
-        factory = BeepServerFactory()
+        factory = InitTestServerFactory()
 #        factory.addProfile(echoprofile)
         reactor.listenTCP(1976, factory, interface='127.0.0.1')
-        reactor.iterate()
+#        reactor.iterate()
 
     def tearDown(self):
         reactor.stop()

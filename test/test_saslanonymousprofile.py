@@ -1,5 +1,5 @@
-# $Id: test_saslanonymousprofile.py,v 1.10 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: test_saslanonymousprofile.py,v 1.11 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -26,8 +26,11 @@ import threading
 import logging
 
 sys.path.append('../')
+from beepy.core import debug
+log = logging.getLogger('beepy')
 
-from beepy.transports.tcp import BeepServerFactory
+from beepy.transports.tcp import SASLServerProtocol
+from beepy.transports.tcp import SASLServerFactory
 from beepy.transports.tcp import SASLClientProtocol
 from beepy.transports.tcp import SASLClientFactory
 
@@ -35,9 +38,6 @@ from beepy.transports.tcp import reactor
 
 from beepy.profiles import saslanonymousprofile
 from beepy.profiles import echoprofile
-
-from beepy.core import debug
-log = logging.getLogger('SASLAnonymousTest')
 
 class SASLAnonClientProtocol(SASLClientProtocol):
     """ We subclass from the SASLClientProtocol so that
@@ -79,18 +79,22 @@ class SASLAnonClientFactory(SASLClientFactory):
     """
     protocol = SASLAnonClientProtocol
 
+class SASLAnonServerProtocol(SASLServerProtocol):
+
+    def connectionLost(self, reason):
+        reactor.stop()
+
+class SASLAnonServerFactory(SASLServerFactory):
+
+    protocol = SASLAnonServerProtocol
+
 class SASLAnonymousProfileTest(unittest.TestCase):
 
     def setUp(self):
-        factory = BeepServerFactory()
+        factory = SASLAnonServerFactory()
         factory.addProfile(echoprofile)
         factory.addProfile(saslanonymousprofile)        
         reactor.listenTCP(1976, factory, interface='127.0.0.1')
-        reactor.iterate()
-
-    def tearDown(self):
-        reactor.stop()
-        reactor.iterate()
 
     def test_SASLClient(self):
         """Test SASL Anonymous with Initiator"""

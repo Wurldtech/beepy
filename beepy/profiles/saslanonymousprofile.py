@@ -1,5 +1,5 @@
-# $Id: saslanonymousprofile.py,v 1.8 2004/04/17 07:28:12 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: saslanonymousprofile.py,v 1.9 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -23,20 +23,21 @@
 This module implements the SASL ANONYMOUS mechanism as a
 BEEPy profile.
 
-@version: $Revision: 1.8 $
+@version: $Revision: 1.9 $
 @author: Justin Warren
 """
 
 __profileClass__ = "SASLAnonymousProfile"
 uri = "http://iana.org/beep/SASL/ANONYMOUS"
 
+import logging
+from beepy.core import debug
+log = logging.getLogger('beepy')
+
 import saslprofile
 from profile import TerminalProfileException
 
 import traceback
-import logging
-from beepy.core import debug
-log = logging.getLogger('SASLAnonymous')
 
 class SASLAnonymousProfile(saslprofile.SASLProfile):
     """

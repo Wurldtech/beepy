@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.10 2004/04/17 07:28:12 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: beepmgmtprofile.py,v 1.11 2004/06/27 07:38:31 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -23,9 +23,12 @@ This module implements the BEEP Management profile.
 
 This profile is used to manage BEEP sessions and channels.
 
-@version: $Revision: 1.10 $
+@version: $Revision: 1.11 $
 @author: Justin Warren
 """
+import logging
+from beepy.core import debug
+log = logging.getLogger('beepy')
 
 import profile
 from beepy.core import constants
@@ -38,10 +41,6 @@ import message
 import beepy.core.session
 
 import traceback
-
-import logging
-from beepy.core import debug
-log = logging.getLogger('mgmtProfile')
 
 class BEEPManagementProfile(profile.Profile):
     """
@@ -81,16 +80,13 @@ class BEEPManagementProfile(profile.Profile):
 
         @param msg: an incoming DataFrame object
         """
-        log.debug('processing message: %s' % msg.payload)
+#        log.debug('processing message: %s' % msg.payload)
         try:
             data = self.mimeDecode(msg.payload)
             if self.type != self.CONTENT_TYPE:
                 raise profile.TerminalProfileException("Invalid content type for message: %s != %s" % (self.type, self.CONTENT_TYPE) )
 
             mgmtMsg = self.mgmtParser.parse(data)
-
-            if not mgmtMsg:
-                log.debug("Cannot parse message" )
 
             # Handle RPY Frames
             if msg.isRPY():
@@ -101,8 +97,8 @@ class BEEPManagementProfile(profile.Profile):
                         self.session._handleGreeting()
                     except beepy.core.session.TerminateException, e:
                         raise profile.TerminalProfileException(e)
-                else:
-                    log.debug("Non-greeting RPY received" ) 
+#                else:
+#                    log.debug("Non-greeting RPY received" ) 
 
                 # This means a channel start was successful
                 if mgmtMsg.isProfile():
@@ -121,12 +117,12 @@ class BEEPManagementProfile(profile.Profile):
 #                    raise profile.TerminalProfileException("Client sent MSG before greeting.")
 
                 if mgmtMsg.isStart():
-                    log.debug("msg isStart" )
+#                    log.debug("msg isStart" )
                     self._handleStart(msg, mgmtMsg)
 
                 elif mgmtMsg.isClose():
                     # Attempt to close the channel
-                    log.debug("msg isClose " )
+#                    log.debug("msg isClose " )
                     try:
                         self._handleClose(msg, mgmtMsg)
                     except Exception, e:
@@ -181,13 +177,11 @@ class BEEPManagementProfile(profile.Profile):
             raise
 
         except Exception, e:
-            log.debug("Unhandled exception in BEEP management profile")
-            log.debug('%s' % e)
+            log.debug("Unhandled exception in BEEP management profile: %s: %s" % (e.__class__, e) )
             traceback.print_exc()
             raise
             
     def _handleProfile(self, msg, mgmtMsg):
-        log.debug("%s: entered _handleProfile()" % self )
         # look up which channel was being started by msgno
         try:
             channelnum = self.startingChannel[msg.msgno]
@@ -195,8 +189,6 @@ class BEEPManagementProfile(profile.Profile):
             del self.startingChannel[msg.msgno]
 
             # create it at this end
-            log.debug("Attempting to create matching channel %s..." % channelnum)
-            log.debug("Msg URIlist: %s" % mgmtMsg.getProfileURIList() )
             self.session.createChannelFromURIList(channelnum, mgmtMsg.getProfileURIList())
 
             log.debug("Channel %s created successfully." % channelnum )
@@ -219,7 +211,6 @@ class BEEPManagementProfile(profile.Profile):
             # We now have to request the other end close down the Channel
             log.error("%s" % e)
             log.error("Remote end started channel with profile unsupported at this end.")
-            log.error("You probably screwed something up somewhere.")
             self.closeChannel(channelnum)
 
         except Exception, e:
@@ -236,8 +227,6 @@ class BEEPManagementProfile(profile.Profile):
         try:
             reqChannel = mgmtMsg.getStartChannelNum()
 
-            log.debug("request to start channel: %d" % reqChannel)
-
             # If I'm a listener, channel number requested must be odd
             if (reqChannel % 2) != 1:
                 log.warning("Requested channel number of %d is even, and should be odd" % reqChannel)
@@ -252,16 +241,12 @@ class BEEPManagementProfile(profile.Profile):
 
                 uri = self.session.createChannelFromURIList(reqChannel, mgmtMsg.getProfileURIList(), cdata)
                 # Finally, inform client of success, and which profile was used.
-                log.debug("uri: %s" % uri)
                 data = self.mgmtCreator.createStartReplyMessage(uri)
-                log.debug("create start reply message")
                 data = self.mimeEncode(data, self.CONTENT_TYPE)
-                log.debug("encoded message")
                 self.channel.sendReply(msg.msgno, data)
-                log.debug("message sent")
 
         except beepy.core.session.SessionException, e:
-            log.info("Cannot start channel: %s" % e)
+            log.warning("Cannot start channel: %s" % e)
             errmsg = self.mgmtCreator.createErrorMessage('504', constants.ReplyCodes['504'])
             errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
             self.channel.sendError(msg.msgno, errmsg)
@@ -288,7 +273,7 @@ class BEEPManagementProfile(profile.Profile):
             channelnum = mgmtMsg.getCloseChannelNum()
             ## check we're not already closing the channel
             if channelnum in self.closingChannel.values():
-                log.debug('Close already in progress for channel %d' % channelnum)
+                log.warning('Close already in progress for channel %d' % channelnum)
                 errmsg = self.mgmtCreator.createErrorMessage('550', constants.ReplyCodes['550'])
                 errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
                 self.channel.sendError(msg.msgno, errmsg)
@@ -306,7 +291,7 @@ class BEEPManagementProfile(profile.Profile):
 
     def _completeClosure(self, msgno):
         """
-        Used as a callback for the successfult sending of a
+        Used as a callback for the successful sending of a
         close confirmation message.
         """
         log.debug('close completed successfully: %d' % msgno)
@@ -318,7 +303,6 @@ class BEEPManagementProfile(profile.Profile):
         It deals with <ok> MSG frames, such as those used to confirm
         a channel close.
         """
-        log.debug("isOK")
         
         # First, we check if this is a close confirmation
         if self.closingChannel.has_key(msg.msgno):
@@ -365,14 +349,12 @@ class BEEPManagementProfile(profile.Profile):
         """closeChannel() attempts to close a Channel at the remote end
         by sending a <close> message to the remote end.
         """
-        log.debug("Initiating closure of channel %s" % channelnum)
         data = self.mgmtCreator.createCloseMessage(channelnum, code)
         data = self.mimeEncode(data, self.CONTENT_TYPE)
         msgno = self.channel.sendMessage(data)
         self.closingChannel[msgno] = channelnum
         self.channelState[channelnum] = [ self.CHANNEL_STARTING ]
         self.channelEvent[channelnum] = [ closedOk, closedError ]
-        log.debug('closure scheduled')
 
     def sendGreeting(self):
         """sendGreetingMessage() places a special kind of RPY
@@ -386,8 +368,6 @@ class BEEPManagementProfile(profile.Profile):
         data = self.mimeEncode(data, self.CONTENT_TYPE)
         self.channel.sendGreetingReply(data)
         
-        log.debug("Sent greeting.")
-
     def isChannelError(self, channelnum):
         log.debug("channelState: %s" % self.channelState[channelnum] )
         if self.channelState[channelnum][0] == self.CHANNEL_ERROR:

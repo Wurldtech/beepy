@@ -1,5 +1,5 @@
-# $Id: base.py,v 1.1 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: base.py,v 1.2 2004/06/27 07:38:32 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -23,8 +23,7 @@
 ##
 import logging
 from beepy.core import debug
-log = logging.getLogger('base')
-log.setLevel(logging.DEBUG)
+log = logging.getLogger('beepy')
 
 import traceback
 import sys

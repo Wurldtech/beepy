@@ -1,5 +1,5 @@
-# $Id: message.py,v 1.3 2002/08/13 06:29:21 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: message.py,v 1.4 2002/08/13 13:03:28 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -160,6 +160,7 @@ class Message:
 			if not currentNode.hasAttribute('number'):
 				raise MessageInvalid('start tag has no number attribute')
 
+			foundProfile = 0
 			for node in currentNode.childNodes:
 				if node.nodeName == 'profile':
 					foundProfile = 1

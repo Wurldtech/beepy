@@ -1,5 +1,5 @@
-# $Id: testall.py,v 1.9 2004/09/28 01:19:21 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: testall.py,v 1.10 2004/10/02 02:18:50 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -37,7 +37,6 @@ moduleNames = [ 'test_creator',
                 'test_echoprofile',
                 'test_saslanonymousprofile',
                 'test_saslotpprofile',
-                'test_tlsprofile',
               ]
 
 ## Check to see if TLS/SSL is available.
@@ -46,7 +45,7 @@ moduleNames = [ 'test_creator',
 try:
     import beepy.transports.tls
 
-#    moduleNames.append('test_tlsprofile')
+    moduleNames.append('test_tlsprofile')
     
 except:
     print "TLS not available, skipping TLS tests..."

@@ -1,5 +1,5 @@
-# $Id: statemachine.py,v 1.1 2002/08/13 06:26:51 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: statemachine.py,v 1.2 2002/08/13 13:08:23 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -52,11 +52,15 @@ class StateMachine:
 
 		while 1:
 			(newState, cargo) = handler(cargo)
-			if upper(newState) in self.endStates:
+			if newState in self.endStates:
 				break
 			else:
 				handler = self.handlers[newState]
 
 class StateMachineException(errors.BEEPException):
+	def __init__(self, args=None):
+		self.args = args
+
+class TransitionException(StateMachineException):
 	def __init__(self, args=None):
 		self.args = args

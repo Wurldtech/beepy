@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.3 2002/08/13 06:29:21 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: session.py,v 1.4 2002/08/13 13:08:23 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -24,6 +24,7 @@
 import socket
 import Queue
 
+import statemachine
 import constants
 import logging
 import errors
@@ -34,13 +35,12 @@ import mgmtcreator
 from beep.profiles import profile
 from beep.profiles import beepmgmtprofile
 
-class Session:
+class Session(statemachine.StateMachine):
 	"""
 	The Session class is an abstract class with only core functions
 	implemented. All transport related functions remain unimplemented
 	and should be implemented in a class that inherits from Session
 	"""
-	state = constants.SESSION_UNINITIALIZED
 
 	log = None		# Logger
 	sentGreeting = 0	# have I sent a greeting yet?
@@ -57,7 +57,17 @@ class Session:
 	# from your implementation unless you want to recode this yourself
 	
 	def __init__(self, log, profileDict):
-		self.state = constants.SESSION_UNINITIALIZED
+		# zero the state machine
+		statemachine.StateMachine.__init__(self)
+
+		# define the states
+		self.addState('INIT', self._stateINIT)
+		self.addState('ACTIVE', self._stateACTIVE)
+		self.addState('CLOSING', self._stateCLOSING)
+		self.addState('TUNING', self._stateTUNING)
+		self.addState('TERMINATE', self._stateTERMINATE)
+		self.addState('EXITED', None, 1)
+		self.setStart('INIT')
 
 		self.log = log
 		self.sentGreeting = 0
@@ -69,8 +79,33 @@ class Session:
 		self.inbound = Queue.Queue(constants.MAX_INPUT_QUEUE_SIZE)
 		self.outbound = Queue.Queue(constants.MAX_INPUT_QUEUE_SIZE)
 
+	def _stateINIT(self, cargo=None):
 		# Create channel 0 for this session
 		self.createChannelZero()
+
+		# go active when channelzero is online
+		return('ACTIVE', None)
+
+	def _stateACTIVE(self, cargo=None):
+		""" overload _stateACTIVE in your subclass to implement the
+		    main processing loop
+		"""
+		raise NotImplementedError
+
+	def _stateCLOSING(self, cargo=None):
+		""" _stateCLOSING attempts to shut down the session gracefully
+		"""
+		raise NotImplementedError
+
+	def _stateTUNING(self, cargo=None):
+		"""performs a tuning reset
+		"""
+		raise NotImplementedError
+
+	def _stateTERMINATE(self, cargo=None):
+		"""performs a tuning reset
+		"""
+		raise NotImplementedError
 
 	def processFrames(self):
 		"""processFrames() is used by a Session to call each of the
@@ -177,6 +212,24 @@ class Session:
 		self.log.logmsg(logging.LOG_DEBUG, "uri not found in profileDict")
 		raise SessionException("Profile not supported by Session")
 
+	def closeAllChannels(self):
+		"""attempts to close all the channels in a session
+		before closing down the session itself.
+		"""
+		try:
+			chanlist = self.channels.keys()
+			self.log.logmsg("Channels to close: %s" % chanlist)
+			for channelnum in chanlist:
+				self.log.logmsg("attempting to close channel %i..." % channelnum)
+				self.channels[channelnum].close()
+				self.deleteChannel(channelnum)
+
+		except Exception, e:
+			# If we can't close a channel, we must remain active
+			# FIXME: more detailed error handling required here
+			self.log.logmsg("Unable to close Session: %s" % e)
+			raise
+
 	def deleteChannel(self, channelnum):
 		if channelnum in self.channels.keys():
 			del self.channels[channelnum]
@@ -255,20 +308,6 @@ class Session:
 	def getProfileDict(self):
 		return self.profileDict
 
-	def close(self):
-		"""close() attempts to close all the channels in a session
-		before closing down the session itself.
-		"""
-		if self.state < constants.SESSION_CLOSING:
-			self.state = constants.SESSION_CLOSING
-			try:
-				chanlist = self.channels.keys()
-				for chan in chanlist:
-					chan.close()
-					self.deleteChannel(chan)
-
-			except Exception, e:
-				raise SessionException('Unable to close Session: %s' % e)
 
 	def reset(self):
 		"""reset() does a tuning reset which closes all channels and

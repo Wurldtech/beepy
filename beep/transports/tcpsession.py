@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.5 2002/08/13 06:29:21 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: tcpsession.py,v 1.6 2002/08/13 13:08:23 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -73,7 +73,6 @@ class TCPSessionListener(SocketServer.TCPServer, session.SessionListener, thread
 	def run(self):
 
 		self.state = constants.SESSION_ACTIVE
-#		self.log.logmsg(logging.LOG_DEBUG, "%s -> SESSION_ACTIVE" % self)
 
 		while self.state != constants.SESSION_CLOSING:
 			self.handle_request()
@@ -169,14 +168,14 @@ class TCPCommsMixin:
 						# non frame data what probably belongs to the next frame
 						self.framebuffer = self.framebuffer[match.end():]
 				else:
-					raise TCPSessionException("Connection closed by remote host")
+					raise session.TerminateException("Connection closed by remote host")
 
 		except socket.error, e:
 			if e[0] == errno.EWOULDBLOCK:
 				pass
 
 			elif e[0] == errno.ECONNRESET:
-				raise TCPSessionException("Connection closed by remote host")
+				raise session.TerminateException("Connection closed by remote host")
 
 			else:
 				self.log.logmsg(logging.LOG_DEBUG, "socket.error: %s" % e)
@@ -190,7 +189,7 @@ class TCPCommsMixin:
 			self.log.logmsg(logging.LOG_WARN, "Session inbound queue full from %s" % self.client_address)
 			pass
 
-		except TCPSessionException:
+		except session.TerminateException:
 			raise
 
 		except Exception, e:
@@ -205,6 +204,10 @@ class TCPCommsMixin:
 		except Exception, e:
 			self.log.logmsg(logging.LOG_WARN, "Exception in sendPendingFrame(): %s" % e)
 			pass
+
+	# Need to deal with SEQ frames
+	def processSEQFrame(self):
+		raise NotImplementedError
 
 # Created when TCPSessionListener accepts a connection and spawns a thread
 # This really only inherits from StreamRequestHandler for typing reasons,
@@ -239,12 +242,11 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 
 		# initialise as a TCPListenerSession
 		session.ListenerSession.__init__(self, self.server.log, self.server.profileDict)
-		self.state = constants.SESSION_INITIALIZED
+
 		self.log.logmsg(logging.LOG_INFO, "Connection from %s[%s]." % self.client_address)
 		self.start()
 
-	def setup(self):
-
+	def _stateINIT(self, cargo=None):
 		# configure as a SocketServer
 		SocketServer.StreamRequestHandler.setup(self)
 
@@ -252,75 +254,70 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 		self.connection.setblocking(0)
 #		self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
-	def run(self):
+		self.createChannelZero()
+		return('ACTIVE', None)
+
+	def _stateACTIVE(self, cargo=None):
+		while 1:
+			result = self._mainLoop()
+			if result:
+				return result
+
+	def _mainLoop(self):
 		try:
-			self.setup()
-			self.handle()
-			self.finish()
-		finally:
-			sys.exc_traceback = None
+			# First, try to read a frame
+			self.getInputFrame()
 
-	def handle(self):
+			# Then try to process any pending frames
+			self.processFrames()
 
-		if self.state != constants.SESSION_INITIALIZED:
-			self.log.logmsg( logging.LOG_ERR, "%s: Attempt to become active before initializing." % self )
-			return
-		self.state = constants.SESSION_ACTIVE
-#		self.log.logmsg( logging.LOG_DEBUG, "%s -> SESSION_ACTIVE" % self )
+			# Finally, send a frame if any are pending
+			self.sendPendingFrame()
 
-		while self.state < constants.SESSION_CLOSING:
+		except TCPSessionException, e:
+			self.log.logmsg( logging.LOG_ERR, "Closing Session: %s" % e)
+			return('CLOSING', None)
 
+		except session.TerminateException, e:
+			self.log.logmsg( logging.LOG_INFO, "Terminating Session: %s" % e)
+			return('TERMINATE', None)
+
+	def _stateCLOSING(self, cargo=None):
+		# first, attempt to close the session channels
+		try:
+			self.closeAllChannels()
+
+		except Exception, e:
+			self.log.logmsg(logging.LOG_DEBUG, "exception closing channels: %s" % e)
+#			return('ACTIVE', None)
+
+		return('TERMINATE', None)
+
+	def _stateTUNING(self, cargo=None):
+		# while there are active channels, we can't exit
+		# so we have to continue processing
+		while len(self.channels) > 0:
+			# attempt to close all channels
 			try:
-				# First, try to read a frame
-				self.getInputFrame()
+				self.closeAllChannels()
+			except:
+				result = self._mainLoop()
+				if result:
+					return result
+		return('EXITED', None)
 
-				# Then try to process any pending frames
-				self.processFrames()
-
-				# Finally, send a frame if any are pending
-				self.sendPendingFrame()
-
-			except TCPSessionException, e:
-				self.log.logmsg( logging.LOG_ERR, "Closing Session: %s" % e)
-				self.state = constants.SESSION_CLOSING
-				break
-
-			except session.TerminateException, e:
-				self.log.logmsg( logging.LOG_INFO, "Terminating Session: %s" % e)
-				self.state = constants.SESSION_CLOSING
-				break
-
-#		self.log.logmsg( logging.LOG_DEBUG, "%s -> SESSION_CLOSING" % self )
-
-	def finish(self):
-		if self.state == constants.SESSION_TUNING:
-			self.log.logmsg(logging.LOG_INFO, "Closing old session due to tuning reset." )
-		else:
-			self.state = constants.SESSION_EXITING
-			SocketServer.StreamRequestHandler.finish(self)
-			self.server.removeSession(self)
-			self.state = constants.SESSION_EXITED
-			self.log.logmsg(logging.LOG_INFO, "Session from %s[%s] finished." % self.client_address)
-
-	# Need to deal with SEQ frames
-	def processSEQFrame(self):
-		raise NotImplementedError
-
-	def close(self):
-		session.Session.close(self)
-		self.log.logmsg(logging.LOG_DEBUG, "%s: closing connection in tcpsession.py line 311." % self)
-
+	def _stateTERMINATE(self, cargo=None):
+		"""TERMINATE state is reached from the ACTIVE state if an error
+		   occurs that results in immediate session shutdown. This is
+		   usually things like loss of synchronisation or remote host
+		   closing the connection.
+		"""
+		SocketServer.StreamRequestHandler.finish(self)
 		self.connection.close()
 		self.request.close()
 
-	def reset(self):
-		self.state = constants.SESSION_TUNING
-		# close all channels
-		session.Session.close(self)
-		# flush pending frames
-
-		while not self.outbound.empty():
-			self.sendPendingFrame()
+		self.log.logmsg(logging.LOG_INFO, "Session from %s[%s] finished." % self.client_address)
+		return('EXITED', None)
 
 class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMixin):
 
@@ -351,7 +348,7 @@ class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMi
 #
 #		self.start()
 
-	def run(self):
+	def _stateACTIVE(self, cargo=None):
 		self.state = constants.SESSION_ACTIVE
 		while self.state != constants.SESSION_CLOSING:
 			try:

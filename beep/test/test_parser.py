@@ -1,5 +1,5 @@
-# $Id: test_parser.py,v 1.3 2002/08/22 05:03:35 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: test_parser.py,v 1.4 2002/10/18 06:41:32 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -20,6 +20,9 @@
 #
 # Test cases to test the BEEP Management message parser
 # Test xml files are located in this directory as *.xml
+# These tests are designed to test the parser in isolation to ensure
+# that the XML validation and parsing occurs correctly, as this is
+# crucial for the correct operation of the management profile.
 
 import unittest
 import sys, os.path
@@ -74,6 +77,12 @@ class ParserTest(unittest.TestCase):
 		file = open('beep_malformed_start_without_profile.xml')
 		self.assertRaises( mgmtparser.ParserException, parser.parse, file )
 
+	def test_parseMalformedCloseWithNoNumberAttrib(self):
+		"""Parse Malformed XML Document: close tag with no number attribute"""
+		parser = mgmtparser.Parser(self.log)
+		file = open('beep_malformed_close_no_number_attrib.xml')
+		self.assertRaises( mgmtparser.ParserException, parser.parse, file )
+
 	def test_parseGreeting(self):
 		"""Parse empty greeting"""
 		parser = mgmtparser.Parser(self.log)
@@ -103,6 +112,20 @@ class ParserTest(unittest.TestCase):
 		message = parser.parse(file)
 		self.assertEqual( message.type, 'ok' )
 
+	def test_parseCloseWithAlphaNumber(self):
+		"""Parse close with alpha number value"""
+		parser = mgmtparser.Parser(self.log)
+		file = open('beep_close_alpha_number.xml')
+		message = parser.parse(file)
+		self.assertEqual( message.type, 'close' )
+
+	def test_parseCloseWithAlphaCode(self):
+		"""Parse close with alpha code value"""
+		parser = mgmtparser.Parser(self.log)
+		file = open('beep_close_alpha_code.xml')
+		message = parser.parse(file)
+		self.assertEqual( message.type, 'close' )
+
 	def test_parseClose(self):
 		"""Parse close"""
 		parser = mgmtparser.Parser(self.log)
@@ -114,6 +137,20 @@ class ParserTest(unittest.TestCase):
 		"""Parse start with single profile"""
 		parser = mgmtparser.Parser(self.log)
 		file = open('beep_start_with_single_profile.xml')
+		message = parser.parse(file)
+		self.assertEqual( message.type, 'start' )
+
+	def test_parseStartAlphaNumber(self):
+		"""Parse start with alpha number value"""
+		parser = mgmtparser.Parser(self.log)
+		file = open('beep_start_alpha_number.xml')
+		message = parser.parse(file)
+		self.assertEqual( message.type, 'start' )
+
+	def test_parseStartMultipleProfile(self):
+		"""Parse start with multiple profiles"""
+		parser = mgmtparser.Parser(self.log)
+		file = open('beep_start_with_multiple_profile.xml')
 		message = parser.parse(file)
 		self.assertEqual( message.type, 'start' )
 

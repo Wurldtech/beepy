@@ -1,5 +1,5 @@
-# $Id: test_echoprofile.py,v 1.4 2002/08/22 05:03:35 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: test_echoprofile.py,v 1.5 2002/10/18 06:41:32 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -62,9 +62,9 @@ class EchoProfileTest(unittest.TestCase):
 		client.sendmsg('MSG 1 0 . 0 8\r\nHello!\r\nEND\r\n')
 		data = client.getmsg()
 		self.assertEqual(data, 'RPY 1 0 . 0 8\r\nHello!\r\nEND\r\n')
-		client.sendmsg('MSG 1 0 . 8 8\r\nHello!\r\nEND\r\n')
+		client.sendmsg('MSG 1 1 . 8 8\r\nHello!\r\nEND\r\n')
 		data = client.getmsg()
-		self.assertEqual(data, 'RPY 1 0 . 8 8\r\nHello!\r\nEND\r\n')
+		self.assertEqual(data, 'RPY 1 1 . 8 8\r\nHello!\r\nEND\r\n')
 		client.terminate()
 		sess.close()
 		while sess.isAlive():

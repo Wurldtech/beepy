@@ -1,0 +1,5 @@
+<start number="42">
+  <profile uri="http://iana.org/beep/SASL/ANONYMOUS"/>
+  <profile uri="http://iana.org/beep/SASL/OTP"/>
+  <profile uri="http://iana.org/beep/TLS"/>
+</start>

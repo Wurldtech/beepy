@@ -1,5 +1,5 @@
-# $Id: saslanonymousprofile.py,v 1.7 2002/10/07 05:52:04 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: saslanonymousprofile.py,v 1.8 2002/10/18 06:41:32 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -42,7 +42,6 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
 		self.authid = None
 		saslprofile.SASLProfile.__init__(self, log, session)
 		self.log.logmsg(logging.LOG_DEBUG, "initstring: %s" % profileInit)
-		self.tuning = 0
 
 	def doProcessing(self):
 		"""All doProcessing should do is move the session from
@@ -50,6 +49,11 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
 		"""
 		theframe = self.channel.recv()
 		if theframe:
+			error = self.parseError(theframe.payload)
+			if error:
+				self.log.logmsg(logging.LOG_NOTICE, "Error while authenticating: %s: %s" % (error[1], error[2]))
+				return
+
 			status = self.parseStatus(theframe.payload)
 			if status:
 				# do status code processing
@@ -64,14 +68,23 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
 					self.log.logmsg(logging.LOG_DEBUG, "Raising tuning reset...")
 					raise TuningReset("SASL ANONYMOUS authentication succeeded")
 
+				elif status == 'abort':
+					# other end has aborted negotiation, so we reset
+					# to our initial state
+					self.authentid = None
+					self.authid = None
+
+				elif status == 'continue':
+					self.log.logmsg(logging.LOG_NOTICE, "continue during authentication")
+
 			else:
 				authentid = self.decodeBlob(theframe.payload)
 				if authentid:
 					self.log.logmsg(logging.LOG_DEBUG, "authentid: %s" % authentid)
+					self.authentid = authentid
 					# I've now dealt with the message sufficiently for it to
 					# be marked as such, so we deallocate the msgno
 					self.channel.deallocateMsgno(theframe.msgno)
-
 					# Ok, start setting up for a tuning reset
 					# copy connection to new session object
 					conn = self.session.connection
@@ -80,7 +93,7 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
 
 					# Session object should wait for this session thread to exit before
 					# going to ACTIVE state.
-					newsess = sasltcpsession.SASLTCPListenerSession(conn, client_address, sessmgr, self.session, authentid)
+					newsess = sasltcpsession.SASLTCPListenerSession(conn, client_address, sessmgr, self.session, self.authentid)
 					data = '<blob status="complete"/>'
 					self.channel.sendReply(theframe.msgno, data)
 					self.log.logmsg(logging.LOG_DEBUG, "Queued success message")

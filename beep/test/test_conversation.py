@@ -1,5 +1,5 @@
-# $Id: test_conversation.py,v 1.6 2002/09/18 07:07:02 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: test_conversation.py,v 1.7 2002/10/18 06:41:32 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -54,13 +54,15 @@ class ConversationTest(unittest.TestCase):
 		client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
 		data = client.getmsg()
 		client.sendmsg("RPY 0 0 . 51 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
+		data = client.getmsg()
 		client.terminate()
 		sess.close()
 		while sess.isAlive():
 			pass
+		self.assertEqual(data, '')
 
 	def test_clientStartChannel(self):
-		"""Test greeting and start msg"""
+		"""Test start channel with unsupported profile"""
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
@@ -72,18 +74,18 @@ class ConversationTest(unittest.TestCase):
 		# send a greeting msg
 		client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
 		data = client.getmsg()
-		print "--recv--\n", data
 		client.sendmsg('MSG 0 0 . 51 118\r\nContent-Type: application/beep+xml\r\n\r\n<start number="1">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
 
 		data = client.getmsg()
-		print "--recv--\n", data
 		client.terminate()
 		sess.close()
 		while sess.isAlive():
 			pass
 
+		self.assertEqual(data, 'ERR 0 0 . 117 95\r\nContent-Type: application/beep+xml\n\n<error code="504">\r\n  Parameter Not Implemented\r\n</error>\r\nEND\r\n')
+
 	def test_clientStartEvenChannel(self):
-		"""Test create channel with incorrectly even number"""
+		"""Test start channel with incorrectly even number"""
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
@@ -103,6 +105,28 @@ class ConversationTest(unittest.TestCase):
 		while sess.isAlive():
 			pass
 		self.assertEqual(data, 'ERR 0 0 . 117 96\r\nContent-Type: application/beep+xml\n\n<error code="501">\r\n  Syntax Error In Parameters\r\n</error>\r\nEND\r\n')
+
+	def test_clientStartAlphaChannel(self):
+		"""Test start channel with invalid channel number"""
+		pdict = profile.ProfileDict()
+		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
+		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
+		# wait for it to become active
+		while sess.currentState != 'ACTIVE':
+			pass
+		# create and connect a client
+		client = dummyclient.DummyClient()
+
+		# send a greeting msg
+		client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
+		data = client.getmsg()
+		client.sendmsg('MSG 0 0 . 51 118\r\nContent-Type: application/beep+xml\r\n\r\n<start number="a">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
+		data = client.getmsg()
+		client.terminate()
+		sess.close()
+		while sess.isAlive():
+			pass
+		self.assertEqual(data, 'ERR 0 0 . 117 106\r\nContent-Type: application/beep+xml\n\n<error code="501">\r\n  Requested channel number is invalid.\r\n</error>\r\nEND\r\n')
 
 
 if __name__ == '__main__':

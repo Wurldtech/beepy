@@ -1,5 +1,5 @@
-# $Id: TODO,v 1.10 2002/10/15 01:53:06 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: TODO,v 1.11 2002/10/18 06:41:32 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -25,7 +25,8 @@
 
 - Channel.pull() returns a message instead of a frame. why?
 - Channel.allocateRemoteSeqno() and similar: check for need for mutex
-  because of concurrency and synchronisation issues.
+  because of concurrency and synchronisation issues. Doesn't look like
+  it.
 - Possible rationalisation of Exceptions classes in some cases. I'm having
   to draw lots of Exception classes in Dia to document this thing. I wonder
   if string comparison is quicker than class instanciation during exception
@@ -56,7 +57,13 @@
   bad. Should modify this to a better async model at some stage. That will
   get quite complex and I'll have to look up my old operating system notes.
   It'd be nice to have priority processes, like nice(1).
-- I'm not happy with the use of struct.pack() in saslotpprofile.py. Having
-  to refer to each value in a list in order to pack it into an 8 byte
-  string is annoying and wrong. Perhaps a loop using chr() would be more
-  appropriate.
+- Need to implement SEQ frame processing now that I understand it as a
+  mechanism to partition the total bandwidth of a TCP session among the
+  channels, similar to IP/MPLS ToS/QoS stuff for data and VoIP.
+- Should probably modify all the logmsg() calls to have an 
+  import * from logging at the top so you don't have to type 
+  logging.LOG_DEBUG all the time, which is a drag.
+- Possibly modify the parameter ordering to permit a default logging level
+  of DEBUG, so if you don't explicitly say so, it's a debug statement.
+  More for convenience while coding than anything else.
+- Much work on test scripts required. This is now a priority.

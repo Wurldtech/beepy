@@ -1,5 +1,5 @@
-# $Id: saslprofile.py,v 1.6 2002/10/16 03:09:07 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: saslprofile.py,v 1.7 2002/10/18 06:41:32 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -85,6 +85,21 @@ class SASLProfile(profile.Profile):
 		match = re.search(blobStatusRE, data)
 		if match:
 			return match.group(1)
+		else:
+			return None
+
+	def parseError(self, data):
+		"""parseError() extracts the error code from the <error> block
+		"""
+#		self.log.logmsg(logging.LOG_DEBUG, "parsing error: %s" % data)
+		blobErrorPattern = '<error\scode=[\'"](.*)[\'"]\s*>(.*)</error>'
+		blobErrorRE = re.compile(blobErrorPattern, re.IGNORECASE)
+
+		match = re.search(blobErrorRE, data)
+		if match:
+			code = match.group(1)
+			errormsg = match.group(2)
+			return code,errormsg
 		else:
 			return None
 

@@ -1,5 +1,5 @@
-# $Id: frame.py,v 1.3 2002/08/22 05:03:34 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: frame.py,v 1.4 2002/10/18 06:41:31 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -123,7 +123,7 @@ class DataFrame( Frame ):
 		# bug in the code, or crap data being sent in
 		# First, check the data is terminated by the TRAILER
 		if data[-5:] != self.TRAILER:
-			raise DataFrameException('No Trailer')
+			raise DataFrameException("No Trailer")
 
 		# Strip off the trailer
 		data = data[:-5]
@@ -133,14 +133,14 @@ class DataFrame( Frame ):
 
 		# Check for a frame of just a TRAILER
 		if len(framedata) != 1 and len(framedata) != 2:
-			raise DataFrameException('Empty Frame')
+			raise DataFrameException("Empty Frame")
 
 		# Now split the header into bits
 		headerbits = string.split(framedata[0])
 
 		# Check for valid header format
 		if len(headerbits) != 6 and len(headerbits) != 7:
-			raise DataFrameException('Header Format Invalid')
+			raise DataFrameException("Header Format Invalid")
 		self.type = headerbits[0]
 #		self.log.logmsg(logging.LOG_DEBUG, "frame.py: type is: %s" % self.type )
 
@@ -156,7 +156,7 @@ class DataFrame( Frame ):
 				self.ansno = None
 
 		except Exception, e:
-			raise DataFrameException('unknown error in _bufferToFrame')
+			raise DataFrameException("unknown error in _bufferToFrame")
 
 		self.payload = framedata[1]
 
@@ -170,23 +170,23 @@ class DataFrame( Frame ):
 	# of sense
 	def _checkValues(self, channelnum, msgno, more, seqno, size, payload, type, ansno=None):
 		if type not in constants.DataFrameTypes.keys():
-			raise DataFrameException('Invalid DataFrame Type')
+			raise DataFrameException("Invalid DataFrame Type")
 
 		if not constants.MIN_CHANNEL <= channelnum <= constants.MAX_CHANNEL:
-			raise DataFrameException('Channel number (%s) out of bounds' % channelnum)
+			raise DataFrameException("Channel number (%s) out of bounds" % channelnum)
 
 		if not constants.MIN_MSGNO <= msgno <= constants.MAX_MSGNO:
-			raise DataFrameException('MSGNO out of bounds')
+			raise DataFrameException("MSGNO out of bounds")
 
 		if not more in constants.MoreTypes.keys():
-			raise DataFrameException('Invalid More Type')
+			raise DataFrameException("Invalid More Type")
 
 		if not constants.MIN_SEQNO <= seqno <= constants.MAX_SEQNO:
-			raise DataFrameException('SEQNO: %i out of bounds' % seqno)
+			raise DataFrameException("SEQNO: %i out of bounds" % seqno)
 
 		if ansno:
 			if not constants.MIN_ANSNO <= ansno <= constants.MAX_ANSNO:
-				raise DataFrameException('ANSNO out of bounds')
+				raise DataFrameException("ANSNO out of bounds")
 
 		mysize = len(payload)
 		if mysize != size:

@@ -1,5 +1,5 @@
-# $Id: logging.py,v 1.4 2002/09/17 06:51:44 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: logging.py,v 1.5 2002/10/18 06:41:31 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -39,10 +39,9 @@ import time
 LOG_CRIT = 0		# Critical internal beep library error
 LOG_ERR = 1		# A handled error condition occurred
 LOG_WARN = 2		# An error occurred, but it's not a big deal
-LOG_NOTICE = 3		# Something happened that you should probably look at
+LOG_NOTICE = 3		# Something happened that you should probably know about
 LOG_INFO = 4		# Something happened that might be interesting
-LOG_DEBUG = 5		# Loads of stuff about how the internal processing
-			# is done.
+LOG_DEBUG = 5		# Loads of stuff about how the internal processing is done.
 
 class Log:
 
@@ -59,10 +58,14 @@ class Log:
 			self.log = sys.stderr
 			self.logfile = 'STDERR'
 
-#		self.debuglevel = LOG_ERR
-		self.debuglevel = LOG_DEBUG
+		self.debuglevel = -1
+#		self.debuglevel = LOG_INFO
+#		self.debuglevel = LOG_DEBUG
 
 	def logmsg(self, msglevel, *msgs):
+		if self.debuglevel == -1:
+			return
+
 		if msglevel <= self.debuglevel:
 			stamp = time.asctime(time.localtime())
 			self.log.write(stamp)

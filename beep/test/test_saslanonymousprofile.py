@@ -1,5 +1,5 @@
-# $Id: test_saslanonymousprofile.py,v 1.3 2002/10/07 05:52:04 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: test_saslanonymousprofile.py,v 1.4 2002/10/18 06:41:32 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -98,7 +98,6 @@ class SASLAnonymousProfileTest(unittest.TestCase):
 		# Connect a client
 		client = clientmgr.connectInitiator('localhost', 1976)
 		clientid = client.ID
-		print "client id: %d is: %s" % (clientid, client)
 		while not client.isActive():
 			pass
 
@@ -116,9 +115,7 @@ class SASLAnonymousProfileTest(unittest.TestCase):
 
 		# old client will have exited, so get the new client
 		# for the same connection, as it has the same id
-		print "getting client by id %d" % clientid
 		client = clientmgr.getSessionById(clientid)
-		print "Client is now id %d: %s" % (clientid, client)
 
 		while not client.isActive():
 			pass

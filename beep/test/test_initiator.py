@@ -1,5 +1,5 @@
-# $Id: test_initiator.py,v 1.2 2002/10/15 06:50:47 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: test_initiator.py,v 1.3 2002/10/18 06:41:32 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -30,39 +30,55 @@ from beep.transports import tcpsession
 from beep.profiles import profile
 from beep.profiles import echoprofile
 
-import dummyclient
-
 # This class assumes a server is available.
 # It tests the responses given to the client under a
 # variety of situations. Check the server logs to
 # see what the server was up to at the time.
-# It pauses for a second before shutting down the client
-# to make sure the server doesn't just dump pending messages
-# on an unexpected disconnect.
 class TCPInitatorSessionTest(unittest.TestCase):
 	log = logging.Log()
 
-#	def test_connect(self):
-#		"""Test connection of Initiator to server
-#		"""
-#		pdict1 = profile.ProfileDict()
-#		pdict1['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
-#		sess = tcpsession.TCPSessionListener(self.log, pdict1, 'localhost', 1976)
-#		while sess.currentState != 'ACTIVE':
-#			pass
-#
-#		# create and connect an initiator
-#		client = tcpsession.TCPInitiatorSession(self.log, pdict1, 'localhost', 1976)
-#		client.close()
-#		sess.close()
-#		while sess.isAlive():
-#			pass
+	def test_connect(self):
+		"""Test connection of Initiator to server
+		"""
+		pdict1 = profile.ProfileDict()
+		pdict1[echoprofile.uri] = echoprofile
+		sess = tcpsession.TCPSessionListener(self.log, pdict1, 'localhost', 1976)
+		while not sess.isActive():
+			pass
+
+		# create and connect an initiator
+		pdict2 = profile.ProfileDict()
+		pdict2[echoprofile.uri] = echoprofile
+		clientmgr = tcpsession.TCPInitiatorSessionManager(self.log, pdict2)
+		while not clientmgr.isActive():
+			pass
+
+		client = clientmgr.connectInitiator('localhost', 1976)
+		clientid = client.ID
+		while not client.isActive():
+			if client.isExited():
+				print "Cannot connect to server."
+				exit(1)
+			pass
+
+		# close all
+		client.close()
+		while client.isAlive():
+			pass
+
+		clientmgr.close()
+		while clientmgr.isAlive():
+			pass
+
+		sess.close()
+		while sess.isAlive():
+			pass
 
 	def test_startChannel(self):
 		"""Test start of a channel
 		"""
 		pdict1 = profile.ProfileDict()
-		pdict1['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
+		pdict1[echoprofile.uri] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict1, 'localhost', 1976)
 		while sess.currentState != 'ACTIVE':
 			pass
@@ -86,15 +102,17 @@ class TCPInitatorSessionTest(unittest.TestCase):
 		channelnum = client.startChannel(profileList)
 		while not client.isChannelActive(channelnum):
 			pass
-		print "Channel started."
 
 		client.closeChannel(channelnum)
 		while client.isChannelActive(channelnum):
 			pass
-		print "Channel closed."
 
 		client.close()
 		while client.isAlive():
+			pass
+
+		clientmgr.close()
+		while clientmgr.isAlive():
 			pass
 
 		sess.close()

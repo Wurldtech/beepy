@@ -1,5 +1,5 @@
-# $Id: saslotpprofile.py,v 1.3 2002/10/16 03:09:07 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: saslotpprofile.py,v 1.4 2002/10/18 06:41:32 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -50,7 +50,6 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 		self.algo = 'md5'
 		self.sentchallenge = 0
 		self.generator = OTPGenerator(self.log)
-		self.authenticator = OTPAuthenticator(self.log)
 		self.passphrase = ''
 
 	def doProcessing(self):
@@ -59,16 +58,18 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 		"""
 		theframe = self.channel.recv()
 		if theframe:
+			error = self.parseError(theframe.payload)
+			if error:
+				self.log.logmsg(logging.LOG_NOTICE, "Error while authenticating: %s: %s" % (error[1], error[2]))
+				# Hmm.. what to do if we encounter an error.
+				# Simplest action is to close the channel
+				raise ProfileException('Authentication failed.')
+
 			status = self.parseStatus(theframe.payload)
 			if status:
 				self.channel.deallocateMsgno(theframe.msgno)
 				# do status code processing
 				self.log.logmsg(logging.LOG_DEBUG, "status: %s" % status)
-				if status == 'error':
-					# Hmm.. what to do if we encounter an error.
-					# Simplest action is to close the channel
-					self.log.logmsg(logging.LOG_INFO, "Unable to authenticate")
-					raise ProfileException('Authentication failed.')
 
 				if status == 'complete':
 					# Server completed authentication, so we do a tuning reset
@@ -77,7 +78,16 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 					self.log.logmsg(logging.LOG_DEBUG, "Creating new session...")
 					newsess = sasltcpsession.SASLTCPInitiatorSession(conn, server_address, self.session.sessmgr, self.session, self.authentid)
 					self.log.logmsg(logging.LOG_DEBUG, "Raising tuning reset...")
-					raise TuningReset("SASL ANONYMOUS authentication succeeded")
+					raise TuningReset("SASL OTP authentication succeeded")
+
+				elif status == 'abort':
+					# other end has aborted negotiation, so we reset
+					# to our initial state
+					self.authentid = None
+					self.authid = None
+
+				elif status == 'continue':
+					self.log.logmsg(logging.LOG_NOTICE, "continue during authentication")
 
 			else:
 				blob = self.decodeBlob(theframe.payload)
@@ -121,7 +131,7 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 							else:
 								# Authentication failed, respond appropriately.
 								self.log.logmsg(logging.LOG_INFO, "OTP authentication failed.")
-								data = '<blob status="error"/>'
+								data = '<error code="535">Authentication Failed</error>'
 								self.channel.sendError(theframe.msgno, data)
 						else:
 							self.sendChallenge(theframe.msgno)
@@ -158,7 +168,7 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 		passhash = self.generator.createHash(self.authid, algo, parts[2], self.passphrase, sequence-1)
 		data = 'hex:' + self.generator.convertBytesToHex(passhash)
 		data = self.encodeBlob(data)
-		self.channel.sendReply(theframe.msgno, data)
+		self.channel.sendMessage(data)
 
 	def getPassphraseFromUser():
 		"""When you implement an application that makes use of this
@@ -454,17 +464,7 @@ class OTPGenerator(OTPdbase):
 		challenge += ' ext'
 		return challenge
 
-class OTPAuthenticator(OTPdbase):
-	def __init__(self, log, dbasefile='OTPdbase.pik'):
-		self.log = log
-		OTPdbase.__init__(self, dbasefile="OTPdbase.pik")
-		self.otpDict = OTPDictionary()
-
-
 class OTPDictionary:
-	"""This class is basically just a port from the java beepcore library.
-	   Why reinvent the wheel?
-	"""
 	sixwords = [ 
 			"A",     "ABE",   "ACE",   "ACT",   "AD",    "ADA",   "ADD",
 		"AGO",   "AID",   "AIM",   "AIR",   "ALL",   "ALP",   "AM",    "AMY",

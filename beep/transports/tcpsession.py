@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.13 2002/10/07 05:52:04 jpwarren Exp $
-# $Revision: 1.13 $
+# $Id: tcpsession.py,v 1.14 2002/10/18 06:41:32 jpwarren Exp $
+# $Revision: 1.14 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -67,7 +67,7 @@ class TCPSessionListener(SocketServer.TCPServer, session.SessionListener, thread
 		SocketServer.TCPServer.server_bind(self)
 
 	def _stateINIT(self):
-		self.log.logmsg(logging.LOG_INFO, "Starting listener on %s[%s]..." % self.address )
+		self.log.logmsg(logging.LOG_NOTICE, "Starting listener on %s[%s]..." % self.address )
 		SocketServer.TCPServer.__init__(self, self.address, TCPListenerSession)
 
 		# Make socket non-blocking
@@ -95,7 +95,7 @@ class TCPSessionListener(SocketServer.TCPServer, session.SessionListener, thread
 	def _stateTERMINATE(self):
 		self.socket.close()
 
-		self.log.logmsg(logging.LOG_INFO, "Listener %s[%s] exitted." % self.address)
+		self.log.logmsg(logging.LOG_NOTICE, "Listener at %s[%s] exited." % self.address)
 		self.transition('ok')
 
 	def finish_request(self, request, client_address):
@@ -201,7 +201,7 @@ class TCPCommsMixin:
 				raise session.TerminateException("%s" % e)
 
 		except frame.DataFrameException, e:
-			raise session.TerminateException(e)
+			raise session.TerminateException("%s" % e)
 
 		# Drop packets if queue is full, log a warning.
 		except session.SessionInboundQueueFull:
@@ -260,7 +260,7 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 		# initialise as a TCPListenerSession
 		session.ListenerSession.__init__(self, self.server.log, self.server.profileDict)
 
-		self.log.logmsg(logging.LOG_INFO, "Connection from %s[%s]." % self.client_address)
+		self.log.logmsg(logging.LOG_NOTICE, "Connection from %s[%s]." % self.client_address)
 		self.start()
 
 	def __del__(self):
@@ -286,12 +286,12 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 				self.processFrames()
 
 			except session.TerminateException, e:
-				self.log.logmsg( logging.LOG_ERR, "Terminating Session: %s" % e)
+				self.log.logmsg( logging.LOG_NOTICE, "Terminating SessionID %d: %s" % (self.ID, e))
 				self.transition('error')
 				return
 
 			except Exception, e:
-				self.log.logmsg(logging.LOG_DEBUG, "Error occurred setting up connection: %s" % e)
+				self.log.logmsg(logging.LOG_DEBUG, "sessID %d: Error occurred setting up connection: %s" % (self.ID, e))
 				self.transition('error')
 				return
 
@@ -320,7 +320,7 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 			return
 
 		except session.TerminateException, e:
-			self.log.logmsg( logging.LOG_ERR, "Terminating Session: %s" % e)
+			self.log.logmsg( logging.LOG_NOTICE, "Terminating SessionID %d: %s" % (self.ID, e) )
 			self.transition('error')
 			return
 
@@ -368,7 +368,7 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 		self.transition('ok')
 
 	def close(self):
-		self.log.logmsg(logging.LOG_DEBUG, "call to %s.close()" % self)
+#		self.log.logmsg(logging.LOG_DEBUG, "call to %s.close()" % self)
 		self.shutdown.set()
 
 class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMixin):
@@ -430,7 +430,7 @@ class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMi
 			return
 
 		except session.TerminateException, e:
-			self.log.logmsg( logging.LOG_ERR, "Terminating Session: %s" % e)
+			self.log.logmsg( logging.LOG_NOTICE, "Terminating Session: %s" % e)
 			self.transition('error')
 			return
 

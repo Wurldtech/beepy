@@ -1,5 +1,5 @@
-# $Id: message.py,v 1.6 2002/09/17 06:51:44 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: message.py,v 1.7 2002/10/18 06:41:31 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -27,6 +27,7 @@ import string
 import re
 
 MessageTypes = ('greeting', 'start', 'close', 'ok', 'error', 'profile')
+numberRegex = re.compile(r'[^0-9]')
 
 class Message:
 
@@ -73,11 +74,17 @@ class Message:
 	def getCloseChannelNum(self):
 		if self.isClose():
 			channelnum = self.doc.childNodes[0].getAttribute('number')
+			if numberRegex.search(channelnum):
+				raise MessageInvalid('number attribute has non-numeric value')
+
 			return string.atoi(channelnum)
 
 	def getStartChannelNum(self):
 		if self.isStart():
 			channelnum = self.doc.childNodes[0].getAttribute('number')
+			if numberRegex.search(channelnum):
+				raise MessageInvalid('number attribute has non-numeric value')
+
 			return string.atoi(channelnum)
 
 # FIXME: getProfileURI and getProfileURIList may be broken
@@ -165,6 +172,10 @@ class Message:
 			if not currentNode.hasAttribute('number'):
 				raise MessageInvalid('start tag has no number attribute')
 
+#			channelnum = currentNode.getAttribute('number')
+#			if numberRegex.search(channelnum):
+#				raise MessageInvalid('number attribute has non-numeric value')
+
 			foundProfile = 0
 			for node in currentNode.childNodes:
 				if node.nodeName == 'profile':
@@ -194,8 +205,16 @@ class Message:
 			if not currentNode.hasAttribute('number'):
 				raise MessageInvalid('close message must have number attribute')
 
+#			channelnum = currentNode.getAttribute('number')
+#			if numberRegex.search(channelnum):
+#				raise MessageInvalid('number attribute has non-numeric value')
+
 			if not currentNode.hasAttribute('code'):
 				raise MessageInvalid('close message must have code attribute')
+
+			code = currentNode.getAttribute('code')
+#			if numberRegex.search(code):
+#				raise MessageInvalid('code attribute has non-numeric value')
 
 			return 1
 

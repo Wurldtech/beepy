@@ -1,5 +1,5 @@
-# $Id: test_session.py,v 1.7 2002/10/07 05:52:04 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: test_session.py,v 1.8 2002/10/18 06:41:32 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -100,13 +100,13 @@ class SessionTest(unittest.TestCase):
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
 		# wait for it to become active
-		while sess.currentState != 'ACTIVE':
+		while not sess.isActive():
 			pass
 
 		# create and connect a client
 		client = dummyclient.DummyClient()
-		data = client.getmsg()
 		client.sendmsg("RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
+		data = client.getmsg()
 		client.sendmsg("MSG 0 0 . 0 13\r\n<greeting/>\r\nEND\r\n")
 		data = client.getmsg()
 

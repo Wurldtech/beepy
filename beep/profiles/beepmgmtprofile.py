@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.12 2002/10/15 06:50:47 jpwarren Exp $
-# $Revision: 1.12 $
+# $Id: beepmgmtprofile.py,v 1.13 2002/10/18 06:41:32 jpwarren Exp $
+# $Revision: 1.13 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -27,6 +27,7 @@ from beep.core import constants
 from beep.core import logging
 from beep.core import mgmtparser 
 from beep.core import mgmtcreator
+from beep.core import message
 import beep.core.session		# Have to do it this way, as beep.core.session imports
 					# this file.
 
@@ -90,7 +91,7 @@ class BEEPManagementProfile(profile.Profile):
 
 					self.log.logmsg( logging.LOG_DEBUG, "%s: channel 0 MSG: %s" % (self, theframe))
 					if not self.receivedGreeting:
-						raise TerminalProfileException("Client sent MSG before greeting.")
+						raise profile.TerminalProfileException("Client sent MSG before greeting.")
 	
 					if msg.isStart():
 						self.log.logmsg( logging.LOG_DEBUG, "msg isStart" )
@@ -109,7 +110,7 @@ class BEEPManagementProfile(profile.Profile):
 						# caught earlier during initial message parsing, but
 						# just for completeness
 						self.log.logmsg( logging.LOG_ERR, "Unknown MSG type in doProcessing()" )
-						raise TerminalProfileException("Unknown MSG type in doProcessing()")
+						raise profile.TerminalProfileException("Unknown MSG type in doProcessing()")
 	
 				elif theframe.isERR():
 					self.log.logmsg( logging.LOG_DEBUG, "channel 0 ERR" )
@@ -136,7 +137,11 @@ class BEEPManagementProfile(profile.Profile):
 					self.channel.sendError(theframe.msgno, errmsg)
 					return
 				else:
-					raise TerminalProfileException("Malformed Message: %s" % e)
+					raise profile.TerminalProfileException("Malformed Message: %s" % e)
+
+			except:
+				self.log.logmsg(logging.LOG_DEBUG, "Unhandled exception in BEEP management profile")
+				raise
 
 	def _handleGreeting(self, theframe, msg):
 		"""_handleGreeting is an internal method used from within
@@ -146,10 +151,11 @@ class BEEPManagementProfile(profile.Profile):
 		if not self.receivedGreeting:
 			self.receivedGreeting = 1
 			self.session.receivedGreeting = 1
-			self.log.logmsg( logging.LOG_INFO, "%s -> Received Greeting" % self )
+			self.channel.deallocateMsgno(theframe.msgno)
+			self.log.logmsg( logging.LOG_DEBUG, "Received Greeting" )
 		else:
-			self.log.logmsg( logging.LOG_INFO, "%s: Man, these guys are really friendly!" % self)
-			raise TerminalProfileException("Too many greetings.")
+			self.log.logmsg( logging.LOG_INFO, "Man, these guys are really friendly!" )
+			raise profile.TerminalProfileException("Too many greetings.")
 
 	def _handleProfile(self, theframe, msg):
 		self.log.logmsg( logging.LOG_DEBUG, "%s: entered _handleProfile()" % self )
@@ -160,7 +166,7 @@ class BEEPManagementProfile(profile.Profile):
 			# starting, which is bad, so kill session.
 			self.log.logmsg( logging.LOG_ERR, "Attempt to confirm start of channel we didn't ask for.")
 			self.channel.deallocateMsgno(theframe.msgno)
-			raise TerminalProfileException("Invalid Profile RPY Message")
+			raise profile.TerminalProfileException("Invalid Profile RPY Message")
 
 		del self.startingChannel[theframe.msgno]
 		self.channel.deallocateMsgno(theframe.msgno)
@@ -185,7 +191,7 @@ class BEEPManagementProfile(profile.Profile):
 
 		except Exception, e:
 			self.log.logmsg(logging.LOG_ERR, "Unhandled exception: %s" % e)
-			raise TerminalProfileException("%s" % e)
+			raise profile.TerminalProfileException("%s" % e)
 
 	def _handleStart(self, theframe, msg):
 		"""_handleStart() is an internal method used from within
@@ -193,22 +199,23 @@ class BEEPManagementProfile(profile.Profile):
 		It deals with <start> MSG frames
 		"""
 		# ok, start which channel number?
-		reqChannel = msg.getStartChannelNum()
-		self.log.logmsg( logging.LOG_DEBUG, "request to start channel %d" % reqChannel)
+		try:
+			reqChannel = msg.getStartChannelNum()
 
-		# If I'm a listener, channel number requested must be odd
-		if (reqChannel % 2) != 1:
-			self.log.logmsg(logging.LOG_NOTICE, "Requested channel number of %d is even, and should be odd" % reqChannel)
-			errmsg = self.mgmtCreator.createErrorMessage('501', constants.ReplyCodes['501'])
-			errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
-			self.channel.sendError(theframe.msgno, errmsg)
-		else:
-			# Check to see if start message has a CDATA section
-			cdata = msg.getStartProfileBlob()
-			# create a new channel with this number
-			self.log.logmsg(logging.LOG_NOTICE, "Creating new channel, number: %d" % reqChannel)
+			self.log.logmsg( logging.LOG_DEBUG, "request to start channel: %d" % reqChannel)
 
-			try:
+			# If I'm a listener, channel number requested must be odd
+			if (reqChannel % 2) != 1:
+				self.log.logmsg(logging.LOG_NOTICE, "Requested channel number of %d is even, and should be odd" % reqChannel)
+				errmsg = self.mgmtCreator.createErrorMessage('501', constants.ReplyCodes['501'])
+				errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
+				self.channel.sendError(theframe.msgno, errmsg)
+			else:
+				# Check to see if start message has a CDATA section
+				cdata = msg.getStartProfileBlob()
+				# create a new channel with this number
+				self.log.logmsg(logging.LOG_DEBUG, "Creating new channel, number: %d" % reqChannel)
+
 				uri = self.session.createChannelFromURIList(reqChannel, msg.getProfileURIList(), cdata)
 				# Finally, inform client of success, and which profile was used.
 				self.log.logmsg(logging.LOG_DEBUG, "uri: %s" % uri)
@@ -216,17 +223,23 @@ class BEEPManagementProfile(profile.Profile):
 				msg = self.mimeEncode(msg, self.CONTENT_TYPE)
 				self.channel.sendReply(theframe.msgno, msg)
 
-			except beep.core.session.SessionException, e:
-				self.log.logmsg(logging.LOG_DEBUG, "Cannot start channel: %s" % e)
-				errmsg = self.mgmtCreator.createErrorMessage('504', constants.ReplyCodes['504'])
-				errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
-				self.channel.sendError(theframe.msgno, errmsg)
+		except beep.core.session.SessionException, e:
+			self.log.logmsg(logging.LOG_DEBUG, "Cannot start channel: %s" % e)
+			errmsg = self.mgmtCreator.createErrorMessage('504', constants.ReplyCodes['504'])
+			errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
+			self.channel.sendError(theframe.msgno, errmsg)
 
-			except Exception, e:
-				self.log.logmsg(logging.LOG_ERR, "Unhandled exception in _handleStart: %s, %s" % (e.__class__, e) )
-				errmsg = self.mgmtCreator.createErrorMessage('504', constants.ReplyCodes['504'])
-				errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
-				self.channel.sendError(theframe.msgno, errmsg)
+		except message.MessageInvalid, e:
+			self.log.logmsg(logging.LOG_NOTICE, "Requested channel number is invalid.")
+			errmsg = self.mgmtCreator.createErrorMessage('501', 'Requested channel number is invalid.')
+			errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
+			self.channel.sendError(theframe.msgno, errmsg)
+
+		except Exception, e:
+			self.log.logmsg(logging.LOG_ERR, "Unhandled exception in _handleStart: %s, %s" % (e.__class__, e) )
+			errmsg = self.mgmtCreator.createErrorMessage('504', constants.ReplyCodes['504'])
+			errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
+			self.channel.sendError(theframe.msgno, errmsg)
 
 	def _handleClose(self, theframe, msg):
 		"""_handleClose() is an internal method used from within
@@ -236,18 +249,13 @@ class BEEPManagementProfile(profile.Profile):
 		channelnum = msg.getCloseChannelNum()
 		# If channelnum is 0, this is a request to close the
 		# session completely
-		self.log.logmsg(logging.LOG_DEBUG, "_handleClose() closing channel %d" % channelnum)
 		if channelnum == 0:
-			self.log.logmsg(logging.LOG_DEBUG, "_handleClose() channelnum is 0")
 			self.session.close()
 		else:
-			self.log.logmsg(logging.LOG_DEBUG, "_handleClose() deleting channel")
 			self.session.deleteChannel(channelnum)
 			msg = self.mgmtCreator.createOKMessage()
 			msg = self.mimeEncode(msg, self.CONTENT_TYPE)
 			self.channel.sendReply(theframe.msgno, msg)
-
-		self.log.logmsg(logging.LOG_DEBUG, "_handleClose() finished.")
 
 	def _handleOK(self, theframe, msg):
 		"""_handleOK is an internal method used from within
@@ -262,7 +270,6 @@ class BEEPManagementProfile(profile.Profile):
 			self.session.deleteChannel(self.closingChannel[theframe.msgno])
 			del self.closingChannel[theframe.msgno]
 
-		self.log.logmsg(logging.LOG_DEBUG, "deallocating Msgno")
 		self.channel.deallocateMsgno(theframe.msgno)
 
 	def startChannel(self, channelnum, profileList, serverName=None):
@@ -296,9 +303,9 @@ class BEEPManagementProfile(profile.Profile):
 		# that gets sent without requiring a MSG to have
 		# already been sent.
 #		msgno = self.channel.allocateMsgno()
-		self.sendGreetingMessage()
+		self.sendGreeting()
 
-	def sendGreetingMessage(self):
+	def sendGreeting(self):
 		"""sendGreetingMessage() places a special kind of RPY
 		message onto the outbound Queue. This is designed to
 		be used once at the beginning of a Session initialisation,

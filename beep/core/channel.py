@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.10 2002/10/15 06:50:46 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: channel.py,v 1.11 2002/10/18 06:41:31 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -53,6 +53,7 @@ class Channel:
 			self.state = constants.CHANNEL_STARTING
 			self.number = channelnum
 			self.allocatedMsgnos = []
+			self.receivedMsgnos = []
 			self.nextMsgno = constants.MIN_MSGNO + 1
 			self.started = 0
 			self.localSeqno = 0
@@ -137,10 +138,21 @@ class Channel:
 			self.moreFrameType = None
 			self.moreFrameMsgno = 0
 
-		# If frametype is RPY, check the msgno is valid
-		if theframe.type is constants.DataFrameTypes['RPY']:
-			if theframe.msgno not in self.allocatedMsgnos:
-				raise ChannelRPYMsgnoInvalid('msgno %i not valid for RPY' % theframe.msgno)
+		# If the frametype is MSG, check that the msgno hasn't
+		# been completely received, but not replied to yet.
+		if theframe.type == constants.DataFrameTypes['MSG']:
+			if theframe.msgno in self.receivedMsgnos:
+				raise ChannelMsgnoInvalid('msgno %i not valid for MSG' % theframe.msgno)
+			else:
+				self.receivedMsgnos.append(theframe.msgno)
+
+		# Otherwise, check the msgno is valid
+		else:
+			# Allow first frame received for the greeting on management channel
+			if not ( theframe.type == constants.DataFrameTypes['RPY'] and theframe.msgno == 0 and self.number == 0 ):
+				if theframe.msgno not in self.allocatedMsgnos:
+					raise ChannelMsgnoInvalid('msgno %i not valid' % theframe.msgno)
+
 		# Finally, allow the frame to be put on our inbound queue.
 		if not self.inbound.full():
 			self.inbound.put(theframe)
@@ -231,7 +243,7 @@ class Channel:
 		if msgno in self.allocatedMsgnos:
 			self.allocatedMsgnos.remove(msgno)
 
-		self.log.logmsg(logging.LOG_DEBUG, "%s: Deallocated msgno: %s" % (self, msgno) )
+#		self.log.logmsg(logging.LOG_DEBUG, "%s: Deallocated msgno: %s" % (self, msgno) )
 
 	def isMessageOutstanding(self, msgno=None):
 		"""isMessageOutstanding() checks to see if a particular
@@ -270,6 +282,9 @@ class Channel:
 		The msgno here is the msgno of the message to which this is a reply.
 		It raises a ChannelQueueFull exception.
 		"""
+		# First check we are responding to a MSG frame we received
+		if msgno not in self.receivedMsgnos:
+			raise ChannelMsgnoInvalid('Attempt to reply to msgno not received')
 		size = len(data)
 		seqno = self.allocateLocalSeqno(size)
 		try:
@@ -282,10 +297,19 @@ class Channel:
 
 	def sendGreetingReply(self, data):
 		"""sendGreetingReply() is identical to sendReply except that
-		   it doesn't allocate a msgno for the message as the Greeting
-		   RPY frame is never acknowledged.
+		   it doesn't check for a received Msgno as there isn't one.
+		   The msgno for this message is set to 0 as this must be
+		   the first frame sent.
 		"""
-		self.sendReply(0, data)
+		size = len(data)
+		seqno = self.allocateLocalSeqno(size)
+		try:
+			msg = frame.DataFrame(self.log, self.number, 0, constants.MoreTypes['.'], seqno, size, data, constants.DataFrameTypes['RPY'])
+
+		except frame.DataFrameException, e:
+			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed:", e)
+
+		self.send(msg)
 
 	# seqno and more are not required for ERR frames
 	# msgno is the MSG to which this error is a reply
@@ -341,10 +365,8 @@ class Channel:
 		        have been acknowledged.
 		"""
 		if len(self.allocatedMsgnos) > 0:
-			self.log.logmsg(logging.LOG_INFO, "unanswered msgnos.")
 			raise ChannelMessagesOutstanding("Channel %d: %s allocatedMsgno(s) unanswered: %s" % (self.number, len(self.allocatedMsgnos), self.allocatedMsgnos) )
 
-		self.log.logmsg(logging.LOG_INFO, "Deleting channel inbound queue...")
 		del self.inbound
 		del self.outbound
 		del self.profile
@@ -394,7 +416,7 @@ class ChannelOutOfSequence(ChannelException):
 	def __init__(self, args=None):
 		self.args = args
 
-class ChannelRPYMsgnoInvalid(ChannelException):
+class ChannelMsgnoInvalid(ChannelException):
 	def __init__(self, args=None):
 		self.args = args
 

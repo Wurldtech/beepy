@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.13 2002/10/16 03:09:06 jpwarren Exp $
-# $Revision: 1.13 $
+# $Id: session.py,v 1.14 2002/10/18 06:41:31 jpwarren Exp $
+# $Revision: 1.14 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -170,8 +170,9 @@ class Session(statemachine.StateMachine):
 						self.log.logmsg(logging.LOG_ERR, "Channel %i out of sequence: %s" % (theframe.channelnum, e) )
 						raise TerminateException("Channel out of sequence")
 
-					except channel.ChannelRPYMsgnoInvalid, e:
-						self.log.logmsg(logging.LOG_NOTICE, "Channel %i received RPY with invalid msgno: %s" % (theframe.channelnum, e))
+					except channel.ChannelMsgnoInvalid, e:
+						self.log.logmsg(logging.LOG_ERR, "Channel %i: %s" % (theframe.channelnum, e))
+						raise TerminateException("Invalid msgno in channel")
 				else:
 					# Attempted to send a frame to a non-existant channel number
 					# RFC says to terminate session
@@ -190,12 +191,15 @@ class Session(statemachine.StateMachine):
 				raise TuningReset("Profile Tuning Reset: %s" % e)
 
 			except profile.TerminalProfileException, e:
-				raise TerminateException(e)
+				raise TerminateException("%s" % e)
 
 			except profile.ProfileException, e:
 				if channelnum != 0:
 					self.log.logmsg(logging.LOG_INFO, "ProfileException: %s. Closing Channel." % e )
 					self.channels[0].profile.closeChannel(channelnum, '554')
+				else:
+#					self.log.logmsg(logging.LOG_ERR, "%s" % e )
+					raise TerminateException("%s" % e)
 
 			except Exception, e:
 				self.log.logmsg(logging.LOG_INFO, "Exception in channel %i: %s" % (channelnum, e))
@@ -208,7 +212,7 @@ class Session(statemachine.StateMachine):
 		for channelnum in chanlist:
 			theframe = self.channels[channelnum].pull()
 			if( theframe ):
-				self.log.logmsg(logging.LOG_DEBUG, "sending data on channel %i: %s" % (channelnum, theframe) )
+				self.log.logmsg(logging.LOG_DEBUG, "sending channel %i frame:\n%s" % (channelnum, theframe) )
 				self.sendFrame(theframe)
 				del theframe
 
@@ -273,14 +277,14 @@ class Session(statemachine.StateMachine):
 			self.log.logmsg("Unable to close Session: %s" % e)
 
 	def deleteChannel(self, channelnum):
-		self.log.logmsg(logging.LOG_INFO, "Deleting channel %d." % channelnum)
+		self.log.logmsg(logging.LOG_DEBUG, "sessID %d: Deleting channel %d..." % (self.ID, channelnum) )
 		if self.channels.has_key(channelnum):
 			try:
-				self.log.logmsg(logging.LOG_INFO, "Calling channel.close()..." )
 				self.channels[channelnum].close()
 				del self.channels[channelnum]
-				self.log.logmsg(logging.LOG_INFO, "Channel %d closed successfully." % channelnum)
+				self.log.logmsg(logging.LOG_DEBUG, "sessID %d: Channel %d deleted." % (self.ID, channelnum) )
 			except channel.ChannelMessagesOutstanding, e:
+				self.log.logmsg(logging.LOG_DEBUG, "sessID %d: Exception deleting channel %d: %s..." % (self.ID, channelnum, e) )
 				raise SessionException(e)
 
 		else:

@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.10 2003/12/09 02:37:30 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: session.py,v 1.11 2003/12/23 04:36:40 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -49,6 +49,7 @@ ACTIVE = 1
 CLOSING = 2
 TERMINATING = 3
 CLOSED = 4
+TUNING = 5
 
 class Session:
     """
@@ -132,12 +133,7 @@ class Session:
 
         raise SessionException("Profile not supported by Session")
 
-    def shutdown(self):
-        """attempts to close all the channels in a session
-        before closing down the session itself.
-        """
-        log.debug('shutdown() started...')
-        self.state = CLOSING
+    def closeAllChannels(self):
         try:
             chanlist = self.channels.keys()
             log.debug("Channels to close: %s" % chanlist)
@@ -148,13 +144,32 @@ class Session:
                     log.debug("Finished queueing closure of %d" % channelnum)
             ## Close channel 0 last
             self.closeChannel(0)
-            self.state = CLOSED
-
+            
         except Exception, e:
             # If we can't close a channel, we must remain active
             # FIXME: more detailed error handling required here
             log.debug("Unable to close Session: %s" % e)
             traceback.print_exc()
+
+    def shutdown(self):
+        """attempts to close all the channels in a session
+        before closing down the session itself.
+        """
+        log.debug('shutdown() started...')
+        self.state = CLOSING
+        self.closeAllChannels()
+        self.state = CLOSED
+
+    def tuningReset(self):
+        """ A tuning reset causes all channels, including channel
+        Zero to be closed and a new channel zero to be created,
+        with a new greeting sent.
+        """
+        self.state = TUNING
+        self.deleteAllChannels()
+        self.startTLS()
+        self.state = PRE_GREETING
+        self.createChannelZero()
 
     def deleteChannel(self, channelnum):
         log.debug("sessID %d: Deleting channel %d..." % (self.ID, channelnum) )

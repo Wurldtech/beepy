@@ -1,5 +1,5 @@
-# $Id: twistedsession.py,v 1.2 2003/12/09 02:37:30 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: twistedsession.py,v 1.3 2003/12/23 04:36:40 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -234,7 +234,7 @@ class BeepClientFactory(protocol.ClientFactory):
 ##
 
 from beepy.core.saslsession import SASLSession
-from beepy.profiles.profile import TuningReset
+
 
 class SASLProtocol(BeepProtocol, SASLSession):
     """ The SaslProtocol implements the SASL transport layer for
@@ -259,3 +259,104 @@ class SASLServerFactory(BeepServerFactory):
 
 class SASLClientFactory(BeepClientFactory):
     protocol = SASLClientProtocol
+
+##
+## TLS related code
+##
+from twisted.internet import ssl
+from twisted.python.util import sibpath
+from OpenSSL import SSL
+
+#from POW import Ssl
+
+from beepy.core.tlssession import TLSSession
+
+## This code adds the TLS functionality to the base protocol
+## classes
+
+class TLSProtocol(BeepProtocol, TLSSession):
+    """ The TLS Protocol implements the TLS transport layer
+    """
+    TLS = 0
+    
+    def __init__(self):
+        BeepProtocol.__init__(self)
+        TLSSession.__init__(self)
+
+    def startTLS(self):
+        """ start the TLS layer
+        """
+        if self.factory.privateKeyFileName:
+            keyfile = self.factory.privateKeyFileName
+        else:
+            keyfile = self.factory.getPrivateKeyFilename()
+
+        if self.factory.certificateFileName:
+            certfile = self.factory.certificateFileName
+        else:
+            certfile = self.factory.getCertificateFilename()
+            
+        log.debug('Starting server side TLS...')
+
+        self.transport.startTLS(ServerTLSContext(keyfile, certfile))
+
+        self.TLS = 1
+        log.debug('Started server side TLS.')
+
+class TLSServerProtocol(TLSProtocol, Listener):
+    def __init__(self):
+        TLSProtocol.__init__(self)
+        Listener.__init__(self)
+
+class TLSClientProtocol(TLSProtocol, Initiator):
+    def __init__(self):    
+        TLSProtocol.__init__(self)
+        Initiator.__init__(self)
+
+    def startTLS(self):
+        log.debug('Starting TLS in TLSProtocol...')
+
+        self.transport.startTLS(ClientTLSContext())
+        self.TLS = 1
+        log.debug('Started TLS in TLSProtocol.')
+        
+class TLSServerFactory(BeepServerFactory):
+    protocol = TLSServerProtocol
+
+    privateKeyFileName = None
+    certificateFileName = None
+
+    def getPrivateKeyFilename(self):
+        """ This method will only get called if the keyfile
+        is not set when it is required. This allows the option
+        of runtime definition of the keyfile name.
+        Override this method in your servers if you don't want
+        to set the filename at compile time.
+        """
+        raise NotImplementedError
+
+    def getCertificateFilename(self):
+        """ This method will get called if the certificate
+        filename is not set when it is required.
+        Override this method in your servers if you don't want
+        to set the filename at compile time.
+        """
+        raise NotImplementedError
+
+class TLSClientFactory(BeepClientFactory):
+    protocol = TLSClientProtocol
+
+class ClientTLSContext(ssl.ContextFactory):
+    isClient = 1
+
+    def getContext(self):
+        return SSL.Context(ssl.SSL.TLSv1_METHOD)
+
+class ServerTLSContext(ssl.DefaultOpenSSLContextFactory):
+    """ A default TLS context factory to use for TLS
+    connections
+    """
+    isClient = 0
+    def __init__(self, privateKeyFileName, certificateFileName, sslmethod=SSL.TLSv1_METHOD):
+        ssl.DefaultOpenSSLContextFactory.__init__(self, privateKeyFileName, certificateFileName, sslmethod)
+           

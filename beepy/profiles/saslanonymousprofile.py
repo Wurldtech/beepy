@@ -1,5 +1,5 @@
-# $Id: saslanonymousprofile.py,v 1.5 2003/12/09 02:37:30 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: saslanonymousprofile.py,v 1.6 2003/12/23 04:36:40 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -22,12 +22,10 @@
 __profileClass__ = "SASLAnonymousProfile"
 uri = "http://iana.org/beep/SASL/ANONYMOUS"
 
-import traceback
-
 import saslprofile
 from profile import TerminalProfileException
-from beepy.core import constants
 
+import traceback
 import logging
 from beepy.core import debug
 log = logging.getLogger('SASLAnonymous')

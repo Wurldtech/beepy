@@ -1,5 +1,5 @@
-# $Id: tlstcpsession.py,v 1.9 2003/01/30 09:24:30 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: tlstcpsession.py,v 1.10 2003/12/23 04:36:40 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -32,7 +32,6 @@ import time
 import traceback
 
 from beepy.core import constants
-from beepy.core import logging
 from beepy.core import session
 from beepy.core import frame
 from beepy.core import util

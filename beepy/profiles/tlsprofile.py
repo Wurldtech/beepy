@@ -1,5 +1,5 @@
-# $Id: tlsprofile.py,v 1.5 2003/01/30 09:24:29 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: tlsprofile.py,v 1.6 2003/12/23 04:36:40 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -20,16 +20,17 @@
 #
 # This file implements the TLS transport security profile
 #
-
-import profile
-import saslprofile
-from beepy.core import logging
-from beepy.core import constants
-from beepy.core import session
-from beepy.transports import tlstcpsession
-
 __profileClass__ = "TLSProfile"
 uri = "http://iana.org/beep/TLS"
+
+import profile
+from profile import TerminalProfileException
+import re
+
+import traceback
+import logging
+from beepy.core import debug
+log = logging.getLogger('TLSProfile')
 
 class TLSProfile(profile.Profile):
     """A TLSProfile is a profile that implements the TLS
@@ -37,7 +38,7 @@ class TLSProfile(profile.Profile):
        encrypted TCP session.
     """
 
-    def __init__(self, log, session, profileInit=None, init_callback=None):
+    def __init__(self, session, profileInit=None, init_callback=None):
         """This generic TLS profile has no way of determining your
            application specific key and certificate files. To do any sort
            of funky processing (such as picking specific keyfiles or
@@ -46,29 +47,81 @@ class TLSProfile(profile.Profile):
            bits and pieces to pass in the key and cert file locations.
         """
 
-        profile.Profile.__init__(self, log, session, profileInit, init_callback)
+        profile.Profile.__init__(self, session, profileInit, init_callback)
 
-    def doProcessing(self):
-        """All doProcessing should do is move the session from
+    def processFrame(self, theframe):
+        """All processFrame should do is move the session from
             insecure to secured.
         """
+        try:
+            error = self.parseError(theframe)
+            if error:
+                log.debug('Error in payload: %s' % error)
 
-        if isinstance(self.session, session.Listener):
-            # Listeners automatically start TLS negotiation
+            ready = self.parseReady(theframe)
+            if ready:
+                ## If I receive a <ready> message then I'm the peer
+                ## acting in server mode and should start TLS
+                log.debug('Ready to start TLS')
+                data = '<proceed />'
+                self.channel.sendReply(theframe.msgno, data)
+                self.session.tuningReset()
 
-            sock = self.session.sock
-            client_address = self.session.client_address
-            sessmgr = self.session.sessmgr
-            newsess = tlstcpsession.TLSTCPListener(sock, client_address, sessmgr, self.session, self.cert, self.key )
+            proceed = self.parseProceed(theframe)
+            if proceed:
+                ## If I receive a <proceed /> message then I'm the peer
+                ## acting in the client mode.
+                log.debug('Proceed to start TLS')
+                self.session.tuningReset()
+                
+        except Exception, e:
+            log.debug('%s' % e)
+            traceback.print_exc()
+            raise
 
-            raise profile.TuningReset("Enabling server side TLS...")
+    def parseReady(self, theframe):
+        """ Check data to see if it matches a 'ready' element
+        """
+        readyPattern = '<ready\s(.*)/>'
+        readyRE = re.compile(readyPattern, re.IGNORECASE)
 
+        match = re.search(readyRE, theframe.payload)
+        if match:
+
+            ## Need to add a version indicator
+                
+            log.debug('Got ready. Matchgroup: %s' % match.group(1) )
+            return match.group(1)
         else:
-            # Initiators need to have configured passphrases
-            # etc. before proceeding.
-            sock = self.session.sock
-            server_address = self.session.server_address
-            newsess = tlstcpsession.TLSTCPInitiator(sock, server_address, self.session.sessmgr, self.session, self.cert, self.key )
-            self.log.logmsg(logging.LOG_DEBUG, "Raising tuning reset...")
-            raise profile.TuningReset("Enabling client side TLS...")
+            return None
+
+    def parseProceed(self, theframe):
+        proceedPattern = '<proceed\s*/>'
+        proceedRE = re.compile(proceedPattern, re.IGNORECASE)
+
+        match = re.search(proceedRE, theframe.payload)
+        if match:
+            return True
+        else:
+            return None
+
+    def parseError(self, theframe):
+        """parseError() extracts the error code from the <error> block
+        """
+        errorPattern = '<error\scode=[\'"](.*)[\'"]\s*>(.*)</error>'
+        errorRE = re.compile(errorPattern, re.IGNORECASE)
+
+        match = re.search(errorRE, theframe.payload)
+        if match:
+            code = match.group(1)
+            errormsg = match.group(2)
+            return code,errormsg
+        else:
+            return None
+
+    def sendReady(self):
+        """ send a ready message to the remote end
+        """
+        data = '<ready version="1" />'
+        self.channel.sendMessage(data)
 

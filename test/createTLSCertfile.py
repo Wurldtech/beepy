@@ -1,5 +1,5 @@
-# $Id: createTLSCertfile.py,v 1.1 2003/01/04 00:10:33 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: createTLSCertfile.py,v 1.2 2003/12/23 04:36:40 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -20,12 +20,9 @@
 #
 # This script creates a certificate file for use by the TLSProfile
 
-import POW
-import POW.pkix
-import time
 
 if __name__ != '__main__':
-	print "Do not import this module."
+    print "Do not import this module."
 
 # Default is to use rsa keys
 
@@ -33,38 +30,58 @@ privateFile = open('TLSprivate.key', 'r')
 publicFile = open('TLSpublic.key', 'r')
 certFile = open('TLScert.pem', 'w')
 
-passphrase = 'TeSt'
-md5 = POW.Digest( POW.MD5_DIGEST )
-md5.update( passphrase )
-password = md5.digest()
-
-publicKey = POW.pemRead(POW.RSA_PUBLIC_KEY, publicFile.read())
-privateKey = POW.pemRead(POW.RSA_PRIVATE_KEY, privateFile.read(), password)
-
-c = POW.X509()
-
 # Configure the certificate information
 name = [ 
-	['C', 'AU'], 
-	['ST', 'Victoria'],
-	['O', 'eigenmagic'],
-	['CU', 'Justin Warren'],
-	]
+    ['C', 'AU'], 
+    ['ST', 'Victoria'],
+    ['O', 'eigenmagic'],
+    ['CU', 'Justin Warren'],
+    ]
 
-#c.setIssuer( name )
-#c.setSubject( name )
-c.setSerial(0)
+if powmode:
+    import POW
+    import POW.pkix
+    import time
 
-# Expiry information
-t1 = POW.pkix.time2utc( time.time() )
-t2 = POW.pkix.time2utc( time.time() + 60*60*24*365 )
-c.setNotBefore(t1)
-c.setNotAfter(t2)
+    passphrase = 'TeSt'
+    md5 = POW.Digest( POW.MD5_DIGEST )
+    md5.update( passphrase )
+    password = md5.digest()
+    
+    publicKey = POW.pemRead(POW.RSA_PUBLIC_KEY, publicFile.read())
+    privateKey = POW.pemRead(POW.RSA_PRIVATE_KEY, privateFile.read(), password)
 
-c.setPublicKey(publicKey)
-c.sign(privateKey)
+    c = POW.X509()
 
-certFile.write( c.pemWrite() )
+    #c.setIssuer( name )
+    #c.setSubject( name )
+    c.setSerial(0)
+
+    # Expiry information
+    t1 = POW.pkix.time2utc( time.time() )
+    t2 = POW.pkix.time2utc( time.time() + 60*60*24*365 )
+    c.setNotBefore(t1)
+    c.setNotAfter(t2)
+
+    c.setPublicKey(publicKey)
+    c.sign(privateKey)
+
+    certFile.write( c.pemWrite() )
+
+else:
+    from OpenSSL import crypto
+
+    ## First we create a certificate request.
+    ## This will become the actual signed cert once we sign
+    ## it with an issuer certificate.
+
+    req = crypto.X509Req()
+    subj = req.get_subject()
+
+    for( key, value ) in name.items():
+        subj[key] = value
+
+    req.set_pubkey
 
 privateFile.close()
 publicFile.close()

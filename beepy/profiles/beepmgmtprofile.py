@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.7 2003/12/09 02:37:30 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: beepmgmtprofile.py,v 1.8 2003/12/23 04:36:40 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -271,10 +271,19 @@ class BEEPManagementProfile(profile.Profile):
         """
         try:
             channelnum = msg.getCloseChannelNum()
-            self.session.deleteChannel(channelnum)
-            msg = self.mgmtCreator.createOKMessage()
-            msg = self.mimeEncode(msg, self.CONTENT_TYPE)
-            self.channel.sendReply(theframe.msgno, msg)
+            ## check we're not already closing the channel
+            if channelnum in self.closingChannel.values():
+                log.debug('Close already in progress for channel %d' % channelnum)
+                errmsg = self.mgmtCreator.createErrorMessage('550', constants.ReplyCodes['550'])
+                errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
+                self.channel.sendError(theframe.msgno, errmsg)
+                
+            else:
+                self.session.deleteChannel(channelnum)
+                msg = self.mgmtCreator.createOKMessage()
+                msg = self.mimeEncode(msg, self.CONTENT_TYPE)
+                self.channel.sendReply(theframe.msgno, msg)
+                
         except Exception, e:
             log.error('Exception in management profile: %s' % e)
             raise

@@ -1,28 +1,6 @@
-# $Id: test_tlsprofile.py,v 1.8 2003/12/23 04:36:40 jpwarren Exp $
-# $Revision: 1.8 $
-#
-#    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
-#
-#    This library is free software; you can redistribute it and/or
-#    modify it under the terms of the GNU Lesser General Public
-#    License as published by the Free Software Foundation; either
-#    version 2.1 of the License, or (at your option) any later version.
-#
-#    This library is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-#    Lesser General Public License for more details.
-#
-#    You should have received a copy of the GNU Lesser General Public
-#    License along with this library; if not, write to the Free Software
-#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-#
-
 ## This test client authenticates via SASL Anonymous
 ## before opening a channel with the echo profile
 
-import unittest
 import sys
 sys.path.append('..')
 
@@ -83,16 +61,12 @@ class TLSEchoClientFactory(TLSClientFactory):
     """
     protocol = TLSEchoClientProtocol
 
-class TLSProfileTest(unittest.TestCase):
-
-    def test_TLSClient(self):
-        factory = TLSEchoClientFactory()
-        factory.addProfile(echoprofile)
-        factory.addProfile(tlsprofile)
-
-        reactor.connectTCP('localhost', 1976, factory)
-        reactor.run()
 
 if __name__ == '__main__':
+    factory = TLSEchoClientFactory()
+    factory.addProfile(echoprofile)
+    factory.addProfile(tlsprofile)
 
-    unittest.main()
+    reactor.connectTCP('localhost', 1976, factory)
+    reactor.run()
+

@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.18 2004/09/28 01:19:20 jpwarren Exp $
-# $Revision: 1.18 $
+# $Id: session.py,v 1.19 2004/11/10 01:17:01 jpwarren Exp $
+# $Revision: 1.19 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -477,6 +477,8 @@ class Session:
         if len(self.channels) == 0:
             self.close()
         self.channelClosedSuccess(channelnum)
+        if channelnum == 0 and self.state == CLOSING:
+            self.shutdownComplete()
 
     def channelClosedSuccess(self, channelnum):
         """

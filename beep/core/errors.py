@@ -1,4 +1,4 @@
-# $Id: errors.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
+# $Id: errors.py,v 1.3 2002/10/16 03:09:06 jpwarren Exp $
 # $Revision
 #
 #    BEEPy - A Python BEEP Library
@@ -26,3 +26,6 @@ import exceptions
 class BEEPException(exceptions.Exception):
 	def __init__(self, args=None):
 		self.args = args
+
+	def __str__(self):
+		return `self.args`

@@ -1,5 +1,5 @@
-# $Id: saslprofile.py,v 1.5 2002/10/07 05:52:04 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: saslprofile.py,v 1.6 2002/10/16 03:09:07 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -43,12 +43,6 @@ class SASLProfile(profile.Profile):
 		profile.Profile.__init__(self, log, session)
 		self.authentid = None
 		self.authid = None
-
-	def doProcessing(self):
-		"""doProcessing() isn't defined by the abstract SASLProfile.
-		   Make sure you overload this in the subclass.
-		"""
-		raise NotImplementedError
 
 	def decodeBlob(self, data):
 		"""decodeBlob() extracts the data from the <blob> section of

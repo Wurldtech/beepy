@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.9 2002/10/15 06:50:47 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: profile.py,v 1.10 2002/10/16 03:09:07 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -26,7 +26,6 @@
 from beep.core import constants
 from beep.core import errors
 from beep.core import logging
-import beep.core.session
 
 # All payloads are expected to be MIME structured, so we include the
 # library here.
@@ -70,7 +69,7 @@ class Profile:
 		message processing takes place, so subclasses should
 		implement this method to do work.
 		"""
-		pass
+		raise NotImplementedError
 
 	def processMessages(self):
 		if not self.channel:
@@ -84,6 +83,9 @@ class Profile:
 				raise
 
 			except TerminalProfileException:
+				raise
+
+			except ProfileException:
 				raise
 
 			except Exception, e:

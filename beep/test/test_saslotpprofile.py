@@ -1,5 +1,5 @@
-# $Id: test_saslotpprofile.py,v 1.2 2002/10/15 06:50:47 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: test_saslotpprofile.py,v 1.3 2002/10/16 03:09:07 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -29,6 +29,7 @@ from beep.core import logging
 from beep.transports import tcpsession
 from beep.profiles import profile
 from beep.profiles import saslotpprofile
+from beep.profiles import echoprofile
 
 import dummyclient
 
@@ -46,6 +47,7 @@ class SASLOTPProfileTest(unittest.TestCase):
 		"""Test SASL OTP with no CDATA init"""
 		pdict1 = profile.ProfileDict()
 		pdict1[saslotpprofile.uri] = saslotpprofile
+		pdict1[echoprofile.uri] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict1, 'localhost', 1976)
 
 		while sess.currentState != 'ACTIVE':
@@ -54,6 +56,7 @@ class SASLOTPProfileTest(unittest.TestCase):
 		# create and connect an initiator
 		pdict2 = profile.ProfileDict()
 		pdict2[saslotpprofile.uri] = saslotpprofile
+		pdict2[echoprofile.uri] = echoprofile
 		clientmgr = tcpsession.TCPInitiatorSessionManager(self.log, pdict2)
 		while not clientmgr.isActive():
 			pass
@@ -78,21 +81,46 @@ class SASLOTPProfileTest(unittest.TestCase):
 			sys.exit()
 
 		# Send our authentication information
-		msgno = channel.profile.sendAuth('justin', 'justin')
+		msgno = channel.profile.sendAuth('This is a test.', 'justin', 'justin')
 		while channel.isMessageOutstanding(msgno):
 			pass
 
-#		client.closeChannel(channelnum)
-		while client.isChannelActive(channelnum):
-			pass
-		print "Channel closed."
-
-		client.close()
+		# Check to see if authentication worked.
 		while client.isAlive():
 			pass
 
+		# old client will have exited, so get the new client
+		# for the same connection, as it has the same id
+		print "getting client by id %d" % clientid
+		client = clientmgr.getSessionById(clientid)
+		print "Client is now id %d: %s" % (clientid, client)
+
+		while not client.isActive():
+			pass
+
+		# Create a channel on the new, authenticated, session
+		# using the echo profile
+		profileList = [[echoprofile.uri,None,None]]
+		channelnum = client.startChannel(profileList)
+		while not client.isChannelActive(channelnum):
+			pass
+		channel = client.getActiveChannel(channelnum)
+
+		# send a message
+		msgno = channel.sendMessage('Hello!')
+		while channel.isMessageOutstanding():
+			pass
+
+		client.close()
+		while not client.isExited():
+			pass
+
+		clientmgr.close()
+		while not clientmgr.isExited():
+			pass
+
 		sess.close()
-		while sess.isAlive():
+		while not sess.isExited():
 			pass
 
 

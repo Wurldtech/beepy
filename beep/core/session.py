@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.12 2002/10/15 06:50:46 jpwarren Exp $
-# $Revision: 1.12 $
+# $Id: session.py,v 1.13 2002/10/16 03:09:06 jpwarren Exp $
+# $Revision: 1.13 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -194,9 +194,8 @@ class Session(statemachine.StateMachine):
 
 			except profile.ProfileException, e:
 				if channelnum != 0:
-#					self.log.logmsg(logging.LOG_DEBUG, "ProfileException: %s. Closing Channel." % e )
-#					self.channels[0].profile.closeChannel(channelnum, '554')
-					break
+					self.log.logmsg(logging.LOG_INFO, "ProfileException: %s. Closing Channel." % e )
+					self.channels[0].profile.closeChannel(channelnum, '554')
 
 			except Exception, e:
 				self.log.logmsg(logging.LOG_INFO, "Exception in channel %i: %s" % (channelnum, e))

@@ -1,5 +1,5 @@
-# $Id: saslotpprofile.py,v 1.2 2002/10/15 06:50:47 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: saslotpprofile.py,v 1.3 2002/10/16 03:09:07 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,10 +23,10 @@
 #
 
 import saslprofile
-from profile import TuningReset
 from beep.core import logging
 from beep.core import constants
 from beep.core import session
+from profile import ProfileException,TuningReset
 from beep.transports import sasltcpsession
 
 import md5, sha
@@ -65,7 +65,19 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 				# do status code processing
 				self.log.logmsg(logging.LOG_DEBUG, "status: %s" % status)
 				if status == 'error':
+					# Hmm.. what to do if we encounter an error.
+					# Simplest action is to close the channel
 					self.log.logmsg(logging.LOG_INFO, "Unable to authenticate")
+					raise ProfileException('Authentication failed.')
+
+				if status == 'complete':
+					# Server completed authentication, so we do a tuning reset
+					conn = self.session.connection
+					server_address = self.session.server_address
+					self.log.logmsg(logging.LOG_DEBUG, "Creating new session...")
+					newsess = sasltcpsession.SASLTCPInitiatorSession(conn, server_address, self.session.sessmgr, self.session, self.authentid)
+					self.log.logmsg(logging.LOG_DEBUG, "Raising tuning reset...")
+					raise TuningReset("SASL ANONYMOUS authentication succeeded")
 
 			else:
 				blob = self.decodeBlob(theframe.payload)
@@ -99,7 +111,7 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 
 								# Session object should wait for this session thread to exit before
 								# going to ACTIVE state.
-								newsess = sasltcpsession.SASLTCPListenerSession(conn, client_address, sessmgr, self.session, authentid)
+								newsess = sasltcpsession.SASLTCPListenerSession(conn, client_address, sessmgr, self.session, self.authentid)
 								data = '<blob status="complete"/>'
 								self.channel.sendReply(theframe.msgno, data)
 								self.log.logmsg(logging.LOG_DEBUG, "Queued success message.")
@@ -110,7 +122,7 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 								# Authentication failed, respond appropriately.
 								self.log.logmsg(logging.LOG_INFO, "OTP authentication failed.")
 								data = '<blob status="error"/>'
-								self.channel.sendReply(theframe.msgno, data)
+								self.channel.sendError(theframe.msgno, data)
 						else:
 							self.sendChallenge(theframe.msgno)
 
@@ -119,7 +131,13 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 						self.log.logmsg(logging.LOG_DEBUG, "OTP session is initiator")
 						# If I'm an initiator, this blob should be a challenge, so
 						# I need to send my corresponding authentication.
+#						try:
 						self.respondToChallenge(blob, theframe)
+#						except:
+#							self.log.logmsg(logging.LOG_DEBUG, "raise worked")
+#							raise NotImplementedError('test')
+
+						self.log.logmsg(logging.LOG_DEBUG, "Finished responding to challenge")
 
 	def respondToChallenge(self, challenge, theframe):
 		self.log.logmsg(logging.LOG_DEBUG, "Responding to challenge...")
@@ -130,13 +148,14 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 		sequence = string.atoi(parts[1])
 
 # FIXME: This is commented out so I can test the library.
-#		passphrase = self.getPassphraseFromUser()
 		if not self.passphrase:
+#			passphrase = self.getPassphraseFromUser()
 			self.log.logmsg(logging.LOG_DEBUG, "No passphrase...")
-			raise saslprofile.SASLProfileException("Passphrase not set")
-#		passphrase = 'This is a test.'
+			raise ProfileException("Passphrase not set")
 
-		passhash = self.generator.createHash(self.authid, algo, parts[2], self.passphrase, sequence)
+		# The OTP to be used is calculated as N-1 where N is the sequence
+		# sent as part of the challenge.
+		passhash = self.generator.createHash(self.authid, algo, parts[2], self.passphrase, sequence-1)
 		data = 'hex:' + self.generator.convertBytesToHex(passhash)
 		data = self.encodeBlob(data)
 		self.channel.sendReply(theframe.msgno, data)
@@ -152,6 +171,22 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 
 	def authenticate(self, blob):
 		self.log.logmsg(logging.LOG_DEBUG, "Authenticating client...")
+		# convert to bytestring
+		passhash = self.parseResponse(blob)
+		return self.generator.authenticate(self.algo, self.authid, passhash)
+
+	def parseResponse(self, data):
+		"""parseResponse() converts whatever we received from the
+		   other end into a bytestring. It needs to recognise
+		   word:, hex:, init-word: and init-hex formats.
+		"""
+		# for now just string off the hex: at the beginning and
+		# convert from hex to bytes
+		data = data[4:]
+		self.log.logmsg(logging.LOG_DEBUG, 'parsing response: %s' % data)
+		data = self.generator.convertHexToBytes(data)
+		self.log.logmsg(logging.LOG_DEBUG, 'converted to: %s' % data)
+		return data
 
 	def setAlgorithm(self, algo):
 		if self.algo != 'md5' or 'sha':
@@ -161,10 +196,11 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 	def setPassphrase(self, passphrase):
 		self.passphrase = passphrase
 
-	def sendAuth(self, authentid, authid=None):
+	def sendAuth(self, passphrase, authentid, authid=None):
 		"""doAuthentication() performs the authentication phase of a OTP
 		   session in a single call.
 		"""
+		self.passphrase = passphrase
 		self.authentid = authentid
 		if authid:
 			self.authid = authid
@@ -189,7 +225,7 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 		"""sendChallenge() formats and sends a reply to the client
 		   based on the authid and authentid sent as a message
 		"""
-		challenge = self.authenticator.getChallenge(self.authid)
+		challenge = self.generator.getChallenge(self.authid)
 		data = self.encodeBlob(challenge)
 		self.channel.sendReply(msgno, data)
 		self.sentchallenge = 1
@@ -336,7 +372,7 @@ class OTPGenerator(OTPdbase):
 		"""This method only accepts 8 byte bytestrings
 		"""
 		if len(bytestring) != 8:
-			raise ValueError('Illegal bytestring')
+			raise ValueError('Illegal bytestring of length %d' % len(bytestring))
 
 		bytes = struct.unpack('8B', bytestring)
 		retstring = ''
@@ -389,13 +425,21 @@ class OTPGenerator(OTPdbase):
 		hashlong = self.otpDict.convertWordsToHashlong(wordstring)
 		return self.convertLongToBytes(hashlong)
 
-class OTPAuthenticator(OTPdbase):
-	def __init__(self, log, dbasefile='OTPdbase.pik'):
-		self.log = log
-		OTPdbase.__init__(self, dbasefile="OTPdbase.pik")
-		self.otpDict = OTPDictionary()
-
-#	def authenticate(self, username )
+	def authenticate(self, algo, username, bytestring):
+		"""authenticate() takes the username and passphrase hash it
+		   receives (presumably from a client) and checks it
+		   against the expected OTP in the dbase.
+		   passhash is an 8 byte string
+		"""
+		dbEntry = self.retrieveDBEntry(username)
+		mypasshash = self.generateHash(algo, bytestring)
+		mypasshash = self.convertBytesToHex(mypasshash)
+		self.log.logmsg(logging.LOG_DEBUG, 'comparing dbEntry: %s to %s' % (dbEntry.passphrasehash, mypasshash) )
+		if mypasshash == dbEntry.passphrasehash:
+			# Authentication successful, modify dbase to save current OTP
+			dbEntry.passphrasehash = mypasshash
+			self.storeDBEntry(dbEntry)
+			return 1
 
 	def getChallenge(self, username):
 		"""getChallenge() looks up the username in the OTP dbase
@@ -408,8 +452,14 @@ class OTPAuthenticator(OTPdbase):
 		challenge += '%s ' % dbEntry.sequence
 		challenge += dbEntry.seed
 		challenge += ' ext'
-
 		return challenge
+
+class OTPAuthenticator(OTPdbase):
+	def __init__(self, log, dbasefile='OTPdbase.pik'):
+		self.log = log
+		OTPdbase.__init__(self, dbasefile="OTPdbase.pik")
+		self.otpDict = OTPDictionary()
+
 
 class OTPDictionary:
 	"""This class is basically just a port from the java beepcore library.

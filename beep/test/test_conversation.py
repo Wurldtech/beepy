@@ -1,5 +1,5 @@
-# $Id: test_conversation.py,v 1.3 2002/08/05 07:04:26 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: test_conversation.py,v 1.4 2002/08/08 02:38:59 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -52,9 +52,9 @@ class ConversationTest(unittest.TestCase):
 		# create and connect a client
 		client = dummyclient.DummyClient()
 		# send a greeting msg
-		client.sendmsg("RPY 0 0 . 0 13\r\n<greeting/>\r\nEND\r\n")
+		client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
 		data = client.getmsg()
-		client.sendmsg("RPY 0 0 . 13 13\r\n<greeting/>\r\nEND\r\n")
+		client.sendmsg("RPY 0 0 . 51 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
 		client.terminate()
 
 		sess.close()
@@ -68,9 +68,9 @@ class ConversationTest(unittest.TestCase):
 		# create and connect a client
 		client = dummyclient.DummyClient()
 		# send a greeting msg
-		client.sendmsg("RPY 0 0 . 0 13\r\n<greeting/>\r\nEND\r\n")
+		client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
 		data = client.getmsg()
-		client.sendmsg('MSG 0 0 . 13 80\r\n<start number="1">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
+		client.sendmsg('MSG 0 0 . 51 118\r\nContent-Type: application/beep+xml\r\n\r\n<start number="1">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
 
 		data = client.getmsg()
 		client.terminate()
@@ -87,14 +87,14 @@ class ConversationTest(unittest.TestCase):
 		client = dummyclient.DummyClient()
 
 		# send a greeting msg
-		client.sendmsg("RPY 0 0 . 0 13\r\n<greeting/>\r\nEND\r\n")
+		client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
 		data = client.getmsg()
-		client.sendmsg('MSG 0 0 . 13 80\r\n<start number="6">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
+		client.sendmsg('MSG 0 0 . 51 118\r\nContent-Type: application/beep+xml\r\n\r\n<start number="6">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
 		data = client.getmsg()
 		client.terminate()
-		self.assertEqual(data, 'ERR 0 0 . 81 60\r\n<error code="501">\r\n  Syntax Error In Parameters\r\n</error>\r\nEND\r\n')
 		sess.close()
 		time.sleep(1)
+		self.assertEqual(data, 'ERR 0 0 . 117 96\r\nContent-Type: application/beep+xml\n\n<error code="501">\r\n  Syntax Error In Parameters\r\n</error>\r\nEND\r\n')
 
 
 if __name__ == '__main__':

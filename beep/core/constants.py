@@ -1,5 +1,5 @@
-# $Id: constants.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: constants.py,v 1.3 2002/08/08 02:38:59 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -58,8 +58,11 @@ MAX_OUTBUF = 1024			# Maximum output bytes at a time
 MAX_INPUT_QUEUE_SIZE = 1024		# Max inbound queue size
 MAX_OUTPUT_QUEUE_SIZE = 1024		# Max outbound queue size
 
-MAX_FRAME_SIZE = 8096			# Upper bound for size of frames accepted
-FRAGMENT_FRAME_SIZE = 8096		# Size frames may get to before payload is fragmented
+MAX_FRAME_SIZE = 1024 * 16			# Upper bound for size of frames accepted
+FRAGMENT_FRAME_SIZE = MAX_FRAME_SIZE		# Size frames may get to before payload is fragmented
+MAX_HEADER_SIZE = 62		# Calculated maximum header size
+TRAILER_SIZE = 5
+MAX_PAYLOAD_SIZE = MAX_FRAME_SIZE - MAX_HEADER_SIZE - TRAILER_SIZE
 
 ReplyCodes = { '200' : 'Success',
 		'421' : 'Service Not Available',
@@ -77,6 +80,9 @@ ReplyCodes = { '200' : 'Success',
 		'550' : 'Requested Action Not Taken',
 		'553' : 'Parameter Invalid',
 		'554' : 'Transaction Failed' }
+
+DEFAULT_MIME_CONTENT_TYPE = "application/octet-stream"
+DEFAULT_MIME_TRANSFER_ENCODING = "binary"
 
 # The Session finite state machine
 SESSION_UNINITIALIZED = 0

@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.3 2002/08/05 07:07:16 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: tcpsession.py,v 1.4 2002/08/08 02:38:59 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -135,6 +135,11 @@ class TCPCommsMixin:
 				data = self.connection.recv(constants.MAX_INBUF)
 				if data:
 					self.framebuffer += data
+					# Check for oversized frames. If framebuffer goes over
+					# constants.MAX_FRAME_SIZE + constants.MAX_INBUF then
+					# the frame is too large.
+					if len(self.framebuffer) > (constants.MAX_FRAME_SIZE + constants.MAX_INBUF):
+						raise TCPSessionException("Frame too large")
 
 					# Detect a complete frame
 					# First, check for SEQ frames. These have a higher priority.
@@ -325,7 +330,13 @@ class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMi
 		except Exception, e:
 			raise TCPSessionException(e)
 
-		self.start()
+# I don't know that an Initiator session needs to run as a background thread.
+# An application will likely make use of an Initiator to send messages
+# manually.
+# Probably need to try to implement something with one of these to figure out
+# the most useful way of providing a superclass.
+#
+#		self.start()
 
 	def run(self):
 		self.state = constants.SESSION_ACTIVE

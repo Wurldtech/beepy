@@ -1,5 +1,5 @@
-# $Id: test_echoprofile.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: test_echoprofile.py,v 1.3 2002/08/08 02:38:59 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -52,11 +52,11 @@ class EchoProfileTest(unittest.TestCase):
 		# create and connect a client
 		client = dummyclient.DummyClient()
 		# send a greeting msg
-		client.sendmsg('RPY 0 0 . 0 13\r\n<greeting/>\r\nEND\r\n')
+		client.sendmsg('RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n')
 		data = client.getmsg()
 
 		# create a channel with the ECHO profile
-		client.sendmsg('MSG 0 0 . 13 82\r\n<start number="1">\r\n<profile uri="http://www.eigenmagic.com/beep/ECHO"/>\r\n</start>END\r\n')
+		client.sendmsg('MSG 0 0 . 51 120\r\nContent-type: application/beep+xml\r\n\r\n<start number="1">\r\n<profile uri="http://www.eigenmagic.com/beep/ECHO"/>\r\n</start>END\r\n')
 		data = client.getmsg()
 		client.sendmsg('MSG 1 0 . 0 8\r\nHello!\r\nEND\r\n')
 		data = client.getmsg()

@@ -1,5 +1,5 @@
-# $Id: test_session.py,v 1.3 2002/08/04 10:07:07 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: test_session.py,v 1.4 2002/08/08 02:38:59 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -61,7 +61,7 @@ class SessionTest(unittest.TestCase):
 		sess.close()
 		time.sleep(1)
 
-		self.assertEqual(data, 'RPY 0 0 . 0 81\r\n<greeting>\r\n  <profile uri="http://www.eigenmagic.com/beep/ECHO"/>\r\n</greeting>\r\nEND\r\n')
+		self.assertEqual(data, 'RPY 0 0 . 0 117\r\nContent-Type: application/beep+xml\n\n<greeting>\r\n  <profile uri="http://www.eigenmagic.com/beep/ECHO"/>\r\n</greeting>\r\nEND\r\n')
 
 	def test_invalidHeaderFormat(self):
 		"""Test invalid frame header format"""

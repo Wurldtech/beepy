@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.4 2002/08/05 07:07:16 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: beepmgmtprofile.py,v 1.5 2002/08/08 02:38:59 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -30,6 +30,7 @@ from beep.core import mgmtcreator
 import beep.core.session		# Have to do it this way, as beep.core.session imports
 					# this file.
 
+
 class BEEPManagementProfile(profile.Profile):
 	mgmtParser = None		# The parser for BEEP channel management messages
 	mgmtCreator = None		# The creator for BEEP Channel management messages
@@ -37,6 +38,7 @@ class BEEPManagementProfile(profile.Profile):
 	session = None			# Session I'm associated with
 	startingChannel = {}		# Dictionary of channels I'm trying to start
 	closingChannel = {}		# Dictionary of channels I'm trying to close
+	CONTENT_TYPE = "application/beep+xml"
 
 	def __init__(self, log, session):
 		profile.Profile.__init__(self, log, session)
@@ -51,7 +53,11 @@ class BEEPManagementProfile(profile.Profile):
 		if theframe:
 			self.log.logmsg(logging.LOG_DEBUG, "MGMT: processing frame: %s" % theframe)
 			try:
-				msg = self.mgmtParser.parse(theframe.payload)
+				data = self.mimeDecode(theframe.payload)
+				if self.type != self.CONTENT_TYPE:
+					raise BEEPManagementProfileException("Invalid content type for message")
+
+				msg = self.mgmtParser.parse(data)
 
 				if not msg:
 					self.log.logmsg( logging.LOG_DEBUG, "Cannot parse message" )
@@ -105,6 +111,7 @@ class BEEPManagementProfile(profile.Profile):
 					# Should never get here, but...
 					self.log.logmsg( logging.LOG_ERR, "Unknown frame type" )
 					errmsg = self.mgmtCreator.createErrorMessage('500', constants.ReplyCodes['500'])
+					errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
 					self.channel.sendError(theframe.msgno, errmsg)
 	
 			except mgmtparser.ParserException, e:
@@ -115,6 +122,7 @@ class BEEPManagementProfile(profile.Profile):
 				self.log.logmsg(logging.LOG_ERR, "Malformed Message: %s" % e)
 				if theframe.isMSG():
 					errmsg = self.mgmtCreator.createErrorMessage('500', constants.ReplyCodes['500'])
+					errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
 					self.channel.sendError(theframe.msgno, errmsg)
 					return
 				else:
@@ -163,6 +171,7 @@ class BEEPManagementProfile(profile.Profile):
 		if (reqChannel % 2) != 1:
 			self.log.logmsg(logging.LOG_NOTICE, "Requested channel number of %d is even, and should be odd" % reqChannel)
 			errmsg = self.mgmtCreator.createErrorMessage('501', constants.ReplyCodes['501'])
+			errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
 			self.channel.sendError(theframe.msgno, errmsg)
 		else:
 			# create a new channel with this number
@@ -173,11 +182,13 @@ class BEEPManagementProfile(profile.Profile):
 				# Finally, inform client of success, and which profile was used.
 				self.log.logmsg(logging.LOG_DEBUG, "uri: %s" % uri)
 				msg = self.mgmtCreator.createStartReplyMessage(uri)
+				msg = self.mimeEncode(msg, self.CONTENT_TYPE)
 				self.channel.sendReply(theframe.msgno, msg)
 
 			except beep.core.session.SessionException, e:
 				self.log.logmsg(logging.LOG_DEBUG, "Cannot start channel: %s" % e)
 				errmsg = self.mgmtCreator.createErrorMessage('504', constants.ReplyCodes['504'])
+				errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
 				self.channel.sendError(theframe.msgno, errmsg)
 
 	def _handleClose(self, theframe, msg):
@@ -193,6 +204,7 @@ class BEEPManagementProfile(profile.Profile):
 		a channel start.
 		"""
 		msg = self.mgmtCreator.createStartMessage(channelnum, profileList, serverName)
+		msg = self.mimeEncode(msg, self.CONTENT_TYPE)
 		msgno = self.channel.sendMessage(msg)
 		# Take note that I'm attempting to start this channel
 		self.startingChannel[msgno] = channelnum
@@ -202,6 +214,7 @@ class BEEPManagementProfile(profile.Profile):
 		by sending a <close> message to the remote end.
 		"""
 		msg = self.mgmtCreator.createCloseMessage(channelnum, code)
+		msg = self.mimeEncode(msg, self.CONTENT_TYPE)
 		msgno = self.channel.sendMessage(msg)
 		self.closingChannel[msgno] = channelnum
 
@@ -232,6 +245,7 @@ class BEEPManagementProfile(profile.Profile):
 		else:
 			msg = self.mgmtCreator.createGreetingMessage()
 
+		msg = self.mimeEncode(msg, self.CONTENT_TYPE)
 		self.channel.sendGreetingReply(msg)
 
 class BEEPManagementProfileException(profile.ProfileException):

@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: profile.py,v 1.3 2002/08/08 02:38:59 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -25,6 +25,12 @@
 
 from beep.core import constants
 from beep.core import errors
+from beep.core import logging
+
+# All payloads are expected to be MIME structured, so we include the
+# library here.
+import StringIO
+import mimetools, mimetypes, MimeWriter
 
 # This is a special variable. It is used to dynamically instanciate
 # the Profile by the Session (actually, the BEEPManagementProfile does it).
@@ -36,6 +42,8 @@ class Profile:
 	uri = None		# URI identifying this profile, used by subclasses
 	channel = None		# Channel this profile is bound to
 	session = None		# Session this profile connects to via channel
+	type = None		# Track the current message's MIME type
+	encoding = None		# track the current message's encoding
 
 	# Create a new Profile object
 	def __init__(self, log, session):
@@ -68,6 +76,62 @@ class Profile:
 
 		else:
 			self.doProcessing()
+
+	def mimeDecode(self, payload):
+		"""mimeDecode is a convenience function used to help
+		   make life easier for profile programmers, like me.
+		   It takes the payload and extracts the data from
+		   the headers.
+		"""
+		self.type = constants.DEFAULT_MIME_CONTENT_TYPE
+		instring = StringIO.StringIO(payload)
+		headers = mimetools.Message(instring)
+		msgtype = headers.gettype()
+		if headers.getmaintype() == "multipart":
+			raise ProfileException("cannot handle multipart MIME yet")
+		else:
+			self.type = msgtype
+
+		msgencoding = headers.getencoding()
+		# only support base64 or binary encodings, default is binary
+		outstring = StringIO.StringIO()
+		if msgencoding:
+			self.encoding = msgencoding
+
+		if self.encoding == "base64":
+			mimetools.decode(instring, outstring, self.encoding)
+		else:
+			outstring = instring
+
+		msg = ''
+		msg = outstring.read()
+
+		return msg
+
+	def mimeEncode(self, payload, contentType=constants.DEFAULT_MIME_CONTENT_TYPE, encoding=None):
+		"""mimeEncode is a convenience function used to help
+		   make life easier for profile programmers, like me.
+		   It takes a given payload and adds MIME headers to it.
+		   Note: The separation between the MIME headers is a
+		   single newline '\n', not '\r\n'. Not sure why, but MimeWriter
+		   is doing it for some reason.
+		"""
+		outstring = StringIO.StringIO()
+		writer = MimeWriter.MimeWriter(outstring)
+		writer.startbody(contentType)
+		if encoding:
+			writer.addheader("Content-transfer-encoding", encoding)
+		writer.flushheaders()
+		outstring.write(payload)
+		# convert StringIO to string
+		# potential buffer overflow here
+		outstring.seek(0)
+		msg = outstring.read()
+
+		if len(msg) > constants.MAX_PAYLOAD_SIZE:
+			raise ProfileException("payload is large and should be fragmented")
+
+		return msg
 
 class ProfileException(errors.BEEPException):
 	def __init__(self, args):

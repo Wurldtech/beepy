@@ -1,5 +1,5 @@
-# $Id: setup.py,v 1.2 2002/12/28 06:26:45 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: setup.py,v 1.3 2003/01/02 01:18:53 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -29,6 +29,4 @@ setup(name='BEEPy',
 	license='LGPL',
 	url='http://beepy.sourceforge.net',
 	packages=['beepy', 'beepy.core', 'beepy.transports', 'beepy.profiles'],
-	package_dir={ 	'beepy': 'beep',
-			},
 )

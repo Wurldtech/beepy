@@ -1,5 +1,5 @@
-# $Id: CHANGES,v 1.8 2003/01/01 23:37:39 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: CHANGES,v 1.9 2003/01/02 01:18:53 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -41,8 +41,10 @@
 
 0.2a -> 0.3
 ------------
-- distutils now used for build and install.
+- distutils now used for packaging and install.
 - Test scripts moved to top level directory.
+- SASL/OTP basics implemented. Implementation to be completed and
+  more thoroughly tested and bugfixed.
 - Fixed bugs in SASL/ANONYMOUS with client/server interaction and 
   channel/session closure.
 - Fixed a bug in tcpsession.py so that if a frame is received and
@@ -51,3 +53,5 @@
   a complete frame was received or the input buffer was full. It now
   implements the correct behaviour which is also more robust against
   attempted Denial of Service attacks.
+- Test scripts do fairly complete testing of the BEEP framing
+  implemented by BEEPy.

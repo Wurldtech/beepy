@@ -1,5 +1,5 @@
-# $Id: README,v 1.2 2002/08/07 02:54:58 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: README,v 1.3 2003/01/02 01:18:53 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -56,3 +56,6 @@ Dependencies
 ------------
 - Python 2.1 or higher.
 
+Getting Started
+---------------
+Instructions for installation can be found in the INSTALL file.

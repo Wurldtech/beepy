@@ -1,5 +1,5 @@
-# $Id: tlstcpsession.py,v 1.1 2003/01/01 23:37:39 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: tlstcpsession.py,v 1.2 2003/01/02 01:18:53 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -54,9 +54,7 @@ class TLSTCPCommsMixin(TCPCommsMixin):
 				data = self.connection.recv(constants.MAX_INBUF)
 				if data:
 
->>>
->>>					FIXME: Do decryption stuff here.
->>>
+#					FIXME: Do decryption stuff here.
 
 					self.framebuffer += data
 					# Check for oversized frames. If framebuffer goes over

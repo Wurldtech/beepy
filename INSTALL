@@ -1,5 +1,5 @@
-# $Id: INSTALL,v 1.2 2002/10/07 05:52:03 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: INSTALL,v 1.3 2003/01/02 01:18:53 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -19,14 +19,14 @@
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 
-BEEPy is relatively straightforward to install at this point, as it isn't
-at the stage where it's ready to be added into your Python distribution
-yet. It's mostly for hacking with, so it should stay separate from your
-other Python libraries for now.
+Installation
+------------
+BEEPy uses distutils, so installation should be really easy. Just
+type:
 
-So, by now you've probably untarred the distribution file (or you probably
-wouldn't be reading this). That's basically it for now. You should see a
-directory called 'beep'. This directory contains all the library code.
+$ python setup.py install
+
+and distutils should take of the rest.
 
 Getting Started
 ---------------
@@ -36,7 +36,7 @@ directory thus:
 $ cd beep/test
 
 From here, you can run the unittest suite to check that everything is
-working.
+working. This should work if you've installed the library or not.
 
 $ python testall.py
 

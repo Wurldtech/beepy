@@ -1,5 +1,5 @@
-# $Id: TODO,v 1.11 2002/10/18 06:41:32 jpwarren Exp $
-# $Revision: 1.11 $
+# $Id: TODO,v 1.12 2003/01/02 01:18:53 jpwarren Exp $
+# $Revision: 1.12 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -24,14 +24,6 @@
 # yellow sticky notes. :)
 
 - Channel.pull() returns a message instead of a frame. why?
-- Channel.allocateRemoteSeqno() and similar: check for need for mutex
-  because of concurrency and synchronisation issues. Doesn't look like
-  it.
-- Possible rationalisation of Exceptions classes in some cases. I'm having
-  to draw lots of Exception classes in Dia to document this thing. I wonder
-  if string comparison is quicker than class instanciation during exception
-  processing? Update: May not be an issue so much any more as I've
-  deleted a whole swag of exceptions now.
 - architecture.dia: SEQFrame.type == 'SEQ'. Is this in beep.core.constants
   somewhere, and why?
 - beep.core.message should probably be moved to beep.core.profiles since
@@ -52,11 +44,14 @@
 - Should probably moving Threading back up into Session or as a Mixin.
   Now using an Event to signal shutdown of a Session thread. I like this
   more, as it seems a little more structured.. and probably should be done
-  similarly, since we're talking about inter-Thread comms.
+  similarly, since we're talking about inter-Thread comms. I'm thinking
+  threading should really be implemented via subclassing.
 - It appears the default scheduling algorithm is busy-waiting, which is
   bad. Should modify this to a better async model at some stage. That will
   get quite complex and I'll have to look up my old operating system notes.
-  It'd be nice to have priority processes, like nice(1).
+  It'd be nice to have priority processes, like nice(1). Channel priorities,
+  essentially. I think SEQ frames are probably designed to sortof
+  provide this functionality.
 - Need to implement SEQ frame processing now that I understand it as a
   mechanism to partition the total bandwidth of a TCP session among the
   channels, similar to IP/MPLS ToS/QoS stuff for data and VoIP.
@@ -67,3 +62,6 @@
   of DEBUG, so if you don't explicitly say so, it's a debug statement.
   More for convenience while coding than anything else.
 - Much work on test scripts required. This is now a priority.
+- TLS implementation should take place soon, once I decide on which OpenSSL
+  library to use. POW is starting to look attractive as M2Crypto is too
+  hard to install.

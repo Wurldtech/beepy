@@ -1,5 +1,5 @@
-# $Id: tcp.py,v 1.3 2004/06/27 07:38:32 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: tcp.py,v 1.4 2004/07/24 06:33:48 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -26,6 +26,7 @@ log = logging.getLogger('beepy')
 try:
     from twisted.internet import reactor
     from twisted.internet.protocol import ClientFactory, ServerFactory
+    from twisted.internet.protocol import ReconnectingClientFactory
     from twisted.internet.error import ConnectionDone, ConnectionLost
     from twisted.protocols.basic import LineReceiver
 except:
@@ -55,11 +56,18 @@ class SEQBuffer:
     processing to tune window sizes and queue pending
     data, if any.
     """
-    MAX_WINDOWSIZE = 2048
+    STARTING_WINDOWSIZE = 4096
+    MAX_WINDOWSIZE = 10 * STARTING_WINDOWSIZE
+    MIN_WINDOWSIZE = 1
+
+    ## This value determines the effect of a change in
+    ## priority. Increasing the priority by one will add
+    ## this amount to the windowsize, and a decrease will reduce it.
+    PRIORITY_INCREMENT = STARTING_WINDOWSIZE / 2
     
     def __init__(self, channelnum):
         self.channelnum = channelnum
-        self.windowsize = 2048 ## supposed to be 2048. testing value.
+        self.windowsize = self.STARTING_WINDOWSIZE
         self.availspace = self.windowsize
         self.databuf = []
         self.cb = None
@@ -219,14 +227,14 @@ class BeepProtocol(LineReceiver):
         ## If there are pending messages, send them first
         if len( self.channelbuf[channelnum].databuf ) > 0:
             pendingMsg = self.channelbuf[channelnum].databuf.pop(0)
-#            log.debug('Pending data to be sent: %s' % pendingMsg)
-            ## Save the new message to be sent later
+
+        ## Save the new message to be sent later
             self.channelbuf[channelnum].databuf.append(msg)
-            ## Swap with 'msg' so below code stays the same
+        ## Swap with 'msg' so below code stays the same
             msg = pendingMsg
 
             log.debug('Channel %d availspace: %d' % (channelnum, self.channelbuf[channelnum].availspace) )
-#        log.debug('sending message: %s' % msg)
+
         ## If there's no space to send the Message, do something
         if self.channelbuf[channelnum].availspace < constants.MIN_CHANNEL_WINDOW:
             ## Window too small, do something with the frame.
@@ -510,6 +518,12 @@ class BeepClientFactory(BeepFactory, ClientFactory):
         log.debug('Client finished. Stopping reactor.')
         pass
     pass
+
+class ReconnectingBeepClientFactory(BeepFactory, ReconnectingClientFactory):
+    """
+    An alternative BeepClientFactory that will attempt to reconnect
+    to a server automatically.
+    """
 
 ##
 ## SASL related code

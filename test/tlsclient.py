@@ -1,5 +1,5 @@
-# $Id: tlsclient.py,v 1.2 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: tlsclient.py,v 1.3 2004/07/24 06:33:49 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -52,7 +52,7 @@ class TLSEchoClientProtocol(TLSClientProtocol):
             self.echochannel = self.newChannel(echoprofile)
             log.debug('attempting to start echo channel %d...' % self.echochannel)
 
-    def channelStarted(self, channelnum):
+    def channelStarted(self, channelnum, uri):
         log.debug('started channel %d', channelnum)
         if not self.TLS:
             if channelnum == self.authchannel:

@@ -1,5 +1,5 @@
-# $Id: tlsserver.py,v 1.4 2004/07/24 06:33:49 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: timeserver.py,v 1.1 2004/07/24 06:33:49 jpwarren Exp $
+# $Revision: 1.1 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -17,33 +17,37 @@
 #    You should have received a copy of the GNU Lesser General Public
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-#
 
 
 import sys
 sys.path.append('..')
 
-from beepy.profiles import tlsprofile
-from beepy.profiles import echoprofile
-
-from beepy.transports.tls import TLSServerFactory
-
+from beepy.profiles import timeprofile
+from beepy.transports.tcp import BeepServerFactory
 from twisted.application import internet, service
+from twisted.internet import reactor
 
 # Put this here so we override twisted's logging
 import logging
 from beepy.core import debug
+log = debug.log
 
-log = logging.getLogger('tls-server')
+def initTimeProfile(profileInst):
+    """
+    This initialisation method is required to give
+    the profile access to a reactor method which
+    calls a method later on.
 
-factory = TLSServerFactory()
-factory.addProfile(echoprofile)
-factory.addProfile(tlsprofile)
+    This allows us to add arbitrary functionality
+    into a profile at runtime. Neat eh?
+    """
+    log.debug('time profile initializing')
+    profileInst.callLater = reactor.callLater
 
-factory.privateKeyFileName = 'serverKey.pem'
-factory.certificateFileName = 'serverCert.pem'
+factory = BeepServerFactory()
+factory.addProfile(timeprofile, initTimeProfile)
 
-application = service.Application('tls-server')
+application = service.Application('timeserver')
 serviceCollection = service.IServiceCollection(application)
 internet.TCPServer(1976, factory).setServiceParent(serviceCollection)
 

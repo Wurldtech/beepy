@@ -1,5 +1,5 @@
-# $Id: CHANGES,v 1.19 2004/06/27 07:38:32 jpwarren Exp $
-# $Revision: 1.19 $
+# $Id: CHANGES,v 1.20 2004/07/24 06:33:48 jpwarren Exp $
+# $Revision: 1.20 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -40,6 +40,8 @@
   or clientConnectionFailed(). You can no take other actions if you wish.
   Example servers now implement their own test protocol to cause the server
   to exit when the single client session disconnects.
+- Fixed bug in Channel where the msgno would be deallocated for message
+  types other than ANS or RPY.
 
 0.3 -> 0.4
 ----------

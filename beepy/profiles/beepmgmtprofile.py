@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.11 2004/06/27 07:38:31 jpwarren Exp $
-# $Revision: 1.11 $
+# $Id: beepmgmtprofile.py,v 1.12 2004/07/24 06:33:47 jpwarren Exp $
+# $Revision: 1.12 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -23,7 +23,7 @@ This module implements the BEEP Management profile.
 
 This profile is used to manage BEEP sessions and channels.
 
-@version: $Revision: 1.11 $
+@version: $Revision: 1.12 $
 @author: Justin Warren
 """
 import logging
@@ -189,13 +189,13 @@ class BEEPManagementProfile(profile.Profile):
             del self.startingChannel[msg.msgno]
 
             # create it at this end
-            self.session.createChannelFromURIList(channelnum, mgmtMsg.getProfileURIList())
+            uri = self.session.createChannelFromURIList(channelnum, mgmtMsg.getProfileURIList())
 
             log.debug("Channel %s created successfully." % channelnum )
             # Channel was started successfully, so set the event
             self.channelState[channelnum] = [ self.CHANNEL_OPEN ]
-            if self.channelEvent[channelnum]:
-	            self.channelEvent[channelnum][0](channelnum)
+            log.debug('remote channel started')
+            self.channelEvent[channelnum][0](channelnum, uri)            
 
         except KeyError:
             # a profile was received for a channel that we weren't
@@ -240,10 +240,14 @@ class BEEPManagementProfile(profile.Profile):
                 log.debug("Creating new channel, number: %d" % reqChannel)
 
                 uri = self.session.createChannelFromURIList(reqChannel, mgmtMsg.getProfileURIList(), cdata)
-                # Finally, inform client of success, and which profile was used.
+                # Inform client of success, and which profile was used.
                 data = self.mgmtCreator.createStartReplyMessage(uri)
                 data = self.mimeEncode(data, self.CONTENT_TYPE)
                 self.channel.sendReply(msg.msgno, data)
+
+                # Notify local stuff of the channel being started
+                log.debug('local channel started')
+                self.session.channelStarted(reqChannel, uri)
 
         except beepy.core.session.SessionException, e:
             log.warning("Cannot start channel: %s" % e)
@@ -314,7 +318,7 @@ class BEEPManagementProfile(profile.Profile):
             self.channelEvent[channelnum][0](channelnum)
 
     def _handleError(self, msg, mgmtMsg):
-        
+        log.debug('Got remote error message')
         code = mgmtMsg.getErrorCode()
         desc = mgmtMsg.getErrorDescription()
         # Errors during channel creation

@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.12 2004/06/27 07:38:32 jpwarren Exp $
-# $Revision: 1.12 $
+# $Id: profile.py,v 1.13 2004/07/24 06:33:48 jpwarren Exp $
+# $Revision: 1.13 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>

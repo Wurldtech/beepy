@@ -1,5 +1,5 @@
-# $Id: tlsserver.py,v 1.4 2004/07/24 06:33:49 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: reverbserver.py,v 1.1 2004/07/24 06:33:49 jpwarren Exp $
+# $Revision: 1.1 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -17,33 +17,40 @@
 #    You should have received a copy of the GNU Lesser General Public
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-#
 
 
 import sys
 sys.path.append('..')
 
-from beepy.profiles import tlsprofile
-from beepy.profiles import echoprofile
-
-from beepy.transports.tls import TLSServerFactory
-
-from twisted.application import internet, service
-
-# Put this here so we override twisted's logging
 import logging
 from beepy.core import debug
 
-log = logging.getLogger('tls-server')
+log = logging.getLogger('reverbserver')
 
-factory = TLSServerFactory()
-factory.addProfile(echoprofile)
-factory.addProfile(tlsprofile)
+from beepy.profiles import echoprofile, reverbprofile
+#from beepy.transports.tcp import BeepProtocol
+from beepy.transports.tcp import BeepServerFactory
+from twisted.internet import reactor
 
-factory.privateKeyFileName = 'serverKey.pem'
-factory.certificateFileName = 'serverCert.pem'
+from twisted.application import internet, service
 
-application = service.Application('tls-server')
+def initReverbProfile(profileInst):
+    
+    """
+    This initialisation method is required to give
+    the profile access to a reactor method which
+    calls a method later on.
+
+    This allows us to add arbitrary functionality
+    into a profile at runtime. Neat eh?
+    """
+    log.debug('reverb profile initializing')
+    profileInst.callLater = reactor.callLater
+    
+factory = BeepServerFactory()
+factory.addProfile(reverbprofile, initReverbProfile)
+
+application = service.Application('reverb-beep')
 serviceCollection = service.IServiceCollection(application)
 internet.TCPServer(1976, factory).setServiceParent(serviceCollection)
 

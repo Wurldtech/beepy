@@ -1,5 +1,5 @@
-# $Id: TODO,v 1.7 2002/08/22 05:03:35 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: TODO,v 1.8 2002/09/17 06:51:44 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -67,3 +67,8 @@
   Now using an Event to signal shutdown of a Session thread. I like this
   more, as it seems a little more structured.. and probably should be done
   similarly, since we're talking about inter-Thread comms.
+- It appears the default scheduling algorithm is busy-waiting, which is
+  bad. Should modify this to a better async model at some stage. That will
+  get quite complex and I'll have to look up my old operating system notes.
+  It'd be nice to have priority processes, like nice(1).
+

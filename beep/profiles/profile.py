@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.6 2002/08/22 05:03:35 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: profile.py,v 1.7 2002/09/17 06:51:44 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -38,12 +38,12 @@ import mimetools, mimetypes, MimeWriter
 __profileClass__ = "Profile"
 
 class Profile:
-	log = None		# link into logging system
-	uri = None		# URI identifying this profile, used by subclasses
-	channel = None		# Channel this profile is bound to
-	session = None		# Session this profile connects to via channel
-	type = None		# Track the current message's MIME type
-	encoding = None		# track the current message's encoding
+#	log = None		# link into logging system
+#	uri = None		# URI identifying this profile, used by subclasses
+#	channel = None		# Channel this profile is bound to
+#	session = None		# Session this profile connects to via channel
+#	type = None		# Track the current message's MIME type
+#	encoding = None		# track the current message's encoding
 
 	# Create a new Profile object
 	def __init__(self, log, session, profileInit=None):
@@ -52,6 +52,9 @@ class Profile:
 		"""
 		self.log = log
 		self.session = session
+		self.channel = None
+		self.type = None
+		self.encoding = None
 
 	def setChannel(self, channel):
 		"""setChannel() binds this Profile to the Channel
@@ -149,8 +152,6 @@ class TuningReset(ProfileException):
 # It ends up containing a whole swag of stuff that can be played
 # with dynamically. (Yay!)
 class ProfileDict:
-
-	_profiles = None
 
 	def __init__(self, profileList=None):
 		self._profiles = {}

@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.7 2002/08/22 05:03:35 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: beepmgmtprofile.py,v 1.8 2002/09/17 06:51:44 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -51,7 +51,7 @@ class BEEPManagementProfile(profile.Profile):
 	def doProcessing(self):
 		theframe = self.channel.recv()
 		if theframe:
-			self.log.logmsg(logging.LOG_DEBUG, "MGMT: processing frame: %s" % theframe)
+#			self.log.logmsg(logging.LOG_DEBUG, "MGMT: processing frame: %s" % theframe)
 			try:
 				data = self.mimeDecode(theframe.payload)
 				if self.type != self.CONTENT_TYPE:
@@ -77,6 +77,9 @@ class BEEPManagementProfile(profile.Profile):
 
 						self._handleProfile(theframe, msg)
 
+					# Confirmation messages, such as for a close
+					if msg.isOK():
+						self._handleOK(theframe, msg)
 
 				# Message frame processing
 				elif theframe.isMSG():
@@ -92,7 +95,7 @@ class BEEPManagementProfile(profile.Profile):
 					elif msg.isClose():
 						# Attempt to close the channel
 						self.log.logmsg( logging.LOG_DEBUG, "attempting to close channel" )
-						self._handleClose()
+						self._handleClose(theframe, msg)
 
 					else:
 						# you shouldn't ever get here, as this should have been
@@ -142,12 +145,21 @@ class BEEPManagementProfile(profile.Profile):
 			raise BEEPManagementProfileException("Too many greetings.")
 
 	def _handleProfile(self, theframe, msg):
+		self.log.logmsg( logging.LOG_DEBUG, "%s: entered _handleProfile()" % self )
 		# look up which channel was being started by msgno
 		channelnum = self.startingChannel[theframe.msgno]
+		if not channelnum:
+			# a profile was received for a channel that we weren't
+			# starting, which is bad, so kill session.
+			self.log.logmsg( logging.LOG_ERR, "Attempt to confirm start of channel we didn't ask for.")
+			raise BEEPManagementProfileException("Invalid Profile RPY Message")
+
 		del self.startingChannel[theframe.msgno]
 
 		# create it at this end
 		try:
+			self.log.logmsg( logging.LOG_DEBUG, "Attempting to create matching channel %s..." % channelnum)
+			self.log.logmsg( logging.LOG_DEBUG, "Msg URIlist: %s" % msg.getProfileURIList() )
 			self.session.createChannelFromURIList(channelnum, msg.getProfileURIList())
 		except beep.core.session.SessionException, e:
 			# If we get here, something very wrong happened.
@@ -155,8 +167,14 @@ class BEEPManagementProfile(profile.Profile):
 			# for a profile that is supported by the remote end,
 			# but not at this end, which is kinda dumb.
 			# We now have to request the other end close down the Channel
+			self.log.logmsg(logging.LOG_ERR, "%s" % e)
 			self.log.logmsg(logging.LOG_ERR, "Remote end started channel with profile unsupported at this end.")
 			self.log.logmsg(logging.LOG_ERR, "You probably screwed something up somewhere.")
+			self.closeChannel(channelnum)
+
+		except Exception, e:
+			self.log.logmsg(logging.LOG_ERR, "Unhandled exception: %s" % e)
+			raise BEEPManagementProfileException("%s" % e)
 
 	def _handleStart(self, theframe, msg):
 		"""_handleStart() is an internal method used from within
@@ -193,12 +211,33 @@ class BEEPManagementProfile(profile.Profile):
 				errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
 				self.channel.sendError(theframe.msgno, errmsg)
 
+			except Exception, e:
+				self.log.logmsg(logging.LOG_ERR, "Unhandled exception in _handleStart: %s, %s" % (e.__class__, e) )
+				errmsg = self.mgmtCreator.createErrorMessage('504', constants.ReplyCodes['504'])
+				errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
+				self.channel.sendError(theframe.msgno, errmsg)
+
 	def _handleClose(self, theframe, msg):
-		"""handleClose() is an internal method used from within
+		"""_handleClose() is an internal method used from within
 		doProcessing() to split it up a bit and make it more manageable
 		It deals with <close> MSG frames
 		"""
-		pass
+		self.session.deleteChannel(msg.getCloseChannelNum())
+		msg = self.mgmtCreator.createOKMessage()
+		msg = self.mimeEncode(msg, self.CONTENT_TYPE)
+		self.channel.sendReply(theframe.msgno, msg)
+
+	def _handleOK(self, theframe, msg):
+		"""_handleOK is an internal method used from within
+		doProcessing() to split it up a bit and make it more manageable
+		It deals with <ok> MSG frames, such as those used to confirm
+		a channel close.
+		"""
+		# First, we check if this is a close confirmation
+		if self.closingChannel.has_key(theframe.msgno):
+			# yep, we're closing, and it's ok to delete this end
+			self.session.deleteChannel(self.closingChannel[theframe.msgno])
+			del self.closingChannel[theframe.msgno]
 
 	def startChannel(self, channelnum, profileList, serverName=None):
 		"""startChannel() attempts to start a new Channel by sending a

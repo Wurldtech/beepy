@@ -1,5 +1,5 @@
-# $Id: mgmtcreator.py,v 1.3 2002/08/22 05:03:35 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: mgmtcreator.py,v 1.4 2002/09/17 06:51:44 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -93,7 +93,8 @@ class Creator:
 		# create start element
 		element = self.doc.createElement('start')
 		if type(number) != types.StringType:
-			raise CreatorException('number is supposed to be a string, dude.')
+			number = '%s' % number
+#			raise CreatorException('number is supposed to be a string, dude.')
 		element.setAttribute('number', number)
 		# Set the servername, if need be
 		if serverName:
@@ -162,6 +163,8 @@ class Creator:
 		element = self.doc.createElement('close')
 
 		# Set attributes, if they've been passed in
+		if type(number) != types.StringType:
+			number = '%s' % number
 		element.setAttribute('number', number)
 		element.setAttribute('code', code)
 		if xmlLang:

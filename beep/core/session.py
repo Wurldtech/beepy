@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.7 2002/08/22 05:03:35 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: session.py,v 1.8 2002/09/17 06:51:44 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -46,7 +46,6 @@ class Session(statemachine.StateMachine):
 #	sentGreeting = 0	# have I sent a greeting yet?
 #	receivedGreeting = 0	# have I received a greeting yet?
 #	channels = {}		# dictionary of channels, indexed by channel number
-#	channelState = {}	# a dictionary of channel states, indexed by channel number
 #	nextChannelNum = -1	# The next channel number to be allocated
 #	profileDict = {}	# dictionary of known profiles.
 #	inbound = None		# session queue for inbound packets off the wire
@@ -76,8 +75,9 @@ class Session(statemachine.StateMachine):
 		self.addTransition('ACTIVE', 'close', 'CLOSING')
 		self.addTransition('ACTIVE', 'error', 'TERMINATE')
 		self.addTransition('ACTIVE', 'reset', 'TUNING')
-		self.addTransition('CLOSING', 'error', 'ACTIVE')
+		self.addTransition('CLOSING', 'unable', 'ACTIVE')
 		self.addTransition('CLOSING', 'ok', 'TERMINATE')
+		self.addTransition('CLOSING', 'error', 'TERMINATE')
 		self.addTransition('CLOSING', 'close', 'CLOSING')
 		self.addTransition('TUNING', 'ok', 'EXITED')
 		self.addTransition('TUNING', 'close', 'TUNING')
@@ -198,6 +198,10 @@ class Session(statemachine.StateMachine):
 		self.channels[channelnum] = newchan
 
 	def createChannelFromURIList(self, channelnum, uriList, profileInit=None):
+		if not self.profileDict:
+			self.log.logmsg(logging.LOG_CRIT, "Session's profileDict is undefined!")
+			raise SessionException("Session's profileDict is undefined!")
+
 		# First, check requested profile(s) are available
 		myURIList = self.profileDict.getURIList()
 		if not myURIList:
@@ -223,8 +227,11 @@ class Session(statemachine.StateMachine):
 				# Inform caller of uri used
 				return uri
 
-		# If we get here, then no supported profile URI was found
-		self.log.logmsg(logging.LOG_DEBUG, "uri not found in profileDict")
+			# If we get here, then no supported profile URI was found
+			self.log.logmsg(logging.LOG_DEBUG, "%s: uri not found in profileDict: %s" % (self, self.profileDict))
+#			for x in self.profileDict:
+#				self.log.logmsg(logging.LOG_DEBUG, "%s" % x )
+
 		raise SessionException("Profile not supported by Session")
 
 	def closeAllChannels(self):
@@ -233,9 +240,9 @@ class Session(statemachine.StateMachine):
 		"""
 		try:
 			chanlist = self.channels.keys()
-			self.log.logmsg("Channels to close: %s" % chanlist)
+			self.log.logmsg(logging.LOG_DEBUG, "Channels to close: %s" % chanlist)
 			for channelnum in chanlist:
-				self.log.logmsg("attempting to close channel %i..." % channelnum)
+				self.log.logmsg(logging.LOG_DEBUG, "attempting to close channel %i..." % channelnum)
 				self.channels[channelnum].close()
 				self.deleteChannel(channelnum)
 
@@ -243,11 +250,12 @@ class Session(statemachine.StateMachine):
 			# If we can't close a channel, we must remain active
 			# FIXME: more detailed error handling required here
 			self.log.logmsg("Unable to close Session: %s" % e)
-			raise
 
 	def deleteChannel(self, channelnum):
-		if channelnum in self.channels.keys():
+		if self.channels.has_key(channelnum):
+			self.channels[channelnum].close()
 			del self.channels[channelnum]
+			self.log.logmsg(logging.LOG_INFO, "Channel %i closed successfully." % channelnum)
 		else:
 			raise SessionException('No such channel')
 
@@ -267,6 +275,15 @@ class Session(statemachine.StateMachine):
 		else:
 			profile = beepmgmtprofile.BEEPManagementProfile(self.log, self)
 			self.createChannel(0, profile)
+
+	def isChannelActive(self, channelnum):
+		"""This method provides a way of figuring out if a channel is
+		   running.
+		"""
+		if self.channels.has_key(channelnum):
+			return 1
+		else:
+			return 0
 
 	def flushChannelOutbound(self):
 		"""This method gets all pending messages from all channels
@@ -341,6 +358,9 @@ class Session(statemachine.StateMachine):
 	def getProfileDict(self):
 		return self.profileDict
 
+	def getChannelZeroProfile(self):
+		return self.channels[0].profile
+
 	def reset(self):
 		"""reset() does a tuning reset which closes all channels and
 		   terminates the session.
@@ -355,11 +375,26 @@ class Session(statemachine.StateMachine):
 		"""
 		if self.receivedGreeting:
 			# Attempt to get the remote end to start the Channel
-			self.channels[0].profile.startChannel(str(self.nextChannelNum), profileList)
+			channelnum = self.nextChannelNum
+			self.channels[0].profile.startChannel( channelnum, profileList)
 			# Increment nextChannelNum appropriately.
 			self.nextChannelNum += 2
+			# Return channelnum created
+			return channelnum
 		else:
 			raise SessionException("Greeting not yet received")
+
+	def closeChannel(self, channelnum):
+		"""closeChannel() attempts to close a channel.
+		inputs: channelnum, the number of the channel to close
+		outputs: none
+		raises: none
+		"""
+		self.log.logmsg(logging.LOG_DEBUG, "Attempting to close channel %s" % channelnum)
+		if self.channels.has_key(channelnum):
+			self.channels[0].profile.closeChannel(channelnum)
+		else:
+			raise KeyError("Channel number invalid")
 
 	def close(self):
 		raise NotImplementedError

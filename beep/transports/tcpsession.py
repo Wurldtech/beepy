@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.9 2002/08/22 05:03:35 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: tcpsession.py,v 1.10 2002/09/17 06:51:44 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -273,6 +273,7 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 #		self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 		self.createChannelZero()
+		self.sendPendingFrame()
 		self.transition('ok')
 
 	def _stateACTIVE(self):
@@ -369,6 +370,11 @@ class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMi
 			self.transition('error')
 
 		self.createChannelZero()
+		# send the queued greeting message
+		self.sendPendingFrame()
+		while not self.channels[0].profile.receivedGreeting:
+			self.getInputFrame()
+			self.processFrames()
 		self.transition('ok')
 
 	def _stateACTIVE(self):

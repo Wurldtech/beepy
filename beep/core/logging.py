@@ -1,5 +1,5 @@
-# $Id: logging.py,v 1.3 2002/08/22 05:03:34 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: logging.py,v 1.4 2002/09/17 06:51:44 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -59,8 +59,8 @@ class Log:
 			self.log = sys.stderr
 			self.logfile = 'STDERR'
 
-		self.debuglevel = LOG_ERR
-#		self.debuglevel = LOG_DEBUG
+#		self.debuglevel = LOG_ERR
+		self.debuglevel = LOG_DEBUG
 
 	def logmsg(self, msglevel, *msgs):
 		if msglevel <= self.debuglevel:

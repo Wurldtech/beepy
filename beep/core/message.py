@@ -1,5 +1,5 @@
-# $Id: message.py,v 1.5 2002/08/22 05:03:35 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: message.py,v 1.6 2002/09/17 06:51:44 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -80,6 +80,11 @@ class Message:
 			channelnum = self.doc.childNodes[0].getAttribute('number')
 			return string.atoi(channelnum)
 
+# FIXME: getProfileURI and getProfileURIList may be broken
+# It depends on how getElementsByTagName processes the DOM structure I've
+# hacked together to get around the lack of CDATA functionality in minidom.
+# This appears to work so far.. but it isn't guaranteed to work all the
+# time.
 	def getProfileURI(self):
 		"""getProfileURI returns the uri attribute of the first
 		profile element found.
@@ -87,7 +92,7 @@ class Message:
 		outputs: uri, string
 		raises: None
 		"""
-		nodelist = self.doc.childNodes[0].getElementsByTagName('profile')
+		nodelist = self.doc.getElementsByTagName('profile')
 		uri = nodelist[0].getAttribute('uri')
 		return uri
 
@@ -99,7 +104,9 @@ class Message:
 		outputs: uriList, sequence of uri strings
 		raises: None
 		"""
-		nodelist = self.doc.childNodes[0].getElementsByTagName('profile')
+		nodelist = self.doc.getElementsByTagName('profile')
+#		nodelist = self.doc.childNodes[0].getElementsByTagName('profile')
+#		print "DEBUG: nodelist: %s" % nodelist
 		uriList = []
 		for node in nodelist:
 			uriList.append(node.getAttribute('uri'))

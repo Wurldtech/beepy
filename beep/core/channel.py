@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.4 2002/08/22 05:03:34 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: channel.py,v 1.5 2002/09/17 06:51:44 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -65,7 +65,7 @@ class Channel:
 			self.profile.setChannel(self)
 
 		except AssertionError:
-			raise ChannelException('Channel number out of bounds')
+			raise ChannelException('Channel number %s out of bounds' % channelnum)
 
 	# Send frame over this channel
 	# Used by Profiles
@@ -318,8 +318,8 @@ class Channel:
 		raises: ChannelMessagesOutstanding, if not all sent messages
 		        have been acknowledged.
 		"""
-		if self.allocatedMsgnos[0]:
-			raise ChannelMessagesOutstanding
+		if len(self.allocatedMsgnos) > 0:
+			raise ChannelMessagesOutstanding("%s allocatedMsgsnos unanswered" % len(self.allocatedMsgnos))
 
 		del self.inbound
 		del self.outbound

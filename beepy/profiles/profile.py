@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.7 2003/01/30 09:24:29 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: profile.py,v 1.8 2003/12/08 03:25:30 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,9 +23,10 @@
 # This is an abstract class that should be inherited from to implement
 # an actual profile.
 
+import logging
+
 from beepy.core import constants
 from beepy.core import errors
-from beepy.core import logging
 
 # All payloads are expected to be MIME structured, so we include the
 # library here.
@@ -42,18 +43,12 @@ import traceback
 __profileClass__ = "Profile"
 
 class Profile:
-#	log = None		# link into logging system
-#	channel = None		# Channel this profile is bound to
-#	session = None		# Session this profile connects to via channel
-#	type = None		# Track the current message's MIME type
-#	encoding = None		# track the current message's encoding
 
 	# Create a new Profile object
-	def __init__(self, log, session, profileInit=None, init_callback=None):
+	def __init__(self, session, profileInit=None, init_callback=None):
 		"""Subclasses of Profile should call this method from their
 		__init__() methods.
 		"""
-		self.log = log
 		self.session = session
 		self.channel = None
 		self.type = None
@@ -105,8 +100,8 @@ class Profile:
 				raise
 
 			except Exception, e:
-				self.log.logmsg(logging.LOG_DEBUG, 'Unmanaged exception: %s: %s' % (e.__class__, e))
-				self.log.logmsg(logging.LOG_DEBUG, '%s' % traceback.print_exc() )
+				log.debug('Unmanaged exception: %s: %s' % (e.__class__, e))
+				log.debug('%s' % traceback.print_exc() )
 				raise TerminalProfileException("Unmanaged exception in %s: %s: %s" % (self.__class__, e.__class__, e) )
 
 	def mimeDecode(self, payload):
@@ -161,7 +156,7 @@ class Profile:
 		msg = outstring.read()
 
 		if len(msg) > constants.MAX_PAYLOAD_SIZE:
-			self.log.logmsg(logging.LOG_WARN, "payload is large and should be fragmented")
+			log.warn("payload is large and should be fragmented")
 
 		return msg
 

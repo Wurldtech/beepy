@@ -1,5 +1,5 @@
-# $Id: test_reverbprofile.py,v 1.4 2003/01/09 00:20:55 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: test_reverbprofile.py,v 1.5 2003/12/08 03:25:30 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,50 +23,18 @@ import unittest
 import sys
 import time
 
-try:
-	from beepy.core import constants
-	from beepy.core import logging
-	from beepy.transports import tcpsession
-	from beepy.profiles import profile
-	from beepy.profiles import echoprofile
-except ImportError:
-	sys.path.append('../')
-	from beepy.core import constants
-	from beepy.core import logging
-	from beepy.transports import tcpsession
-	from beepy.profiles import profile
-	from beepy.profiles import echoprofile
+sys.path.append('..')
 
 import dummyclient
 
-# This class assumes a server is available.
-# It tests the responses given to the client under a
-# variety of situations. Check the server logs to
-# see what the server was up to at the time.
-# It pauses for a second before shutting down the client
-# to make sure the server doesn't just dump pending messages
-# on an unexpected disconnect.
-class EchoProfileTest(unittest.TestCase):
-
+class ReverbProfileTest(unittest.TestCase):
 
 	def setUp(self):
-		# Set up logging
-		self.log = logging.Log(prefix="server: ")
 
-		# create a listener
-		pdict = profile.ProfileDict()
-		pdict[echoprofile.uri] = echoprofile
-		self.listener = tcpsession.TCPListenerManager(self.log, pdict, 'localhost', 1976)
-		# wait for it to become active
-		while not self.listener.isActive():
-			time.sleep(0.25)
 		self.client = dummyclient.DummyClient()
 
 	def tearDown(self):
 		self.client.terminate()
-		self.listener.close()
-		while not self.listener.isExited():
-			time.sleep(0.25)
 
 	def test_createEchoChannel(self):
 		"""Test creation of a channel with the Echo profile"""

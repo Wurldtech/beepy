@@ -1,5 +1,5 @@
-# $Id: reverbprofile.py,v 1.1 2003/01/03 02:39:11 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: reverbprofile.py,v 1.2 2003/12/08 03:25:30 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -28,79 +28,83 @@
 # MSG frames that are not in the above format and replied to with an
 # ERR frame.
 
+__profileClass__ = "ReverbProfile"
+uri = "http://www.eigenmagic.com/beep/REVERB"
+
 import profile
-from beepy.core import logging
 
 import string
 import time
 
-__profileClass__ = "ReverbProfile"
-uri = "http://www.eigenmagic.com/beep/REVERB"
+import logging
+log = logging.getLogger(__profileClass__)
 
 class ReverbProfile(profile.Profile):
 
-	def __init__(self, log, session, profileInit=None):
-		profile.Profile.__init__(self, log, session, profileInit)
+    def __init__(self, session, profileInit=None):
+        profile.Profile.__init__(self, log, session, profileInit)
 
-		self.reverbDict = {}
+        self.reverbDict = {}
 
-	def doProcessing(self):
+    def processFrame(self, theframe):
 
-		# Do any historical echoing
-		for msgno in self.reverbDict.keys():
-#			self.log.logmsg(logging.LOG_DEBUG, 'times: %d + %d >= %d' % (self.reverbDict[msgno][0], self.reverbDict[msgno][2], time.time()) )
-			if self.reverbDict[msgno][0] + self.reverbDict[msgno][2] <= time.time():
-				self.channel.sendAnswer(msgno, self.reverbDict[msgno][3])
-				self.reverbDict[msgno][1] -= 1
-				self.reverbDict[msgno][0] = time.time()
+        # Do any historical echoing
+        for msgno in self.reverbDict.keys():
+            if self.reverbDict[msgno][0] + self.reverbDict[msgno][2] <= time.time():
+                self.channel.sendAnswer(msgno, self.reverbDict[msgno][3])
+                self.reverbDict[msgno][1] -= 1
+                self.reverbDict[msgno][0] = time.time()
 
-				self.log.logmsg(logging.LOG_DEBUG, "Reverb sent for msgno %d. %d reverbs left to do." % (msgno, self.reverbDict[msgno][1]) )
+                log.debug("Reverb sent for msgno %d. %d reverbs left to do." % (msgno, self.reverbDict[msgno][1]) )
 
-				if self.reverbDict[msgno][1] <= 0:
-					self.channel.sendNul(msgno)
-					del self.reverbDict[msgno]
+                if self.reverbDict[msgno][1] <= 0:
+                    self.channel.sendNul(msgno)
+                    del self.reverbDict[msgno]
+                    pass
+                pass
+            pass
+        
+	try:
+            if theframe.isMSG():
+                # MSG frame, so parse out what to do
+                self.parseMSG(theframe)
+                pass
 
+            if theframe.isRPY():
+                self.channel.deallocateMsgno(theframe.msgno)
+                pass
 
-		# Process any new frames
-		theframe = self.channel.recv()
-		if theframe:
-			self.log.logmsg(logging.LOG_DEBUG, "ReverbProfile: processing frame: %s" % theframe)
-			try:
-				if theframe.isMSG():
-				# MSG frame, so parse out what to do
-					self.parseMSG(theframe)
+            if theframe.isERR():
+                self.channel.deallocateMsgno(theframe.msgno)
+                pass
 
-				if theframe.isRPY():
-					self.channel.deallocateMsgno(theframe.msgno)
+            if theframe.isNUL():
+                self.channel.deallocateMsgno(theframe.msgno)
+                pass
+            pass
 
-				if theframe.isERR():
-					self.channel.deallocateMsgno(theframe.msgno)
+        except Exception, e:
+            raise profile.TerminalProfileException("Exception reverbing: %s" % e)
 
-				if theframe.isNUL():
-					self.channel.deallocateMsgno(theframe.msgno)
+    def parseMSG(self, theframe):
+        """parseMSG grabs the MSG payload and works out what to do
+        """
+        try:
+            number, delay, content = string.split(theframe.payload, ' ', 3)
+            number = string.atoi(number)
+            delay = string.atoi(delay)
+            self.log.logmsg(logging.LOG_DEBUG, "number: %d" % number)
+            self.log.logmsg(logging.LOG_DEBUG, "delay: %d" % delay)
+            self.log.logmsg(logging.LOG_DEBUG, "content: %s" % content)
 
-			except Exception, e:
-				raise profile.TerminalProfileException("Exception reverbing: %s" % e)
+            if number <= 0:
+                self.channel.sendError(theframe.msgno, 'Cannot echo a frame %d times.\n' % number)
 
-	def parseMSG(self, theframe):
-		"""parseMSG grabs the MSG payload and works out what to do
-		"""
-		try:
-			number, delay, content = string.split(theframe.payload, ' ', 3)
-			number = string.atoi(number)
-			delay = string.atoi(delay)
-			self.log.logmsg(logging.LOG_DEBUG, "number: %d" % number)
-			self.log.logmsg(logging.LOG_DEBUG, "delay: %d" % delay)
-			self.log.logmsg(logging.LOG_DEBUG, "content: %s" % content)
+            else:
+                log.debug("Adding reverb for msgno: %d, %d times with %d second delay" % (theframe.msgno, number, delay) )
+                self.reverbDict[theframe.msgno] = [time.time(), number, delay, content]
 
-			if number <= 0:
-				self.channel.sendError(theframe.msgno, 'Cannot echo a frame %d times.\n' % number)
-
-			else:
-				self.log.logmsg(logging.LOG_DEBUG, "Adding reverb for msgno: %d, %d times with %d second delay" % (theframe.msgno, number, delay) )
-				self.reverbDict[theframe.msgno] = [time.time(), number, delay, content]
-
-		except ValueError:
-			# A ValueError means the payload format is wrong.
-			self.channel.sendError(theframe.msgno, 'Payload format incorrect\n')
+        except ValueError:
+            # A ValueError means the payload format is wrong.
+            self.channel.sendError(theframe.msgno, 'Payload format incorrect\n')
 

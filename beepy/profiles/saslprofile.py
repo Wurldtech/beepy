@@ -1,5 +1,5 @@
-# $Id: saslprofile.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: saslprofile.py,v 1.2 2003/12/08 03:25:30 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,24 +23,23 @@
 # It should be inherited from to implement particular
 # SASL mechanisms
 
+__profileClass__ = "SASLProfile"
+uri = "http://iana.org/beep/SASL"
+
 import profile
-from beepy.core import logging
 
 import re
 import base64
-
-__profileClass__ = "SASLProfile"
-uri = "http://iana.org/beep/SASL"
 
 class SASLProfile(profile.Profile):
 	""" This is an abstract class to provide the core SASL Profile API
 	"""
 
-	def __init__(self, log, session):
+	def __init__(self, session):
 		"""__init__() is used to set up special SASL data such
 		   as certificates, user dbases, etc.
 		"""
-		profile.Profile.__init__(self, log, session)
+		profile.Profile.__init__(self, session)
 		self.authentid = None
 		self.authid = None
 

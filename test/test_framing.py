@@ -1,5 +1,5 @@
-# $Id: test_framing.py,v 1.6 2003/01/30 09:24:30 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: test_framing.py,v 1.7 2003/12/08 03:25:30 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -26,258 +26,240 @@ import unittest
 import sys
 import time
 
-try:
-	from beepy.core import constants
-	from beepy.core import logging
-	from beepy.transports import tcpsession
-	from beepy.profiles import profile
-	from beepy.profiles import echoprofile
-except ImportError:
-	sys.path.append('../')
-	from beepy.core import constants
-	from beepy.core import logging
-	from beepy.transports import tcpsession
-	from beepy.profiles import profile
-	from beepy.profiles import echoprofile
+import logging
 
+sys.path.append('../')
+#from beepy.core import constants
+from beepy.core import debug
+
+log = logging.getLogger('test_framing')
+log.setLevel(logging.DEBUG)
+    
 import dummyclient
 
 class FramingTest(unittest.TestCase):
 
-	def setUp(self):
-		# Set up logging
-		self.log = logging.Log(prefix="server: ")
+    def setUp(self):
 
-		# create a listener
-		pdict = profile.ProfileDict()
-		pdict[echoprofile.uri] = echoprofile
-		self.listener = tcpsession.TCPListenerManager(self.log, pdict, ('localhost', 1976), accept_timeout=1, read_timeout=1)
-		# wait for it to become active
-		while not self.listener.isActive():
-			time.sleep(0.5)
-		self.client = dummyclient.DummyClient()
+        self.client = dummyclient.DummyClient()
+        # get greeting message
+        data = self.client.getmsg(1)
+#	log.debug(data)
 
-		# get greeting message
-		data = self.client.getmsg(1)
+    def tearDown(self):
+        self.client.terminate()
 
-	def tearDown(self):
-		self.client.terminate()
-		self.listener.stop()
-		while not self.listener.isExited():
-			time.sleep(0.5)
-		self.log.logmsg(logging.LOG_DEBUG, "Listener exited.")
+    def test_FR001(self):
+        """Test frame with invalid header format"""
 
-	def test_FR001(self):
-		"""Test frame with invalid header format"""
+        self.client.sendmsg("test\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("test\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR002(self):
+        """Test frame with invalid type"""
 
-	def test_FR002(self):
-		"""Test frame with invalid type"""
+        self.client.sendmsg("WIZ 0 0 . 0 0\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("WIZ 0 0 . 0 0\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR003(self):
+        """Test frame with negative channel number"""
 
-	def test_FR003(self):
-		"""Test frame with negative channel number"""
+        self.client.sendmsg("MSG -5 0 . 0 0\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG -5 0 . 0 0\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR004(self):
+        """Test frame with too large channel number"""
 
-	def test_FR004(self):
-		"""Test frame with too large channel number"""
+        self.client.sendmsg("MSG 5564748837473643 0 . 0 0\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG 5564748837473643 0 . 0 0\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR005(self):
+        """Test frame with non-numeric channel number"""
 
-	def test_FR005(self):
-		"""Test frame with non-numeric channel number"""
+        self.client.sendmsg("MSG fred 0 . 0 0\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG fred 0 . 0 0\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR006(self):
+        """Test frame with unstarted channel number"""
 
-	def test_FR006(self):
-		"""Test frame with unstarted channel number"""
+        self.client.sendmsg("MSG 55 0 . 0 0\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG 55 0 . 0 0\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR007(self):
+        """Test frame with negative message number"""
 
-	def test_FR007(self):
-		"""Test frame with negative message number"""
+        self.client.sendmsg("MSG 0 -6 . 0 0\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG 0 -6 . 0 0\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR008(self):
+        """Test frame with too large message number"""
 
-	def test_FR008(self):
-		"""Test frame with too large message number"""
+        self.client.sendmsg("MSG 0 6575488457584834 . 0 0\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG 0 6575488457584834 . 0 0\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR009(self):
+        """Test frame with non-numeric message number"""
 
-	def test_FR009(self):
-		"""Test frame with non-numeric message number"""
+        self.client.sendmsg("MSG 0 fred . 0 0\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG 0 fred . 0 0\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR010(self):
+        """Test frame with invalid more type"""
 
-	def test_FR010(self):
-		"""Test frame with invalid more type"""
+        self.client.sendmsg("MSG 0 0 g 0 0\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG 0 0 g 0 0\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR011(self):
+        """Test frame with negative seqno"""
 
-	def test_FR011(self):
-		"""Test frame with negative seqno"""
+        self.client.sendmsg("MSG 0 0 . -84 0\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG 0 0 . -84 0\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR012(self):
+        """Test frame with too large seqno"""
 
-	def test_FR012(self):
-		"""Test frame with too large seqno"""
+        self.client.sendmsg("MSG 0 0 . 75747465674373643 0\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG 0 0 . 75747465674373643 0\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR013(self):
+        """Test frame with non-numeric seqno"""
 
-	def test_FR013(self):
-		"""Test frame with non-numeric seqno"""
+        self.client.sendmsg("MSG 0 0 . fred 0\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG 0 0 . fred 0\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR014(self):
+        """Test frame with out of sequence seqno"""
 
-	def test_FR014(self):
-		"""Test frame with out of sequence seqno"""
+        self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
 
-		self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
+        self.client.sendmsg("MSG 0 0 . 0 13\r\n<greeting/>\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG 0 0 . 0 13\r\n<greeting/>\r\nEND\r\n")
-		data = self.client.getmsg()
+    def test_FR015(self):
+        """Test frame with negative size"""
 
-	def test_FR015(self):
-		"""Test frame with negative size"""
+        self.client.sendmsg("MSG 0 0 . 0 -15\r\nhere's some stuff\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG 0 0 . 0 -15\r\nhere's some stuff\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR016(self):
+        """Test frame with too large size"""
 
-	def test_FR016(self):
-		"""Test frame with too large size"""
+        self.client.sendmsg("MSG 0 0 . 0 574857345839457\r\nhere's some stuff\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG 0 0 . 0 574857345839457\r\nhere's some stuff\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR017(self):
+        """Test frame with non-numeric size"""
 
-	def test_FR017(self):
-		"""Test frame with non-numeric size"""
+        self.client.sendmsg("MSG 0 0 . 0 fred\r\nhere's some stuff\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG 0 0 . 0 fred\r\nhere's some stuff\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR018(self):
+        """Test frame with incorrect size"""
 
-	def test_FR018(self):
-		"""Test frame with incorrect size"""
+        self.client.sendmsg("MSG 0 0 . 0 5\r\nhere's some stuff\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("MSG 0 0 . 0 5\r\nhere's some stuff\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR019(self):
+        """Test frame with negative ansno"""
 
-	def test_FR019(self):
-		"""Test frame with negative ansno"""
+        self.client.sendmsg("ANS 0 0 . 0 0 -65\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("ANS 0 0 . 0 0 -65\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR020(self):
+        """Test frame with too large ansno"""
 
-	def test_FR020(self):
-		"""Test frame with too large ansno"""
+        self.client.sendmsg("ANS 0 0 . 0 0 5857483575747\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("ANS 0 0 . 0 0 5857483575747\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR021(self):
+        """Test frame with non-numeric ansno"""
 
-	def test_FR021(self):
-		"""Test frame with non-numeric ansno"""
+        self.client.sendmsg("ANS 0 0 . 0 0 fred\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("ANS 0 0 . 0 0 fred\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR022(self):
+        """Test frame with missing ansno"""
 
-	def test_FR022(self):
-		"""Test frame with missing ansno"""
+        self.client.sendmsg("ANS 0 0 . 0 0\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("ANS 0 0 . 0 0\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR023(self):
+        """Test frame ansno in non-ANS frame"""
 
-	def test_FR023(self):
-		"""Test frame ansno in non-ANS frame"""
+        self.client.sendmsg("RPY 0 0 . 0 0 15\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("RPY 0 0 . 0 0 15\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR024(self):
+        """Test frame NUL as intermediate"""
 
-	def test_FR024(self):
-		"""Test frame NUL as intermediate"""
+        self.client.sendmsg("NUL 0 0 * 0 0\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("NUL 0 0 * 0 0\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR025(self):
+        """Test frame NUL with non-zero size"""
 
-	def test_FR025(self):
-		"""Test frame NUL with non-zero size"""
+        self.client.sendmsg("NUL 0 0 . 0 5\r\nhi!\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		self.client.sendmsg("NUL 0 0 . 0 5\r\nhi!\r\nEND\r\n")
-		data = self.client.getmsg()
+        self.assertEqual( data, None )
 
-		self.assertEqual( data, None )
+    def test_FR026(self):
+        """Test frame response to MSG never sent"""
 
-	def test_FR026(self):
-		"""Test frame response to MSG never sent"""
+        self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
+        self.client.sendmsg("RPY 0 71 . 51 8\r\nHello!\r\nEND\r\n")
 
-		self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
-		self.client.sendmsg("RPY 0 15 . 51 8\r\nHello!\r\nEND\r\n")
+        data = self.client.getmsg()
 
-		data = self.client.getmsg()
-
-		self.assertEqual( data, None )
+        self.assertEqual( data, None )
 
 if __name__ == '__main__':
 
-	unittest.main()
+    unittest.main()
 

@@ -1,5 +1,5 @@
-# $Id: echoprofile.py,v 1.2 2003/01/07 07:39:59 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: echoprofile.py,v 1.3 2003/12/08 03:25:30 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,25 +23,34 @@
 # echoes back whatever the content of a frame is.
 # It sends a Reply to each Message it receives.
 
-import profile
-from beepy.core import logging
-
 __profileClass__ = "EchoProfile"
 uri = "http://www.eigenmagic.com/beep/ECHO"
 
+import profile
+import logging
+from beepy.core import debug
+
+log = logging.getLogger(__profileClass__)
+
 class EchoProfile(profile.Profile):
 
-	def doProcessing(self):
-		theframe = self.channel.recv()
-		if theframe:
-			self.log.logmsg(logging.LOG_DEBUG, "EchoProfile: processing frame: %s" % theframe)
-			try:
-				if theframe.isMSG():
-					self.log.logmsg(logging.LOG_DEBUG, "EchoProfile: sending RPY")
-					self.channel.sendReply(theframe.msgno, theframe.payload)
+    def __init__(self, session, profileInit=None, init_callback=None):
+        profile.Profile.__init__(self, session)
+        self.numReplies = 0
 
-				if theframe.isRPY():
-					self.channel.deallocateMsgno(theframe.msgno)
+    def processFrame(self, theframe):
+        log.debug("EchoProfile: processing frame: %s" % theframe)
+        try:
+            if theframe.isMSG():
+                log.debug("EchoProfile: sending RPY")
+                self.channel.sendReply(theframe.msgno, theframe.payload)
+                
+            if theframe.isRPY():
+                self.channel.deallocateMsgno(theframe.msgno)
+                self.numReplies += 1
+                log.debug('numReplies == %s' % self.numReplies)
+                if self.numReplies > 5:
+                    self.session.shutdown()
 
-			except Exception, e:
-				raise profile.TerminalProfileException("Exception echoing: %s" % e)
+        except Exception, e:
+            raise profile.TerminalProfileException("Exception echoing: %s" % e)

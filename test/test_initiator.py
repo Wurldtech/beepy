@@ -1,5 +1,5 @@
-# $Id: test_initiator.py,v 1.6 2003/01/30 09:24:30 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: test_initiator.py,v 1.7 2003/12/08 03:25:30 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -25,19 +25,24 @@ import time
 
 import threading
 
-try:
-	from beepy.core import constants
-	from beepy.core import logging
-	from beepy.transports import tcpsession
-	from beepy.profiles import profile
-	from beepy.profiles import echoprofile
-except ImportError:
-	sys.path.append('../')
-	from beepy.core import constants
-	from beepy.core import logging
-	from beepy.transports import tcpsession
-	from beepy.profiles import profile
-	from beepy.profiles import echoprofile
+sys.path.append('../')
+
+from beepy.transports.twistedsession import BeepClientProtocol, BeepClientFactory
+from twisted.internet import reactor
+
+import logging
+from beepy.core import debug
+
+log = logging.getLogger('test_initiator')
+
+class InitiatorTestProtocol(BeepClientProtocol):
+
+    def greetingReceived(self):
+        log.info('Greeting received in client')
+        self.shutdown()
+
+class InitiatorTestFactory(BeepClientFactory):
+    protocol = InitiatorTestProtocol
 
 # This class assumes a server is available.
 # It tests the responses given to the client under a
@@ -45,79 +50,14 @@ except ImportError:
 # see what the server was up to at the time.
 class TCPInitatorSessionTest(unittest.TestCase):
 
-	def setUp(self):
-		# Set up logging
-		self.serverlog = logging.Log(prefix="server: ")
-		self.clientlog = logging.Log(prefix="client: ")
-
-		# create and start a listenermgr
-		pdict1 = profile.ProfileDict()
-		pdict1[echoprofile.uri] = echoprofile
-		self.listenermgr = tcpsession.TCPListenerManager(self.serverlog, pdict1, ('localhost', 1976) )
-		while not self.listenermgr.isActive():
-			time.sleep(0.25)
-
-		# create and connect an initiatormgr
-		pdict2 = profile.ProfileDict()
-		pdict2[echoprofile.uri] = echoprofile
-		self.clientmgr = tcpsession.TCPInitiatorManager(self.clientlog, pdict2)
-		while not self.clientmgr.isActive():
-			time.sleep(0.25)
-
-	def tearDown(self):
-
-		self.clientmgr.close()
-		while self.clientmgr.isAlive():
-			time.sleep(0.25)
-
-		self.listenermgr.close()
-		while self.listenermgr.isAlive():
-			time.sleep(0.25)
-
-	def test_connect(self):
-		"""Test connection of Initiator to server
-		"""
-
-		client = self.clientmgr.connectInitiator('localhost', 1976)
-		clientid = client.ID
-		while not client.isActive():
-			if client.isExited():
-				print "Cannot connect to server."
-				exit(1)
-			time.sleep(0.25)
-
-		# close all
-		client.close()
-		while client.isAlive():
-			time.sleep(0.25)
-
-	def test_startChannel(self):
-		"""Test start of a channel
-		"""
-
-		client = self.clientmgr.connectInitiator('localhost', 1976)
-		clientid = client.ID
-		while not client.isActive():
-			if client.isExited():
-				print "Cannot connect to server."
-				exit(1)
-			time.sleep(0.25)
-
-		profileList = [[echoprofile.uri,None,None]]
-		event = threading.Event()
-		channelnum = client.startChannel(profileList, event)
-		while not client.isChannelActive(channelnum):
-			time.sleep(0.25)
-
-		client.closeChannel(channelnum, event)
-		while client.isChannelActive(channelnum):
-			time.sleep(0.25)
-
-		client.close()
-		while client.isAlive():
-			time.sleep(0.25)
+    def test_connect(self):
+        """ Test a simple connection to a listening BEEP server
+        """
+        factory = InitiatorTestFactory()
+        reactor.connectTCP('localhost', 1976, factory)
+        reactor.run()
 
 if __name__ == '__main__':
 
-	unittest.main()
+    unittest.main()
 

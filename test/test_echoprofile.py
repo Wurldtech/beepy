@@ -1,5 +1,5 @@
-# $Id: test_echoprofile.py,v 1.7 2003/01/30 09:24:30 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: test_echoprofile.py,v 1.8 2003/12/08 03:25:30 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -17,85 +17,59 @@
 #    You should have received a copy of the GNU Lesser General Public
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-#
 
 import unittest
 import sys
 import time
 
-try:
-	from beepy.core import constants
-	from beepy.core import logging
-	from beepy.transports import tcpsession
-	from beepy.profiles import profile
-	from beepy.profiles import echoprofile
-except ImportError:
-	sys.path.append('../')
-	from beepy.core import constants
-	from beepy.core import logging
-	from beepy.transports import tcpsession
-	from beepy.profiles import profile
-	from beepy.profiles import echoprofile
+import logging
+sys.path.append('..')
+
+from beepy.core import debug
+
+log = logging.getLogger('test_echoprofile')
+log.setLevel(logging.DEBUG)
 
 import dummyclient
 
-# This class assumes a server is available.
-# It tests the responses given to the client under a
-# variety of situations. Check the server logs to
-# see what the server was up to at the time.
-# It pauses for a second before shutting down the client
-# to make sure the server doesn't just dump pending messages
-# on an unexpected disconnect.
 class EchoProfileTest(unittest.TestCase):
 
-	def my_callback(self, profile):
-		""" This is a test of the profile callback functionality
-		"""
-		print "I am a callback from object: %s" % profile
+    def my_callback(self, profile):
+        """ This is a test of the profile callback functionality
+        """
+        print "I am a callback from object: %s" % profile
 
-	def setUp(self):
-		# Set up logging
-		self.clientlog = logging.Log(prefix='client: ')
-		self.serverlog = logging.Log(prefix='server: ')
+    def setUp(self):
+        """ Set up for each test
+	"""
+        self.client = dummyclient.DummyClient()
 
-		# create a listener
-		pdict = profile.ProfileDict()
-		pdict.addProfile(echoprofile, self.my_callback)
-		self.listener = tcpsession.TCPListenerManager(self.serverlog, pdict, ('localhost', 1976) )
-		# wait for it to become active
-		while not self.listener.isActive():
-			time.sleep(0.25)
-		self.clientlog.logmsg(logging.LOG_DEBUG, "Listener is active.")
-		self.client = dummyclient.DummyClient()
+    def tearDown(self):
+        self.client.terminate()
 
-	def tearDown(self):
-		self.client.terminate()
-		self.listener.close()
-		while not self.listener.isExited():
-			time.sleep(0.25)
+    def test_createEchoChannel(self):
+        """Test creation of a channel with the Echo profile"""
 
-	def test_createEchoChannel(self):
-		"""Test creation of a channel with the Echo profile"""
+        # send a greeting msg
+        self.client.sendmsg('RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n')
+        log.debug("Client sent greeting.")
+        data = self.client.getmsg(1)
 
-		# send a greeting msg
-		self.client.sendmsg('RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n')
-		self.clientlog.logmsg(logging.LOG_DEBUG, "Client sent greeting.")
-		data = self.client.getmsg(1)
+        # create a channel with the ECHO profile
+        self.client.sendmsg('MSG 0 0 . 51 120\r\nContent-type: application/beep+xml\r\n\r\n<start number="1">\r\n<profile uri="http://www.eigenmagic.com/beep/ECHO"/>\r\n</start>END\r\n')
+        data = self.client.getmsg(1)
+	log.debug('After starting channel: %s' % data)
 
-		# create a channel with the ECHO profile
-		self.client.sendmsg('MSG 0 0 . 51 120\r\nContent-type: application/beep+xml\r\n\r\n<start number="1">\r\n<profile uri="http://www.eigenmagic.com/beep/ECHO"/>\r\n</start>END\r\n')
-		data = self.client.getmsg(1)
+        log.debug("sending echo frame...")
+        self.client.sendmsg('MSG 1 0 . 0 8\r\nHello!\r\nEND\r\n')
+        data = self.client.getmsg(1)
+        self.assertEqual(data, 'RPY 1 0 . 0 8\r\nHello!\r\nEND\r\n')
 
-		self.clientlog.logmsg(logging.LOG_DEBUG, "sending echo frame...")
-		self.client.sendmsg('MSG 1 0 . 0 8\r\nHello!\r\nEND\r\n')
-		data = self.client.getmsg(1)
-		self.assertEqual(data, 'RPY 1 0 . 0 8\r\nHello!\r\nEND\r\n')
-
-		self.client.sendmsg('MSG 1 1 . 8 8\r\nHello!\r\nEND\r\n')
-		data = self.client.getmsg(1)
-		self.assertEqual(data, 'RPY 1 1 . 8 8\r\nHello!\r\nEND\r\n')
+        self.client.sendmsg('MSG 1 1 . 8 8\r\nHello!\r\nEND\r\n')
+        data = self.client.getmsg(1)
+        self.assertEqual(data, 'RPY 1 1 . 8 8\r\nHello!\r\nEND\r\n')
 
 if __name__ == '__main__':
 
-	unittest.main()
+    unittest.main()
 

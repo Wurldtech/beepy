@@ -1,5 +1,5 @@
-# $Id: saslanonymousprofile.py,v 1.3 2003/01/09 00:20:55 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: saslanonymousprofile.py,v 1.4 2003/12/08 03:25:30 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -18,19 +18,18 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-#
-# SASLProfile is the base SASL profile class
-# It should be inherited from to implement particular
-# SASL mechanisms
-
-import saslprofile
-from profile import TuningReset
-from beepy.core import logging
-from beepy.core import constants
-from beepy.transports import sasltcpsession
 
 __profileClass__ = "SASLAnonymousProfile"
 uri = "http://iana.org/beep/SASL/ANONYMOUS"
+
+import saslprofile
+from profile import TuningReset
+from beepy.core import constants
+#from beepy.transports import sasltcpsession
+
+import logging
+from beepy.core import debug
+log = logging.getLogger('SASLAnonymous')
 
 class SASLAnonymousProfile(saslprofile.SASLProfile):
 	"""A SASLAnonymousProfile is a SASL Profile that implements

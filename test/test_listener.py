@@ -1,5 +1,5 @@
-# $Id: test_listener.py,v 1.5 2003/01/09 00:20:55 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: test_listener.py,v 1.6 2003/12/08 03:25:30 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -25,42 +25,26 @@ import unittest
 import sys
 import time
 
-try:
-	from beepy.core import constants
-	from beepy.core import logging
-	from beepy.transports import tcpsession
-	from beepy.profiles import profile
-	from beepy.profiles import echoprofile
-except ImportError:
-	sys.path.append('../')
-	from beepy.core import constants
-	from beepy.core import logging
-	from beepy.transports import tcpsession
-	from beepy.profiles import profile
-	from beepy.profiles import echoprofile
+sys.path.append('../')
+from beepy.core import constants
+from beepy.profiles import profile
+from beepy.profiles import echoprofile
+
+import logging
+from beepy.core import debug
+log = logging.getLogger('ServerTest')
+log.setLevel(logging.DEBUG)
 
 import dummyclient
 
 class ServerTest(unittest.TestCase):
 
 	def setUp(self):
-		# Set up logging
-		self.log = logging.Log(prefix="server: ")
 
-		# create a listener
-		pdict = profile.ProfileDict()
-		pdict[echoprofile.uri] = echoprofile
-		self.listener = tcpsession.TCPListenerManager(self.log, pdict, 'localhost', 1976)
-		# wait for it to become active
-		while not self.listener.isActive():
-			time.sleep(0.25)
 		self.client = dummyclient.DummyClient()
 
 	def tearDown(self):
 		self.client.terminate()
-		self.listener.close()
-		while not self.listener.isExited():
-			time.sleep(0.25)
 
 	def test_2311000_validGreeting(self):
 		"""Test valid greeting"""
@@ -108,8 +92,8 @@ class ServerTest(unittest.TestCase):
 		self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
 		data = self.client.getmsg(1)
 		self.client.sendmsg('MSG 0 0 . 51 118\r\nContent-Type: application/beep+xml\r\n\r\n<start number="a">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
-		data = self.client.getmsg(1)
 
+		data = self.client.getmsg(1)
 		self.assertEqual(data, 'ERR 0 0 . 117 106\r\nContent-Type: application/beep+xml\n\n<error code="501">\r\n  Requested channel number is invalid.\r\n</error>\r\nEND\r\n')
 
 

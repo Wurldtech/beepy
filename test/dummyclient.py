@@ -1,5 +1,5 @@
-# $Id: dummyclient.py,v 1.4 2003/01/06 07:19:08 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: dummyclient.py,v 1.5 2003/12/08 03:25:30 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -26,49 +26,48 @@ import socket, select
 
 class DummyClient:
 
-	sock = None
-	wfile = None
-	server = ("localhost", 1976)
-	bufsize = 8096
-	inbuf = ''
+    sock = None
+    wfile = None
+    server = ("localhost", 1976)
+    bufsize = 8096
+    inbuf = ''
 
-	def __init__(self):
-		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		try:
-			self.sock.connect(self.server)
-			self.sock.setblocking(0)
-			self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-		except:
-			raise
+    def __init__(self):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            self.sock.connect(self.server)
+            self.sock.setblocking(0)
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        except:
+            raise
 
-	def sendmsg(self, msg):
-		self.sock.send(msg)
+    def sendmsg(self, msg):
+        self.sock.send(msg)
+	pass
 
-	def getmsg(self, blocking=0):
-		if blocking:
-			self.sock.setblocking(1)
-			data = None
-			try:
-				data = self.sock.recv(self.bufsize)
-				return data
+    def getmsg(self, blocking=0):
+        if blocking:
+            self.sock.setblocking(1)
+            data = None
+            try:
+                data = self.sock.recv(self.bufsize)
+                return data
 
-			except Exception, e:
-				print "Exception occurred in dummyclient: %s: %s" % (e.__class__, e)
-				raise
+            except Exception, e:
+                print "Exception occurred in dummyclient: %s: %s" % (e.__class__, e)
+                raise
 
-		else:
-			self.sock.setblocking(0)
-			return self._getdata()
+        else:
+            self.sock.setblocking(0)
+            return self._getdata()
 
-	def _getdata(self):
-#		data = self.sock.recv(self.bufsize)
-#		return data
-		inbit, outbit, oobit = select.select([self.sock], [], [], 5)
-		if inbit:
-			data = self.sock.recv(self.bufsize)
-			if data:
-				return data
+    def _getdata(self):
+        inbit, outbit, oobit = select.select([self.sock], [], [], 0.25)
+        if inbit:
+            data = self.sock.recv(self.bufsize)
+            return data
 
-	def terminate(self):
-		self.sock.shutdown(2)
-		self.sock.close()
+    def terminate(self):
+#        self.sock.shutdown(2)
+        self.sock.close()
+

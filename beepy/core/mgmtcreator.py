@@ -1,5 +1,5 @@
-# $Id: mgmtcreator.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: mgmtcreator.py,v 1.2 2003/12/08 03:25:30 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -30,10 +30,13 @@ import errors
 import types
 import xml.dom.minidom
 
+import logging
+from beepy.core import debug
+log = logging.getLogger('MgmtCreator')
+
 class Creator:
 
-	def __init__(self, log):
-		self.log = log
+	def __init__(self):
 		self.doc = None
 
 	# Ensure we free up memory used by self.doc since Python
@@ -84,6 +87,7 @@ class Creator:
 # chardata is up to 4k octets of initialization message given to the channel
 
 	def createStartMessage(self, number, profileList, serverName=None):
+
 		if self.doc:
 			self.doc.unlink()
 		self.doc = xml.dom.minidom.Document()

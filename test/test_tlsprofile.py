@@ -1,5 +1,5 @@
-# $Id: test_tlsprofile.py,v 1.6 2003/01/30 09:24:30 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: test_tlsprofile.py,v 1.7 2003/12/08 03:25:30 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -181,5 +181,6 @@ class TLSProfileTest(unittest.TestCase):
 
 if __name__ == '__main__':
 
-	unittest.main()
+    import profile
+	profile.run( unittest.main(), tlsprofile.pstats )
 

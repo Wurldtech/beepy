@@ -1,5 +1,5 @@
-# $Id: util.py,v 1.3 2003/01/08 05:38:11 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: util.py,v 1.4 2003/12/08 03:25:30 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -277,3 +277,14 @@ class DataDequeuer(isMonitored):
 		# This is actually called by a different
 		# thread, which is why this works
 		self.dataq.notify()
+
+def octetsToHex(octets):
+    """ convert a string of octets to a string of hex digits
+    """
+    result = ''
+    while octets:
+        byte = octets[0]
+        octets = octets[1:]
+        result += "%.2x" % ord(byte)
+
+    return result

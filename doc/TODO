@@ -1,5 +1,5 @@
-# $Id: TODO,v 1.16 2003/01/30 09:24:30 jpwarren Exp $
-# $Revision: 1.16 $
+# $Id: TODO,v 1.17 2003/12/09 02:37:30 jpwarren Exp $
+# $Revision: 1.17 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,6 +23,10 @@
 # me while doing something else. It's easier to import into CVS than
 # yellow sticky notes. :)
 
+- Refactor code in default transport classes to provide a non-twisted
+  asyncore based implementation.
+- Allow auto-selection of twisted implementation if available, and
+  fall back to basic asyncore implementation if it isn't.
 - beep.core.message should probably be moved to beep.core.profiles since
   message is an enabling class for the BEEPMgmtProfile class. mgmtcreator
   and mgmtparser can probably be moved too, since the mgmt thingo is
@@ -36,33 +40,12 @@
   and give a list of profiles. The server will then pick the one that it
   knows about that has the highest priority. This allows the server to
   prefer SASL/OTP over SASL/ANONYMOUS, for example.
-- Scheduling is now more asynchronous due to a better threading model.
-  It would still be nice to have priority levels for processes, but I
-  think I might leave this until later. It could be implemented by
-  overriding processFrames() in a subclass of Session. Currently it's
-  a simple round-robin algorithm.
 - Need to implement SEQ frame processing now that I understand it as a
   mechanism to partition the total bandwidth of a TCP session among the
   channels, similar to IP/MPLS ToS/QoS stuff for data and VoIP.
-- Should probably modify all the logmsg() calls to have an 
-  import * from logging at the top so you don't have to type 
-  logging.LOG_DEBUG all the time, which is a drag.
-- Possibly modify the parameter ordering to permit a default logging level
-  of DEBUG, so if you don't explicitly say so, it's a debug statement.
-  More for convenience while coding than anything else.
-- Much work on test scripts required. This is now a priority.
-- Go through code and remove unused methods after threading re-organisation.
-- Investigate clean exiting on CTRL-C in unittests, just in case something
-  dies. It's a pain to have to CTRL-Z and kill the job when debugging.
+- Much work on test scripts required.
 - Add a Stress and Volume test to the test suite to see how the library
   performs under load. This will probably have to wait a little while until
   the library is a little bit more stable.
-- The max_concurrent processing section of TCPSession should be moved into
-  core.session and apply to both InitiatorManagers and ListenerManagers.
 - Locate the cause of the intermittent Segment Violation when running
   test_tlsprofile.
-- Preferable to use Python logging as a base for the logging module 
-  eventually.
-- Fix up the event interface into the library so applications can monitor
-  message status. Perhaps need to use callbacks instead, depending on which
-  is easier. Callbacks are probably easier.

@@ -1,5 +1,5 @@
-# $Id: test_framing.py,v 1.7 2003/12/08 03:25:30 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: test_framing.py,v 1.8 2003/12/09 02:37:31 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -55,7 +55,9 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("test\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        log.debug("the data is: >%s<" % data)
+
+        self.assertEqual( data, '' )
 
     def test_FR002(self):
         """Test frame with invalid type"""
@@ -63,7 +65,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("WIZ 0 0 . 0 0\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR003(self):
         """Test frame with negative channel number"""
@@ -71,7 +73,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("MSG -5 0 . 0 0\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR004(self):
         """Test frame with too large channel number"""
@@ -79,7 +81,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("MSG 5564748837473643 0 . 0 0\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR005(self):
         """Test frame with non-numeric channel number"""
@@ -87,7 +89,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("MSG fred 0 . 0 0\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR006(self):
         """Test frame with unstarted channel number"""
@@ -95,7 +97,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("MSG 55 0 . 0 0\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR007(self):
         """Test frame with negative message number"""
@@ -103,7 +105,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("MSG 0 -6 . 0 0\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR008(self):
         """Test frame with too large message number"""
@@ -111,7 +113,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("MSG 0 6575488457584834 . 0 0\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR009(self):
         """Test frame with non-numeric message number"""
@@ -119,7 +121,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("MSG 0 fred . 0 0\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR010(self):
         """Test frame with invalid more type"""
@@ -127,7 +129,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("MSG 0 0 g 0 0\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR011(self):
         """Test frame with negative seqno"""
@@ -135,7 +137,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("MSG 0 0 . -84 0\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR012(self):
         """Test frame with too large seqno"""
@@ -143,7 +145,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("MSG 0 0 . 75747465674373643 0\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR013(self):
         """Test frame with non-numeric seqno"""
@@ -151,7 +153,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("MSG 0 0 . fred 0\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR014(self):
         """Test frame with out of sequence seqno"""
@@ -167,7 +169,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("MSG 0 0 . 0 -15\r\nhere's some stuff\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR016(self):
         """Test frame with too large size"""
@@ -175,7 +177,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("MSG 0 0 . 0 574857345839457\r\nhere's some stuff\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR017(self):
         """Test frame with non-numeric size"""
@@ -183,7 +185,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("MSG 0 0 . 0 fred\r\nhere's some stuff\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR018(self):
         """Test frame with incorrect size"""
@@ -191,7 +193,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("MSG 0 0 . 0 5\r\nhere's some stuff\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR019(self):
         """Test frame with negative ansno"""
@@ -199,7 +201,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("ANS 0 0 . 0 0 -65\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR020(self):
         """Test frame with too large ansno"""
@@ -207,7 +209,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("ANS 0 0 . 0 0 5857483575747\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR021(self):
         """Test frame with non-numeric ansno"""
@@ -215,7 +217,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("ANS 0 0 . 0 0 fred\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR022(self):
         """Test frame with missing ansno"""
@@ -223,7 +225,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("ANS 0 0 . 0 0\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR023(self):
         """Test frame ansno in non-ANS frame"""
@@ -231,7 +233,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("RPY 0 0 . 0 0 15\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR024(self):
         """Test frame NUL as intermediate"""
@@ -239,7 +241,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("NUL 0 0 * 0 0\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR025(self):
         """Test frame NUL with non-zero size"""
@@ -247,7 +249,7 @@ class FramingTest(unittest.TestCase):
         self.client.sendmsg("NUL 0 0 . 0 5\r\nhi!\r\nEND\r\n")
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
 
     def test_FR026(self):
         """Test frame response to MSG never sent"""
@@ -257,7 +259,9 @@ class FramingTest(unittest.TestCase):
 
         data = self.client.getmsg()
 
-        self.assertEqual( data, None )
+        self.assertEqual( data, '' )
+
+        
 
 if __name__ == '__main__':
 

@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.9 2003/12/08 22:47:51 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: session.py,v 1.10 2003/12/09 02:37:30 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -43,7 +43,14 @@ from beepy.profiles import beepmgmtprofile
 log = logging.getLogger('Session')
 log.setLevel(logging.DEBUG)
 
-class Session(statemachine.StateMachine):
+## Set some state definitions
+PRE_GREETING = 0
+ACTIVE = 1
+CLOSING = 2
+TERMINATING = 3
+CLOSED = 4
+
+class Session:
     """
     The Session class is an abstract class with only core functions
     implemented. All transport related functions remain unimplemented
@@ -51,39 +58,8 @@ class Session(statemachine.StateMachine):
     """
 
     def __init__(self):
-        # zero the state machine
-        statemachine.StateMachine.__init__(self)
 
-        # define the states
-        self.addState('INIT', self._stateINIT)
-        self.addState('ACTIVE', self._stateACTIVE)
-        self.addState('CLOSING', self._stateCLOSING)
-#        self.addState('TUNING', self._stateTUNING)
-        self.addState('TERMINATE', self._stateTERMINATE)
-        self.addState('EXITED', None, 1)
-        self.setStart('INIT')
-
-        # define the transitions
-        self.addTransition('INIT', 'ok', 'ACTIVE')
-        self.addTransition('INIT', 'close', 'TERMINATE')
-        self.addTransition('INIT', 'error', 'EXITED')
-        self.addTransition('ACTIVE', 'close', 'CLOSING')
-        self.addTransition('ACTIVE', 'error', 'TERMINATE')
-#        self.addTransition('ACTIVE', 'reset', 'TUNING')
-        self.addTransition('CLOSING', 'unable', 'ACTIVE')
-        self.addTransition('CLOSING', 'ok', 'TERMINATE')
-        self.addTransition('CLOSING', 'error', 'TERMINATE')
-        self.addTransition('CLOSING', 'close', 'CLOSING')
-#        self.addTransition('TUNING', 'ok', 'EXITED')
-#        self.addTransition('TUNING', 'close', 'TUNING')
-#        self.addTransition('TUNING', 'error', 'TERMINATE')
-        self.addTransition('TERMINATE', 'ok', 'EXITED')
-        self.addTransition('TERMINATE', 'close', 'TERMINATE')
-        self.addTransition('TERMINATE', 'error', 'TERMINATE')
-        self.addTransition('EXITED', 'close', 'EXITED')
-
-        self.sentGreeting = 0
-        self.receivedGreeting = 0
+        self.state = PRE_GREETING
         self.channels = {}
         self.ID = 0
 
@@ -92,60 +68,8 @@ class Session(statemachine.StateMachine):
         self.inbound = util.DataQueue(constants.MAX_INPUT_QUEUE_SIZE)
         self.outbound = util.DataQueue(constants.MAX_INPUT_QUEUE_SIZE)
 
-    def _stateINIT(self):
-        raise NotImplementedError
-
-    def _stateACTIVE(self):
-        """ overload _stateACTIVE in your subclass to implement the
-            main processing loop
-        """
-        raise NotImplementedError
-
-    def _stateCLOSING(self):
-        """ _stateCLOSING attempts to shut down the session gracefully
-        """
-        raise NotImplementedError
-
-    def _stateTUNING(self):
-        """performs a tuning reset
-        """
-        raise NotImplementedError
-
-    def _stateTERMINATE(self):
-        """The session is terminating
-        """
-        raise NotImplementedError
-
-    def isActive(self):
-        if self.currentState == 'ACTIVE':
-            return 1
-        return 0
-
-    def isExited(self):
-        if self.currentState == 'EXITED':
-            return 1
-        return 0
-
     def setID(self, sessId):
         self.ID = sessId
-
-    def processFrames(self):
-        """processFrames() is used by a Session to call each of the
-        Channels in turn and get them to process any frames in their
-        inbound Queue. It also gets any frames in their outbound
-        Queue and readies them for sending out over the wire.
-        This is a demo scheduler and may not be particularly efficient.
-
-        """
-        # Firstly, get a frame from the inbound Queue and put it
-        # on the appropriate channel
-        # Possibly change this to read all pending input frames
-        # up to a threshold for better scheduling.. 
-        # maybe variable for tuning?
-        self.unplexFrames()
-
-        # Now, process all channels, round robin style
-        self.processChannels()
 
     def processFrame(self, theframe):
         """ Allocate a given frame to the channel it belongs to
@@ -167,54 +91,6 @@ class Session(statemachine.StateMachine):
         to a channel, and suchlike
         """
         self.profileDict.addProfile(profileModule)
-
-    # method to un-encapsulate frames recv'd from transport
-    def _unplexFrames(self):
-        theframe = self.recvFrame()
-        if( theframe ):
-            if( theframe.frameType != 'data' ):
-                raise SessionException('Unknown Frame Type')
-            else:
-                if theframe.channelnum in self.channels.keys():
-                    try:
-                        self.channels[theframe.channelnum].push(theframe)
-                    except channel.ChannelOutOfSequence, e:
-                        # Out of sequence error terminates session without response, logs an error
-                        log.error("Channel %i out of sequence: %s" % (theframe.channelnum, e) )
-                        raise TerminateException("Channel out of sequence")
-
-                    except channel.ChannelMsgnoInvalid, e:
-                        log.error("Channel %i: %s" % (theframe.channelnum, e))
-                        raise TerminateException("Invalid msgno in channel")
-                else:
-                    # Attempted to send a frame to a non-existant channel number
-                    # RFC says to terminate session
-                    log.error("Attempt to send frame to non-existant channel: %i" % theframe.channelnum)
-                    raise TerminateException("Attempt to send to non-existant channel")
-
-    def processChannels(self):
-
-        chanlist = self.channels.keys()
-        for channelnum in chanlist:
-            # First up, get them to process inbound frames
-            try:
-                self.channels[channelnum].processFrames()
-
-            except profile.TuningReset, e:
-                raise TuningReset("Profile Tuning Reset: %s" % e)
-
-            except profile.TerminalProfileException, e:
-                raise TerminateException("%s" % e)
-
-            except profile.ProfileException, e:
-                if channelnum != 0:
-                    log.info("ProfileException: %s. Closing Channel." % e )
-                    self.channels[0].profile.closeChannel(channelnum, '554')
-                else:
-                    raise TerminateException("%s" % e)
-
-            except Exception, e:
-                log.info("Exception in channel %i: %s" % (channelnum, e))
 
     # Open a new channel
     def createChannel(self, channelnum, profile):
@@ -260,6 +136,8 @@ class Session(statemachine.StateMachine):
         """attempts to close all the channels in a session
         before closing down the session itself.
         """
+        log.debug('shutdown() started...')
+        self.state = CLOSING
         try:
             chanlist = self.channels.keys()
             log.debug("Channels to close: %s" % chanlist)
@@ -270,6 +148,7 @@ class Session(statemachine.StateMachine):
                     log.debug("Finished queueing closure of %d" % channelnum)
             ## Close channel 0 last
             self.closeChannel(0)
+            self.state = CLOSED
 
         except Exception, e:
             # If we can't close a channel, we must remain active
@@ -366,6 +245,13 @@ class Session(statemachine.StateMachine):
         except Queue.Empty:
             pass
 
+    def _handleGreeting(self):
+        if not self.state == PRE_GREETING:
+            raise SessionException('Greeting already received')
+        else:
+            self.state = ACTIVE
+            self.greetingReceived()
+
     def greetingReceived(self):
         """ This is a callback from the management profile
         to trigger processing once the connection greeting
@@ -393,25 +279,26 @@ class Session(statemachine.StateMachine):
 
     def newChannel(self, profile, chardata=None, encoding=None):
         log.debug('trying to start channel with %s' % profile.uri)
-        self.startChannel([[profile.uri, encoding, chardata]])
+        return self.startChannel([[profile.uri, encoding, chardata]])
 
     def startChannel(self, profileList):
         """startChannel() attempts to start a new channel for communication.
-           doneEvent is an optional Event() used to signal completion,
-           either successfully or unsuccessfully. You can use this instead of
-           polling.
         """
         log.debug('profileList: %s' % profileList)
-        if self.receivedGreeting:
+
+        ## We can only start channels if we're in the ACTIVE state
+        if self.state == ACTIVE:
             # Attempt to get the remote end to start the Channel
             channelnum = self.nextChannelNum
             self.channels[0].profile.startChannel( channelnum, profileList, self.channelStarted, self.channelStartedError )
             # Increment nextChannelNum appropriately.
             self.nextChannelNum += 2
-            # Return channelnum created
+            # Return channelnum we asked to start
             return channelnum
+        
         else:
-            raise SessionException("Greeting not yet received")
+            log.debug('startChannel received in state %s' % self.state)
+            raise SessionException('Attempt to start channel when not ACTIVE')
 
     def channelStarted(self, channelnum):
         """ Action to take when a positive RPY to a channel

@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.6 2003/12/08 03:25:30 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: channel.py,v 1.7 2003/12/09 02:37:30 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -199,7 +199,7 @@ class Channel:
         # If we got here, then we've found the lowest
         # available msgno, so allocate it
         self.allocatedMsgnos.append(msgno)
-        log.debug("%s: Allocated msgno: %s" % (self, msgno) )
+        log.debug("Channel %d: Allocated msgno: %s" % (self.channelnum, msgno) )
         self.nextMsgno += 1
         if self.nextMsgno > constants.MAX_MSGNO:
             self.nextMsgno = constants.MINX_MSGNO
@@ -220,6 +220,7 @@ class Channel:
 
         if msgno in self.allocatedMsgnos:
             self.allocatedMsgnos.remove(msgno)
+            log.debug("Channel %d: Deallocated msgno: %s" % (self.channelnum, msgno) )
 
     def isMessageOutstanding(self, msgno=None):
         """isMessageOutstanding() checks to see if a particular

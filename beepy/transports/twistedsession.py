@@ -1,5 +1,23 @@
-
-# First go at beepy as a twisted app
+# $Id: twistedsession.py,v 1.2 2003/12/09 02:37:30 jpwarren Exp $
+# $Revision: 1.2 $
+#
+#    BEEPy - A Python BEEP Library
+#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#
+#    This library is free software; you can redistribute it and/or
+#    modify it under the terms of the GNU Lesser General Public
+#    License as published by the Free Software Foundation; either
+#    version 2.1 of the License, or (at your option) any later version.
+#
+#    This library is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#    Lesser General Public License for more details.
+#
+#    You should have received a copy of the GNU Lesser General Public
+#    License along with this library; if not, write to the Free Software
+#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
 
 from twisted.internet import protocol, reactor
 from twisted.internet.error import *
@@ -7,8 +25,9 @@ from twisted.protocols import basic
 
 import re
 import logging
+import traceback
 
-from beepy.core.session import Session
+from beepy.core.session import Session, Listener, Initiator
 from beepy.profiles import profile
 from beepy.core import constants
 from beepy.core import frame
@@ -17,7 +36,7 @@ from beepy.core import debug
 
 from beepy.core import util
 
-log = logging.getLogger('BeepProtocol')
+log = logging.getLogger('TwistedSession')
 log.setLevel(logging.DEBUG)
 
 # The BEEPy protocol as a twisted thingy
@@ -65,6 +84,7 @@ class BeepProtocol(Session, basic.LineReceiver):
                 self.startFrame()
                 theframe = self.finishFrame()
                 if theframe:
+                    log.debug('processFrame(): %s' % theframe)
                     self.processFrame(theframe)
                     ## Manually zero out the now processed frame
                     self.newframe = None
@@ -75,7 +95,6 @@ class BeepProtocol(Session, basic.LineReceiver):
             log.error(e)
             log.info('Dropping connection...')
             self.transport.loseConnection()
-
 
     def startFrame(self):
         """ This method attempts to start a new frame, if
@@ -138,15 +157,6 @@ class BeepProtocol(Session, basic.LineReceiver):
                     self.newframe.payload += self.framebuffer
                     self.framebuffer = ''
 
-    def processFrame(self, theframe):
-        """ Allocate a given frame to the channel it belongs to
-        and call the channel's processing method
-        """
-        if self.channels.has_key(theframe.channelnum):
-            self.channels[theframe.channelnum].processFrame(theframe)
-        else:
-            log.info('Attempt to send to non-existant channel: %d' % theframe.channelnum)
-            raise ProtocolError('Invalid Channel Number')
 
     def sendFrame(self, theframe):
         data = str(theframe)
@@ -156,21 +166,18 @@ class ProtocolError(errors.BEEPException):
     def __init__(self, args=None):
         self.args = args
 
-class BeepServerProtocol(BeepProtocol):
-    """ This class is mostly identical, but servers only use
-        even numbered channels
-    """
+class BeepServerProtocol(BeepProtocol, Listener):
     def __init__(self):
         BeepProtocol.__init__(self)
-        self.nextChannelNum = 2
+        Listener.__init__(self)
 
-class BeepClientProtocol(BeepProtocol):
+class BeepClientProtocol(BeepProtocol, Initiator):
     """ This class is mostly identical to the base class, but
     clients only use odd numbered channels
     """
     def __init__(self):
         BeepProtocol.__init__(self)
-        self.nextChannelNum = 1
+        Initiator.__init__(self)
 
     def greetingReceived(self):
         log.debug('Client has received a greeting from the server')
@@ -219,3 +226,36 @@ class BeepClientFactory(protocol.ClientFactory):
     def clientConnectionLost(self, connector, reason):
         log.info('connection lost: %s' % reason.getErrorMessage() )
         reactor.stop()
+        pass
+    pass
+
+##
+## SASL related code
+##
+
+from beepy.core.saslsession import SASLSession
+from beepy.profiles.profile import TuningReset
+
+class SASLProtocol(BeepProtocol, SASLSession):
+    """ The SaslProtocol implements the SASL transport layer for
+    a SASLSession as a twisted class.
+    """
+    def __init__(self):
+        BeepProtocol.__init__(self)
+        SASLSession.__init__(self)
+
+class SASLServerProtocol(SASLProtocol, Listener):
+    def __init__(self):
+        SASLProtocol.__init__(self)
+        Listener.__init__(self)
+
+class SASLClientProtocol(SASLProtocol, Initiator):
+    def __init__(self):    
+        SASLProtocol.__init__(self)
+        Initiator.__init__(self)
+        
+class SASLServerFactory(BeepServerFactory):
+    protocol = SASLServerProtocol
+
+class SASLClientFactory(BeepClientFactory):
+    protocol = SASLClientProtocol

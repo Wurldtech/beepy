@@ -1,5 +1,5 @@
-# $Id: test_saslanonymousprofile.py,v 1.7 2003/12/08 03:25:30 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: test_saslanonymousprofile.py,v 1.8 2003/12/09 02:37:31 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -26,96 +26,69 @@ import threading
 import logging
 
 sys.path.append('../')
-from beepy.core import constants
-from beepy.profiles import profile
+
+from beepy.transports.twistedsession import SASLClientProtocol
+from beepy.transports.twistedsession import SASLClientFactory
+
+from twisted.internet import reactor
+
 from beepy.profiles import saslanonymousprofile
 from beepy.profiles import echoprofile
 
-import dummyclient
-
+from beepy.core import debug
 log = logging.getLogger('SASLAnonymousTest')
+
+class SASLAnonClientProtocol(SASLClientProtocol):
+    """ We subclass from the SASLClientProtocol so that
+    we can define what should happen when various events
+    occur.
+    """
+    def greetingReceived(self):
+
+        ## Start a channel using the SASL/ANONYMOUS profile
+        self.authchannel = self.newChannel(saslanonymousprofile)
+        log.debug('attempting to start channel %d...' % self.authchannel)
+
+    def channelStarted(self, channelnum):
+        log.debug('started channel %d', channelnum)
+        if channelnum == self.authchannel:
+            log.debug('Authentication channel started successfully.')
+            channel = self.getChannel(channelnum)
+            msgno = channel.profile.sendAuth('hello!')
+
+        elif channelnum == self.echochannel:
+            log.debug('Echo channel started successfully.')
+            channel = self.getChannel(channelnum)
+            msgno = channel.sendMessage('Echo 1!')
+            msgno = channel.sendMessage('Echo 2!')
+            msgno = channel.sendMessage('Echo 3!')
+            msgno = channel.sendMessage('Echo 4!')
+            msgno = channel.sendMessage('Echo 5!')
+            msgno = channel.sendMessage('Echo 6!')
+
+        else:
+            log.debug('Unknown channel created: %d' % channelnum)
+
+    def authenticationSucceeded(self):
+        log.debug('overloaded authComplete')
+        self.echochannel = self.newChannel(echoprofile)
+
+class SASLAnonClientFactory(SASLClientFactory):
+    """ This is a short factory for echo clients
+    """
+    protocol = SASLAnonClientProtocol
 
 class SASLAnonymousProfileTest(unittest.TestCase):
 
     def test_SASLClient(self):
         """Test SASL Anonymous with Initiator"""
-        # Create a server
-        
 
+        factory = SASLAnonClientFactory()
+        factory.addProfile(echoprofile)
+        factory.addProfile(saslanonymousprofile)
 
-        # Connect a client
-        client = clientmgr.connectInitiator('localhost', 1976)
-        clientid = client.ID
-        while not client.isActive():
-            time.sleep(0.25)
-
-        self.clientlog.logmsg(logging.LOG_DEBUG, "Client connected.")
-
-        # Start a channel using SASL/ANONYMOUS authentication
-        profileList = [[saslanonymousprofile.uri,None,None]]
-        event = threading.Event()
-        channelnum = client.startChannel(profileList, event)
-        event.wait(30)
-
-        channel = client.getActiveChannel(channelnum)
-
-        if not channel:
-            if client.isChannelError(channelnum):
-                error = client.getChannelError(channelnum)
-
-        else:
-            # Send our authentication information
-            msgno = channel.profile.sendAuth('justin')
-            while client.isAlive():
-                time.sleep(0.25)
-
-            # old client will have exited, so get the new client
-            # for the same connection, as it has the same id
-            self.clientlog.logmsg(logging.LOG_DEBUG, "Getting new client...")
-            client = clientmgr.getSessionById(clientid)
-            self.clientlog.logmsg(logging.LOG_DEBUG, "New client: %s" % client)
-
-            while not client.isActive():
-                time.sleep(0.25)
-            self.clientlog.logmsg(logging.LOG_DEBUG, "Got new client...")
-
-            # Create a channel on the new, authenticated, session
-            # using the echo profile
-            profileList = [[echoprofile.uri,None,None]]
-            event = threading.Event()
-            channelnum = client.startChannel(profileList, event)
-            event.wait(30)
-            channel = client.getActiveChannel(channelnum)
-
-            if not channel:
-                if client.isChannelError(channelnum):
-                    error = client.getChannelError(channelnum)
-
-            else:
-
-                self.clientlog.logmsg(logging.LOG_DEBUG, "Got active channel...")
-
-                # send a message
-                msgno = channel.sendMessage('Hello!')
-                self.clientlog.logmsg(logging.LOG_DEBUG, "Sent Hello (msgno: %d)" % msgno)
-    
-                while channel.isMessageOutstanding():
-                    time.sleep(0.25)
-    
-        client.stop()
-        while not client.isExited():
-            time.sleep(0.25)
-        self.clientlog.logmsg(logging.LOG_DEBUG, "closed client...")
-
-        clientmgr.close()
-        while not clientmgr.isExited():
-            time.sleep(0.25)
-
-        sess.close()
-        while not sess.isExited():
-            time.sleep(0.25)
-
-        self.clientlog.logmsg(logging.LOG_DEBUG, "Test complete.")
+        reactor.connectTCP('localhost', 1976, factory)
+        reactor.run()
 
 
 if __name__ == '__main__':

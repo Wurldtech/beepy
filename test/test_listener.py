@@ -1,5 +1,5 @@
-# $Id: test_listener.py,v 1.6 2003/12/08 03:25:30 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: test_listener.py,v 1.7 2003/12/09 02:37:31 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -39,65 +39,64 @@ import dummyclient
 
 class ServerTest(unittest.TestCase):
 
-	def setUp(self):
+    def setUp(self):
 
-		self.client = dummyclient.DummyClient()
+        self.client = dummyclient.DummyClient()
 
-	def tearDown(self):
-		self.client.terminate()
+    def tearDown(self):
+        self.client.terminate()
 
-	def test_2311000_validGreeting(self):
-		"""Test valid greeting"""
+    def test_2311000_validGreeting(self):
+        """Test valid greeting"""
 
-		self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
-		data = self.client.getmsg(1)
+        self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
+        data = self.client.getmsg(1)
 
-		self.assertEqual( data, 'RPY 0 0 . 0 117\r\nContent-Type: application/beep+xml\n\n<greeting>\r\n  <profile uri="http://www.eigenmagic.com/beep/ECHO"/>\r\n</greeting>\r\nEND\r\n' )
+        self.assertEqual( data, 'RPY 0 0 . 0 117\r\nContent-Type: application/beep+xml\n\n<greeting>\r\n  <profile uri="http://www.eigenmagic.com/beep/ECHO"/>\r\n</greeting>\r\nEND\r\n' )
 
-	def test_2311001_clientMultiGreeting(self):
-		"""Test connect from client with multiple greetings"""
+    def test_2311001_clientMultiGreeting(self):
+        """Test connect from client with multiple greetings"""
 
-		self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
-		data = self.client.getmsg(1)
+        self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
+        data = self.client.getmsg(1)
 
-		self.client.sendmsg("RPY 0 0 . 51 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
-		data = self.client.getmsg(1)
+        self.client.sendmsg("RPY 0 0 . 51 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
+        data = self.client.getmsg(1)
 
-		self.assertEqual(data, '' )
+        self.assertEqual(data, '' )
 
-	def test_clientStartChannel(self):
-		"""Test start channel with unsupported profile"""
+    def test_clientStartChannel(self):
+        """Test start channel with unsupported profile"""
 
-		self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
-		data = self.client.getmsg(1)
-		self.client.sendmsg('MSG 0 0 . 51 118\r\nContent-Type: application/beep+xml\r\n\r\n<start number="1">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
+        self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
+        data = self.client.getmsg(1)
+        self.client.sendmsg('MSG 0 0 . 51 118\r\nContent-Type: application/beep+xml\r\n\r\n<start number="1">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
 
-		data = self.client.getmsg(1)
+        data = self.client.getmsg(1)
 
-		self.assertEqual(data, 'ERR 0 0 . 117 95\r\nContent-Type: application/beep+xml\n\n<error code="504">\r\n  Parameter Not Implemented\r\n</error>\r\nEND\r\n')
+        self.assertEqual(data, 'ERR 0 0 . 117 95\r\nContent-Type: application/beep+xml\n\n<error code="504">\r\n  Parameter Not Implemented\r\n</error>\r\nEND\r\n')
 
-	def test_clientStartEvenChannel(self):
-		"""Test start channel with incorrectly even number"""
-		self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
-		data = self.client.getmsg(1)
+    def test_clientStartEvenChannel(self):
+        """Test start channel with incorrectly even number"""
+        self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
+        data = self.client.getmsg(1)
 
-		self.client.sendmsg('MSG 0 0 . 51 118\r\nContent-Type: application/beep+xml\r\n\r\n<start number="6">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
-		data = self.client.getmsg(1)
+        self.client.sendmsg('MSG 0 0 . 51 118\r\nContent-Type: application/beep+xml\r\n\r\n<start number="6">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
+        data = self.client.getmsg(1)
 
-		self.assertEqual(data, 'ERR 0 0 . 117 96\r\nContent-Type: application/beep+xml\n\n<error code="501">\r\n  Syntax Error In Parameters\r\n</error>\r\nEND\r\n')
+        self.assertEqual(data, 'ERR 0 0 . 117 96\r\nContent-Type: application/beep+xml\n\n<error code="501">\r\n  Syntax Error In Parameters\r\n</error>\r\nEND\r\n')
 
-	def test_clientStartAlphaChannel(self):
-		"""Test start channel with alpha channel number"""
+    def test_clientStartAlphaChannel(self):
+        """Test start channel with alpha channel number"""
 
-		self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
-		data = self.client.getmsg(1)
-		self.client.sendmsg('MSG 0 0 . 51 118\r\nContent-Type: application/beep+xml\r\n\r\n<start number="a">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
+        self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
+        data = self.client.getmsg(1)
+        self.client.sendmsg('MSG 0 0 . 51 118\r\nContent-Type: application/beep+xml\r\n\r\n<start number="a">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
 
-		data = self.client.getmsg(1)
-		self.assertEqual(data, 'ERR 0 0 . 117 106\r\nContent-Type: application/beep+xml\n\n<error code="501">\r\n  Requested channel number is invalid.\r\n</error>\r\nEND\r\n')
-
+        data = self.client.getmsg(1)
+        self.assertEqual(data, 'ERR 0 0 . 117 106\r\nContent-Type: application/beep+xml\n\n<error code="501">\r\n  Requested channel number is invalid.\r\n</error>\r\nEND\r\n')
 
 if __name__ == '__main__':
 
-	unittest.main()
+    unittest.main()
 

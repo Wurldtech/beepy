@@ -1,5 +1,5 @@
-# $Id: CHANGES,v 1.14 2003/12/08 03:25:30 jpwarren Exp $
-# $Revision: 1.14 $
+# $Id: CHANGES,v 1.15 2003/12/09 02:37:30 jpwarren Exp $
+# $Revision: 1.15 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -24,6 +24,11 @@
 - Migration to twisted framework as core engine. Code will be refactored
   to support non-twisted implementations while taking advantage of new
   asynchronous design features.
+- Threading removed, asynchronous event processing used instead. Much
+  improved performance.
+- SASL ANONYMOUS support refactored
+- SASL OTP support refactored
+- Many example clients and servers used in testing
 
 0.3 -> 0.4
 ----------

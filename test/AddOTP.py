@@ -1,5 +1,5 @@
-# $Id: AddOTP.py,v 1.4 2003/01/07 07:39:59 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: AddOTP.py,v 1.5 2003/12/09 02:37:31 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -20,24 +20,14 @@
 #
 
 import sys
+sys.path.append('../')
 
-try:
-	from beepy.core import logging
-	from beepy.profiles import saslotpprofile
-except ImportError:
-	sys.path.append('../')
-	from beepy.core import logging
-	from beepy.profiles import saslotpprofile
-
-import dummyclient
+from beepy.profiles import saslotpprofile
 
 if __name__ != '__main__':
-	print "Do not import this module."
+    print "Do not import this module."
 
-log = logging.Log()
-#	log.loglevel = logging.LOG_DEBUG
-
-generator = saslotpprofile.OTPGenerator(log)
+generator = saslotpprofile.OTPGenerator()
 
 #generator.promptAndGenerate()
 username = 'justin'

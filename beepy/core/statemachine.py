@@ -1,5 +1,5 @@
-# $Id: statemachine.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: statemachine.py,v 1.2 2003/12/09 02:37:30 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -116,6 +116,7 @@ class StateMachine:
 #				print "DEBUG: %s changing state from %s to %s" % (self, self.currentState, self.nextState)
 				handler = self.handlers[self.nextState]
 				self.currentState = self.nextState
+
 
 class StateMachineException(errors.BEEPException):
 	def __init__(self, args=None):

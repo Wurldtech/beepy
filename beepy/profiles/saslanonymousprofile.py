@@ -1,5 +1,5 @@
-# $Id: saslanonymousprofile.py,v 1.4 2003/12/08 03:25:30 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: saslanonymousprofile.py,v 1.5 2003/12/09 02:37:30 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -22,87 +22,73 @@
 __profileClass__ = "SASLAnonymousProfile"
 uri = "http://iana.org/beep/SASL/ANONYMOUS"
 
+import traceback
+
 import saslprofile
-from profile import TuningReset
+from profile import TerminalProfileException
 from beepy.core import constants
-#from beepy.transports import sasltcpsession
 
 import logging
 from beepy.core import debug
 log = logging.getLogger('SASLAnonymous')
 
 class SASLAnonymousProfile(saslprofile.SASLProfile):
-	"""A SASLAnonymousProfile is a SASL Profile that implements
-	   the ANONYMOUS mechanism for anonymous authentication.
-	"""
+    """A SASLAnonymousProfile is a SASL Profile that implements
+       the ANONYMOUS mechanism for anonymous authentication.
+    """
 
-	def __init__(self, log, session, profileInit=None):
-		self.authentid = None
-		self.authid = None
-		saslprofile.SASLProfile.__init__(self, log, session)
-		self.log.logmsg(logging.LOG_DEBUG, "initstring: %s" % profileInit)
+    def __init__(self, session, profileInit=None, init_callback=None):
+        saslprofile.SASLProfile.__init__(self, session)
+        log.debug("initstring: %s" % profileInit)
 
-	def doProcessing(self):
-		"""All doProcessing should do is move the session from
-		   non-authenticated to authenticated.
-		"""
-		theframe = self.channel.recv()
-		if theframe:
-			error = self.parseError(theframe.payload)
-			if error:
-				self.log.logmsg(logging.LOG_NOTICE, "Error while authenticating: %s: %s" % (error[1], error[2]))
-				return
+    def processFrame(self, theframe):
+        """All processFrame should do is move the session from
+           non-authenticated to authenticated.
+        """
+        self.channel.deallocateMsgno(theframe.msgno)
+	try:
+            error = self.parseError(theframe.payload)
+            if error:
+                log.error("Error while authenticating: %s: %s" % (error[1], error[2]))
+                return
 
-			status = self.parseStatus(theframe.payload)
-			if status:
-				# do status code processing
-				self.log.logmsg(logging.LOG_DEBUG, "status: %s" % status)
-				if status == 'complete':
-					# Server completed authentication, so we do a tuning reset
-					sock = self.session.sock
-					server_address = self.session.server_address
-					sessmgr = self.session.sessmgr
-					read_timeout = self.session.read_timeout
+            status = self.parseStatus(theframe.payload)
+            if status:
+                # do status code processing
+                log.debug("status: %s" % status)
+                if status == 'complete':
 
-					self.log.logmsg(logging.LOG_DEBUG, "Creating new session...")
-					newsess = sasltcpsession.SASLTCPInitiator(sock, server_address, sessmgr, self.session, self.authentid, self.authid, read_timeout)
-					self.log.logmsg(logging.LOG_DEBUG, "Raising tuning reset...")
-					raise TuningReset("SASL ANONYMOUS authentication succeeded")
+                    self.session.authenticationSucceeded()
 
-				elif status == 'abort':
-					# other end has aborted negotiation, so we reset
-					# to our initial state
-					self.authentid = None
-					self.authid = None
+                elif status == 'abort':
+                    # other end has aborted negotiation, so we reset
+                    # to our initial state
+                    self.authentid = None
+                    self.authid = None
 
-				elif status == 'continue':
-					self.log.logmsg(logging.LOG_NOTICE, "continue during authentication")
+                elif status == 'continue':
+                    log.debug("continue during authentication")
 
-			else:
-				authentid = self.decodeBlob(theframe.payload)
-				if authentid:
-					self.log.logmsg(logging.LOG_DEBUG, "authentid: %s" % authentid)
-					self.authentid = authentid
-					# I've now dealt with the message sufficiently for it to
-					# be marked as such, so we deallocate the msgno
-					self.channel.deallocateMsgno(theframe.msgno)
-					# Ok, start setting up for a tuning reset
-					# copy connection to new session object
-					sock = self.session.sock
-					client_address = self.session.client_address
-					sessmgr = self.session.sessmgr
-					read_timeout = self.session.read_timeout
+            else:
+                authentid = self.decodeBlob(theframe.payload)
+                if authentid:
+                    log.debug("authentid: %s" % authentid)
+                    self.authentid = authentid
+                    # I've now dealt with the message sufficiently for it to
+                    # be marked as such, so we deallocate the msgno
+                    self.channel.deallocateMsgno(theframe.msgno)
 
-					# Session object should wait for this session thread to exit before
-					# going to ACTIVE state.
-					newsess = sasltcpsession.SASLTCPListener(sock, client_address, sessmgr, self.session, self.authentid, self.authid, read_timeout)
-					data = '<blob status="complete"/>'
-					self.channel.sendReply(theframe.msgno, data)
-					self.log.logmsg(logging.LOG_DEBUG, "Queued success message")
-					# finally, reset Session
-					raise TuningReset("SASL ANONYMOUS authentication succeeded")
+                    data = '<blob status="complete"/>'
+                    self.channel.sendReply(theframe.msgno, data)
+                    log.debug("Queued success message")
 
-	def sendAuth(self, authentid, authid=None):
-		self.authentid = authentid
-		data = self.encodeBlob(authentid)
-		return self.channel.sendMessage(data)
+#                    self.session.authenticationComplete()
+
+        except Exception, e:
+            traceback.print_exc()
+            raise TerminalProfileException("Exception: %s" % e)
+            
+    def sendAuth(self, authentid, authid=None):
+        self.authentid = authentid
+        data = self.encodeBlob(authentid)
+        return self.channel.sendMessage(data)

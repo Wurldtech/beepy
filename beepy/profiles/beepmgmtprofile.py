@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.6 2003/12/08 03:25:30 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: beepmgmtprofile.py,v 1.7 2003/12/09 02:37:30 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -57,7 +57,6 @@ class BEEPManagementProfile(profile.Profile):
         profile.Profile.__init__(self, session)
         self.mgmtParser = mgmtparser.Parser()
         self.mgmtCreator = mgmtcreator.Creator()
-        self.receivedGreeting = 0
 
         # channels that are starting, keyed by msgno
         self.startingChannel = {}
@@ -70,6 +69,8 @@ class BEEPManagementProfile(profile.Profile):
 
     def processFrame(self, theframe):
         try:
+            self.channel.deallocateMsgno(theframe.msgno)
+            
             data = self.mimeDecode(theframe.payload)
             if self.type != self.CONTENT_TYPE:
                 raise profile.TerminalProfileException("Invalid content type for message: %s != %s" % (self.type, self.CONTENT_TYPE) )
@@ -82,10 +83,9 @@ class BEEPManagementProfile(profile.Profile):
             # Handle RPY Frames
             if theframe.isRPY():
 
-            # If it's a greeting positive reply and we haven't heard one
-            # already, cool.
+                # handle <greeting> RPY frames
                 if msg.isGreeting():
-                    self._handleGreeting(theframe, msg)
+                    self.session._handleGreeting()
                 else:
                     log.debug("Non-greeting RPY received" ) 
 
@@ -102,8 +102,8 @@ class BEEPManagementProfile(profile.Profile):
             elif theframe.isMSG():
 
 #                log.debug("%s: channel 0 MSG: %s" % (self, theframe))
-                if not self.receivedGreeting:
-                    raise profile.TerminalProfileException("Client sent MSG before greeting.")
+#                if not self.receivedGreeting:
+#                    raise profile.TerminalProfileException("Client sent MSG before greeting.")
 
                 if msg.isStart():
                     log.debug("msg isStart" )
@@ -136,7 +136,10 @@ class BEEPManagementProfile(profile.Profile):
                     traceback.print_exc()
 
             elif theframe.isANS():
-                log.debug("channel 0 ANS" )
+                log.debug("channel 0 ANS")
+
+            elif theframe.isNUL():
+                log.debug("channel 0 NUL")
 
             else:
                 # Should never get here, but...
@@ -168,21 +171,6 @@ class BEEPManagementProfile(profile.Profile):
             traceback.print_exc()
             raise
             
-    def _handleGreeting(self, theframe, msg):
-        """_handleGreeting is an internal method used from within
-        doProcessing() to split it up a bit and make it more manageable
-        It deals with <greeting> RPY frames
-        """
-        if not self.receivedGreeting:
-            self.receivedGreeting = 1
-            self.session.receivedGreeting = 1
-            self.channel.deallocateMsgno(theframe.msgno)
-            log.debug("Received Greeting" )
-            self.session.greetingReceived()
-        else:
-            log.info("Man, these guys are really friendly!" )
-            raise profile.TerminalProfileException("Too many greetings.")
-
     def _handleProfile(self, theframe, msg):
         log.debug("%s: entered _handleProfile()" % self )
         # look up which channel was being started by msgno
@@ -190,7 +178,6 @@ class BEEPManagementProfile(profile.Profile):
             channelnum = self.startingChannel[theframe.msgno]
 
             del self.startingChannel[theframe.msgno]
-            self.channel.deallocateMsgno(theframe.msgno)
 
             # create it at this end
             log.debug("Attempting to create matching channel %s..." % channelnum)
@@ -207,7 +194,6 @@ class BEEPManagementProfile(profile.Profile):
             # a profile was received for a channel that we weren't
             # starting, which is bad, so kill session.
             log.error("Attempt to confirm start of channel we didn't ask for.")
-            self.channel.deallocateMsgno(theframe.msgno)
             raise profile.TerminalProfileException("Invalid Profile RPY Message")
 
         except beepy.core.session.SessionException, e:
@@ -289,8 +275,9 @@ class BEEPManagementProfile(profile.Profile):
             msg = self.mgmtCreator.createOKMessage()
             msg = self.mimeEncode(msg, self.CONTENT_TYPE)
             self.channel.sendReply(theframe.msgno, msg)
-        except SessionException:
-            pass
+        except Exception, e:
+            log.error('Exception in management profile: %s' % e)
+            raise
 
     def _handleOK(self, theframe, msg):
         """_handleOK is an internal method used from within
@@ -299,7 +286,6 @@ class BEEPManagementProfile(profile.Profile):
         a channel close.
         """
         log.debug("isOK")
-        self.channel.deallocateMsgno(theframe.msgno)
         
         # First, we check if this is a close confirmation
         if self.closingChannel.has_key(theframe.msgno):
@@ -311,7 +297,6 @@ class BEEPManagementProfile(profile.Profile):
             self.channelEvent[channelnum][0](channelnum)
 
     def _handleError(self, theframe, msg):
-        self.channel.deallocateMsgno(theframe.msgno)
         
         code = msg.getErrorCode()
         desc = msg.getErrorDescription()

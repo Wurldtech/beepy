@@ -1,5 +1,5 @@
-# $Id: test_saslotpprofile.py,v 1.8 2003/01/09 00:20:55 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: test_saslotpprofile.py,v 1.9 2003/12/09 02:37:31 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,127 +23,95 @@ import unittest
 import sys
 import time
 
-try:
-	from beepy.core import constants
-	from beepy.core import logging
-	from beepy.transports import tcpsession
-	from beepy.profiles import profile
-	from beepy.profiles import saslotpprofile
-	from beepy.profiles import echoprofile
-except ImportError:
-	sys.path.append('../')
-	from beepy.core import constants
-	from beepy.core import logging
-	from beepy.transports import tcpsession
-	from beepy.profiles import profile
-	from beepy.profiles import saslotpprofile
-	from beepy.profiles import echoprofile
+sys.path.append('..')
 
-import dummyclient
+# Import the client stuff we need
 
-# This class assumes a server is available.
-# It tests the responses given to the client under a
-# variety of situations. Check the server logs to
-# see what the server was up to at the time.
-# It pauses for a second before shutting down the client
-# to make sure the server doesn't just dump pending messages
-# on an unexpected disconnect.
+from beepy.transports.twistedsession import SASLClientProtocol
+from beepy.transports.twistedsession import SASLClientFactory
+
+from twisted.internet import reactor
+
+from beepy.profiles import saslotpprofile
+from beepy.profiles import echoprofile
+
+import logging
+from beepy.core import debug
+log = logging.getLogger('SASL/OTP Test')
+
+class SASLOTPClientProtocol(SASLClientProtocol):
+    """ We subclass from SASLClientProtocol to define
+    what we want to do when various events occur
+    """
+    username = 'fred'
+    passphrase = 'This is a test'
+    
+    def greetingReceived(self):
+
+        ## Start a channel using the SASL/OTP profile
+        self.authchannel = self.newChannel(saslotpprofile)
+        log.debug('attempting to start channel %d...' % self.authchannel)
+
+    def channelStarted(self, channelnum):
+        log.debug('started channel %d', channelnum)
+        if channelnum == self.authchannel:
+            log.debug('Authentication channel started successfully.')
+            
+
+            channel = self.getChannel(channelnum)
+            msgno = channel.profile.sendAuth(self.passphrase, self.username)
+
+        elif channelnum == self.echochannel:
+            log.debug('Echo channel started successfully.')
+            channel = self.getChannel(channelnum)
+            msgno = channel.sendMessage('Echo 1!')
+            msgno = channel.sendMessage('Echo 2!')
+            msgno = channel.sendMessage('Echo 3!')
+            msgno = channel.sendMessage('Echo 4!')
+            msgno = channel.sendMessage('Echo 5!')
+            msgno = channel.sendMessage('Echo 6!')
+
+        else:
+            log.debug('Unknown channel created: %d' % channelnum)
+
+    def authenticationSucceeded(self):
+        log.debug('overloaded authComplete')
+        self.echochannel = self.newChannel(echoprofile)
+
+class SASLOTPClientFactory(SASLClientFactory):
+    """ This is a short factory for echo clients
+    """
+    protocol = SASLOTPClientProtocol
+        
+
 class SASLOTPProfileTest(unittest.TestCase):
 
-	def setUp(self):
-		# Set up logging
-		self.serverlog = logging.Log(prefix="server: ")
-		self.clientlog = logging.Log(prefix="client: ")
-		# We have to create a OTP database to use for the tests.
-		generator = saslotpprofile.OTPGenerator(self.clientlog)
-		self.username = 'justin'
-		self.passphrase = 'This is a test.'
-		self.seed = 'TeSt'
-		self.algo = 'md5'
-		self.sequence = 99
+    def setUp(self):
+        ## We create a new testing OTP database for
+        ## testing the library. This assumes the server
+        ## is running in the same directory as this tester
 
-		passhash = generator.createOTP(self.username, self.algo, self.seed, self.passphrase, self.sequence)
+        generator = saslotpprofile.OTPGenerator()
+        username = 'fred'
+        seed = 'TeSt'
+        passphrase = 'This is a test'
+        algo = 'md5'
+        sequence = 99
 
-	def test_createSASLOTPSession(self):
-		"""Test SASL OTP with no CDATA init"""
-		pdict1 = profile.ProfileDict()
-		pdict1[saslotpprofile.uri] = saslotpprofile
-		pdict1[echoprofile.uri] = echoprofile
-		sess = tcpsession.TCPListenerManager(self.serverlog, pdict1, 'localhost', 1976)
+        passhash = generator.createOTP(username, algo, seed, passphrase, sequence)
+        
 
-		while sess.currentState != 'ACTIVE':
-			time.sleep(0.25)
+    def test_createSASLOTPSession(self):
+        """Test SASL OTP with no CDATA init"""
 
-		# create and connect an initiator
-		pdict2 = profile.ProfileDict()
-		pdict2[saslotpprofile.uri] = saslotpprofile
-		pdict2[echoprofile.uri] = echoprofile
-		clientmgr = tcpsession.TCPInitiatorManager(self.clientlog, pdict2)
-		while not clientmgr.isActive():
-			time.sleep(0.25)
+        factory = SASLOTPClientFactory()
+        factory.addProfile(echoprofile)
+        factory.addProfile(saslotpprofile)
 
-		client = clientmgr.connectInitiator('localhost', 1976)
-		clientid = client.ID
-		while not client.isActive():
-			if client.isExited():
-				self.client.logmsg(logging.LOG_ERR, "Erk! Channel isn't active!")
-				exit(1)
-			time.sleep(0.25)
-
-		# Start a channel using SASL/OTP authentication
-		profileList = [[saslotpprofile.uri,None,None]]
-		channelnum = client.startChannel(profileList)
-		while not client.isChannelActive(channelnum):
-			time.sleep(0.25)
-
-		channel = client.getActiveChannel(channelnum)
-		if not channel:
-			self.client.logmsg(logging.LOG_DEBUG, "Erk! Channel isn't active!")
-			sys.exit()
-
-		# Send our authentication information
-		msgno = channel.profile.sendAuth(self.passphrase, self.username, self.username)
-		while channel.isMessageOutstanding(msgno):
-			time.sleep(0.25)
-
-		# Check to see if authentication worked.
-		while client.isAlive():
-			time.sleep(0.25)
-
-		# old client will have exited, so get the new client
-		# for the same connection, as it has the same id
-		client = clientmgr.getSessionById(clientid)
-
-		while not client.isActive():
-			time.sleep(0.25)
-
-		# Create a channel on the new, authenticated, session
-		# using the echo profile
-		profileList = [[echoprofile.uri,None,None]]
-		channelnum = client.startChannel(profileList)
-		while not client.isChannelActive(channelnum):
-			time.sleep(0.25)
-		channel = client.getActiveChannel(channelnum)
-
-		# send a message
-		msgno = channel.sendMessage('Hello!')
-		while channel.isMessageOutstanding():
-			time.sleep(0.25)
-
-		client.close()
-		while not client.isExited():
-			time.sleep(0.25)
-
-		clientmgr.close()
-		while not clientmgr.isExited():
-			time.sleep(0.25)
-
-		sess.close()
-		while not sess.isExited():
-			time.sleep(0.25)
-
+        reactor.connectTCP('localhost', 1976, factory)
+        reactor.run()
 
 if __name__ == '__main__':
 
-	unittest.main()
+    unittest.main()
 

@@ -1,0 +1,85 @@
+body {
+  background-color: white;
+  color: black;
+  font-family: sans-serif;
+  font-size: 10pt;
+}
+
+a:link { 
+  color: blue;
+  text-decoration: none;
+}
+
+a:visited { 
+  color: #336699;
+  text-decoration: none;
+}
+
+a:active { 
+  color: #336699;
+  text-decoration: none;
+}
+
+a:hover { 
+  color: #336699;
+  text-decoration: none;
+}
+
+h1 { 
+  font-family: serif;
+  font-size: 140%;
+}
+
+h2 { 
+  font-family: serif;
+  font-size: 120%;
+}
+
+#leftcontent { 
+  float: left;
+  margin-left: 0;
+  width: 150px;
+  background: #447799;
+  color: #ffffff;
+  padding: 2px;
+}
+
+#leftcontent a:link { 
+  color: #ffffff;
+}
+
+#leftcontent a:visited { 
+  color: #ffffff;
+}
+
+#leftcontent a:active { 
+  color: #ffffff;
+}
+
+#leftcontent a:hover { 
+  color: #7799cc;
+}
+
+#centercontent { 
+  margin-left: 151px;
+  background: #ffffff;
+  padding: 10px;
+
+}
+
+#rightcontent { 
+  position: absolute;
+  right: 10px;
+  top: 50px;
+  width: 200px;
+  background: #fff;
+  border: 1px solid #000;
+}
+
+#Logo { 
+  vertical-align: middle;
+}
+
+#SourceForgeLogo { 
+  background: #fff;
+}

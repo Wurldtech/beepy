@@ -1,0 +1,9 @@
+include COPYRIGHT
+include INSTALL
+include LICENSE
+include README
+recursive-include doc *
+recursive-include test *.xml *.py
+recursive-exclude * *~
+recursive-exclude * .cvsignore
+prune CVS

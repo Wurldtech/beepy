@@ -1,5 +1,5 @@
-# $Id: test_parser_creator.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: test_parser_creator.py,v 1.3 2002/12/28 05:19:01 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -32,7 +32,9 @@ from beep.core import mgmtcreator
 
 class ParserTest(unittest.TestCase):
 
-	log = logging.Log()
+	def setUp(self):
+		self.log = logging.Log()
+		self.log.debuglevel = -1
 
 	def test_parseGreeting(self):
 		"""Parse empty greeting"""

@@ -1,5 +1,5 @@
-# $Id: test_parser.py,v 1.5 2002/10/23 04:51:17 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: test_parser.py,v 1.6 2002/12/28 05:19:01 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -33,7 +33,9 @@ from beep.core import logging
 
 class ParserTest(unittest.TestCase):
 
-	log = logging.Log()
+	def setUp(self):
+		self.log = logging.Log()
+		self.log.debuglevel = -1
 
 # RFC 3080 Section 2.3.1.1
 	def test_2311001_parseGreeting(self):

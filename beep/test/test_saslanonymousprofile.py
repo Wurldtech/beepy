@@ -1,5 +1,5 @@
-# $Id: test_saslanonymousprofile.py,v 1.4 2002/10/18 06:41:32 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: test_saslanonymousprofile.py,v 1.5 2002/12/28 05:19:01 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -41,41 +41,10 @@ import dummyclient
 # to make sure the server doesn't just dump pending messages
 # on an unexpected disconnect.
 class SASLAnonymousProfileTest(unittest.TestCase):
-	log = logging.Log()
 
-#	def test_createSASLAnonymousSession(self):
-#		"""Test SASL Anonymous with no CDATA init"""
-#		pdict = profile.ProfileDict()
-#		pdict['http://iana.org/beep/SASL/ANONYMOUS'] = saslanonymousprofile
-#		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
-#
-#		while sess.currentState != 'ACTIVE':
-#			pass
-#
-#		# create and connect a client
-#		client = dummyclient.DummyClient()
-#		# send a greeting msg
-#		client.sendmsg('RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n')
-#		data = client.getmsg()
-#
-#		# create a channel with the SASL Anonymous profile
-#		client.sendmsg('MSG 0 0 . 51 120\r\nContent-type: application/beep+xml\r\n\r\n<start number="1">\r\n<profile uri="http://iana.org/beep/SASL/ANONYMOUS"/>\r\n</start>END\r\n')
-#		data = client.getmsg()
-#
-#		self.assertEqual(data, 'RPY 0 0 . 117 90\r\nContent-Type: application/beep+xml\n\n<profile uri="http://iana.org/beep/SASL/ANONYMOUS"/>\r\nEND\r\n')
-#
-#		client.sendmsg('MSG 1 0 . 0 21\r\n<blob>aGVsbG8K</blob>END\r\n')
-#		data = client.getmsg()
-#		print "got reply: ", data
-#
-#		# time to regreet after tuning reset
-#		client.sendmsg('RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n')
-#		data = client.getmsg()
-#		print "got reply: ", data
-#
-#		client.terminate()
-#		sess.close()
-#		time.sleep(1)
+	def setUp(self):
+		self.log = logging.Log()
+		self.log.debuglevel = -1
 
 	def test_SASLClient(self):
 		"""Test SASL Anonymous with Initiator"""

@@ -1,5 +1,5 @@
-# $Id: test_initiator.py,v 1.3 2002/10/18 06:41:32 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: test_initiator.py,v 1.4 2002/12/28 05:19:01 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -35,7 +35,10 @@ from beep.profiles import echoprofile
 # variety of situations. Check the server logs to
 # see what the server was up to at the time.
 class TCPInitatorSessionTest(unittest.TestCase):
-	log = logging.Log()
+
+	def setUp(self):
+		self.log = logging.Log()
+		self.log.debuglevel = -1
 
 	def test_connect(self):
 		"""Test connection of Initiator to server

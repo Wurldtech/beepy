@@ -1,5 +1,5 @@
-# $Id: test_echoprofile.py,v 1.5 2002/10/18 06:41:32 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: test_echoprofile.py,v 1.6 2002/12/28 05:19:01 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -40,35 +40,48 @@ import dummyclient
 # to make sure the server doesn't just dump pending messages
 # on an unexpected disconnect.
 class EchoProfileTest(unittest.TestCase):
-	log = logging.Log()
+
+	def setUp(self):
+		# Set up logging
+		self.log = logging.Log()
+#		self.log.debuglevel = logging.LOG_DEBUG
+#		self.log.debuglevel = logging.LOG_INFO
+#		self.log.debuglevel = -1
+
+		# create a listener
+		pdict = profile.ProfileDict()
+		pdict[echoprofile.uri] = echoprofile
+		self.listener = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
+		# wait for it to become active
+		while not self.listener.isActive():
+			pass
+		self.client = dummyclient.DummyClient()
+
+	def tearDown(self):
+		self.client.terminate()
+		self.listener.close()
+		while not self.listener.isExited():
+			pass
 
 	def test_createEchoChannel(self):
 		"""Test creation of a channel with the Echo profile"""
-		pdict = profile.ProfileDict()
-		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
-		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
-		while sess.currentState != 'ACTIVE':
-			pass
 
-		# create and connect a client
-		client = dummyclient.DummyClient()
 		# send a greeting msg
-		client.sendmsg('RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n')
-		data = client.getmsg()
+		self.client.sendmsg('RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n')
+		data = self.client.getmsg(1)
 
 		# create a channel with the ECHO profile
-		client.sendmsg('MSG 0 0 . 51 120\r\nContent-type: application/beep+xml\r\n\r\n<start number="1">\r\n<profile uri="http://www.eigenmagic.com/beep/ECHO"/>\r\n</start>END\r\n')
-		data = client.getmsg()
-		client.sendmsg('MSG 1 0 . 0 8\r\nHello!\r\nEND\r\n')
-		data = client.getmsg()
+		self.client.sendmsg('MSG 0 0 . 51 120\r\nContent-type: application/beep+xml\r\n\r\n<start number="1">\r\n<profile uri="http://www.eigenmagic.com/beep/ECHO"/>\r\n</start>END\r\n')
+		data = self.client.getmsg(1)
+
+		self.client.sendmsg('MSG 1 0 . 0 8\r\nHello!\r\nEND\r\n')
+		data = self.client.getmsg(1)
 		self.assertEqual(data, 'RPY 1 0 . 0 8\r\nHello!\r\nEND\r\n')
-		client.sendmsg('MSG 1 1 . 8 8\r\nHello!\r\nEND\r\n')
-		data = client.getmsg()
+
+		self.client.sendmsg('MSG 1 1 . 8 8\r\nHello!\r\nEND\r\n')
+		data = self.client.getmsg(1)
+
 		self.assertEqual(data, 'RPY 1 1 . 8 8\r\nHello!\r\nEND\r\n')
-		client.terminate()
-		sess.close()
-		while sess.isAlive():
-			pass
 
 if __name__ == '__main__':
 

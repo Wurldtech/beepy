@@ -1,5 +1,5 @@
-# $Id: test_saslotpprofile.py,v 1.4 2002/10/18 06:41:32 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: test_saslotpprofile.py,v 1.5 2002/12/28 05:19:01 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -41,7 +41,10 @@ import dummyclient
 # to make sure the server doesn't just dump pending messages
 # on an unexpected disconnect.
 class SASLOTPProfileTest(unittest.TestCase):
-	log = logging.Log()
+
+	def setUp(self):
+		self.log = logging.Log()
+		self.log.debuglevel = -1
 
 	def test_createSASLOTPSession(self):
 		"""Test SASL OTP with no CDATA init"""

@@ -1,5 +1,5 @@
-# $Id: CHANGES,v 1.6 2002/10/07 05:52:04 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: CHANGES,v 1.7 2002/12/28 05:19:01 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -43,3 +43,9 @@
 ------------
 - Fixed bugs in SASL/ANONYMOUS with client/server interaction and 
   channel/session closure.
+- Fixed a bug in tcpsession.py so that if a frame is received and
+  the payload is longer than specified in the header the session
+  is dropped immediately. Previously it would only check sizes after
+  a complete frame was received or the input buffer was full. It now
+  implements the correct behaviour which is also more robust against
+  attempted Denial of Service attacks.

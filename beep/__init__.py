@@ -1,5 +1,5 @@
-# $Id: __init__.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: __init__.py,v 1.3 2002/12/28 06:09:13 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -20,5 +20,5 @@
 #
 __version__ = "$Revision 0.1 $".split()[1]
 
-__all__ = ['core', 'profiles', 'transports', 'test']
+__all__ = ['core', 'profiles', 'transports']
 

@@ -1,5 +1,5 @@
-# $Id: test_saslotpprofile.py,v 1.5 2003/01/07 07:40:00 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: test_saslotpprofile.py,v 1.6 2003/01/08 05:38:12 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -52,10 +52,10 @@ class SASLOTPProfileTest(unittest.TestCase):
 
 	def setUp(self):
 		# Set up logging
-		self.log = logging.Log(logfile)
-		self.log.loglevel = loglevel
+		self.serverlog = logging.Log(prefix="server: ")
+		self.clientlog = logging.Log(prefix="client: ")
 		# We have to create a OTP database to use for the tests.
-		generator = saslotpprofile.OTPGenerator(self.log)
+		generator = saslotpprofile.OTPGenerator(self.clientlog)
 		self.username = 'justin'
 		self.passphrase = 'This is a test.'
 		self.seed = 'TeSt'
@@ -69,7 +69,7 @@ class SASLOTPProfileTest(unittest.TestCase):
 		pdict1 = profile.ProfileDict()
 		pdict1[saslotpprofile.uri] = saslotpprofile
 		pdict1[echoprofile.uri] = echoprofile
-		sess = tcpsession.TCPSessionListener(self.log, pdict1, 'localhost', 1976)
+		sess = tcpsession.TCPSessionListener(self.serverlog, pdict1, 'localhost', 1976)
 
 		while sess.currentState != 'ACTIVE':
 			pass
@@ -78,7 +78,7 @@ class SASLOTPProfileTest(unittest.TestCase):
 		pdict2 = profile.ProfileDict()
 		pdict2[saslotpprofile.uri] = saslotpprofile
 		pdict2[echoprofile.uri] = echoprofile
-		clientmgr = tcpsession.TCPInitiatorSessionManager(self.log, pdict2)
+		clientmgr = tcpsession.TCPInitiatorSessionManager(self.clientlog, pdict2)
 		while not clientmgr.isActive():
 			pass
 
@@ -86,7 +86,7 @@ class SASLOTPProfileTest(unittest.TestCase):
 		clientid = client.ID
 		while not client.isActive():
 			if client.isExited():
-				self.log.logmsg(logging.LOG_ERR, "Erk! Channel isn't active!")
+				self.client.logmsg(logging.LOG_ERR, "Erk! Channel isn't active!")
 				exit(1)
 			pass
 
@@ -98,7 +98,7 @@ class SASLOTPProfileTest(unittest.TestCase):
 
 		channel = client.getActiveChannel(channelnum)
 		if not channel:
-			self.log.logmsg(logging.LOG_DEBUG, "Erk! Channel isn't active!")
+			self.client.logmsg(logging.LOG_DEBUG, "Erk! Channel isn't active!")
 			sys.exit()
 
 		# Send our authentication information

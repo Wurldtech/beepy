@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.3 2003/01/07 07:39:59 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: tcpsession.py,v 1.4 2003/01/08 05:38:12 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -25,7 +25,7 @@ import threading
 import exceptions
 import Queue
 import time
-import traceback
+import sys, traceback
 
 from beepy.core import constants
 from beepy.core import logging
@@ -36,7 +36,7 @@ from beepy.core import util
 
 class TCPDataEnqueuer(util.DataEnqueuer):
 
-	def __init__(self, log, sock, session, condition, dataq, errEvent, read_timeout=1, name=None):
+	def __init__(self, log, sock, session, dataq, errEvent, read_timeout=1, name=None):
 
 		self.log = log
 		self.sock = sock
@@ -54,8 +54,10 @@ class TCPDataEnqueuer(util.DataEnqueuer):
 
 		self.read_timeout = read_timeout
 
+
 		# Initialise as a DataEnqueuer
-		util.DataEnqueuer.__init__(self, condition, dataq, errEvent, name)
+		util.DataEnqueuer.__init__(self, dataq, errEvent, name)
+		self.log.logmsg(logging.LOG_DEBUG, "Started thread: %s" % self)
 
 	def loop(self):
 		"""enqueueData reads a frame off the wire and places it
@@ -101,7 +103,7 @@ class TCPDataEnqueuer(util.DataEnqueuer):
 
 		except Exception, e:
 			self.log.logmsg(logging.LOG_ERR, "Unhandled exception in enqueueData(). Generating traceback..." )
-			self.log.logmsg(logging.LOG_ERR, '%s' % traceback.print_exc() )
+			traceback.print_exc(file=self.log.logfile)
 
 			self.setError( TCPTerminalError("Unhandled exception in enqueueData(): %s: %s" % (e.__class__, e)) )
 			self.stop()
@@ -177,11 +179,7 @@ class TCPDataEnqueuer(util.DataEnqueuer):
 				else:
 					self.newframe.payload += framedata
 					# The frame is now complete
-#					self.log.logmsg(logging.LOG_DEBUG, "adding frame to input Q" ) 
-					self.cv.acquire()
 					self.dataq.put(self.newframe)
-					self.cv.notify()
-					self.cv.release()
 					self.newframe = None
 
 			else:
@@ -209,6 +207,7 @@ class TCPDataEnqueuer(util.DataEnqueuer):
 		raise NotImplementedError
 
 	def tuningReset(self):
+		self.log.logmsg(logging.LOG_DEBUG, "Stopped thread: %s" % self)
 		self.terminate()
 
 	def cleanup(self):
@@ -218,29 +217,31 @@ class TCPDataEnqueuer(util.DataEnqueuer):
 				self.sock.close()
 				self.connected = 0
 			util.DataEnqueuer.stop(self)
+			self.log.logmsg(logging.LOG_DEBUG, "Stopped thread: %s" % self)
 		except socket.error, e:
 			if e[0] == errno.ENOTCONN:
 				pass
 
 		except Exception, e:
 			self.log.logmsg(logging.LOG_ERR, "Unhandled exception while stopping. Generating traceback...")
-			self.log.logmsg(logging.LOG_ERR, "%s" % traceback.print_exc() )
+			traceback.print_exc(file=self.log.logfile)
 
 class TCPDataDequeuer(util.DataDequeuer):
 	"""A TCPDataDequeuer takes frames off the session outbound queue
 	   and sends them over the wire.
 	"""
-	def __init__(self, log, sock, session, condition, dataq, errEvent, name=None):
+	def __init__(self, log, sock, session, dataq, errEvent, name=None):
 		self.log = log
 		self.sock = sock
 		self.session = session
 
 		# Initialise as a DataDequeuer
-		util.DataDequeuer.__init__(self, condition, dataq, errEvent, name)
+		util.DataDequeuer.__init__(self, dataq, errEvent, name)
+		self.log.logmsg(logging.LOG_DEBUG, "Started thread: %s" % self)
 
 	def dequeueData(self):
 		try:
-			data = self.dataq.get(0)
+			data = self.dataq.get()
 			if data:
 				sent = self.sendDataToSocket(data)
 #				self.log.logmsg(logging.LOG_DEBUG, "Sent %d bytes>> %s" % (sent, data) )
@@ -250,7 +251,7 @@ class TCPDataDequeuer(util.DataDequeuer):
 
 		except Exception, e:
 			self.log.logmsg(logging.LOG_ERR, "Unhandled Error: %s: %s" % (e.__class__, e) )
-			self.log.logmsg(logging.LOG_ERR, "%s" % traceback.print_exc() )
+			traceback.print_exc(file=self.log.logfile)
 
 	def sendDataToSocket(self, data):
 		""" This method abstracts the method for getting sending data
@@ -266,7 +267,14 @@ class TCPDataDequeuer(util.DataDequeuer):
 		"""
 		while self.dequeueData():
 			pass
+		self.log.logmsg(logging.LOG_DEBUG, "Stopped thread: %s" % self)
 		self.terminate()
+
+	def stop(self):
+		util.DataDequeuer.stop(self)
+
+	def cleanup(self):
+		self.log.logmsg(logging.LOG_DEBUG, "Stopped thread: %s" % self)
 
 class TCPError(exceptions.Exception):
 	def __init__(self, args=None):
@@ -297,11 +305,12 @@ class TCPListenerSession(session.ListenerSession, util.isMonitored):
 		# that the sessmgr will only create a single Monitor
 		# for the process that will monitor all Sessions
 		# and their TCP I/O threads (Dataqueuers)
-		util.isMonitored.__init__(self, sessmgr.monitorEvent)
+		util.isMonitored.__init__(self, sessmgr.monitorEvent, name="server: %s[%s]" % client_address)
 
 		session.ListenerSession.__init__(self, sessmgr.log, sessmgr.profileDict)
 
 		self.log.logmsg(logging.LOG_INFO, "Handling session from: %s[%s]" % self.client_address)
+		self.log.logmsg(logging.LOG_DEBUG, "Started thread: %s" % self)
 
 		self.start()
 
@@ -362,6 +371,11 @@ class TCPListenerSession(session.ListenerSession, util.isMonitored):
 		self.log.logmsg(logging.LOG_DEBUG, "Deleting channels...")
 		self.deleteAllChannels()
 
+		self.sessmgr.monitor.stopMonitoring(self)
+
+		self.log.logmsg(logging.LOG_INFO, "Tuning reset complete." )
+		self.log.logmsg(logging.LOG_DEBUG, "Stopped thread: %s" % self)
+
 		self.transition('ok')
 
 	def _stateTERMINATE(self):
@@ -379,6 +393,7 @@ class TCPListenerSession(session.ListenerSession, util.isMonitored):
 		self.sessmgr.removeSession(self.ID)
 
 		self.log.logmsg(logging.LOG_INFO, "Session from %s[%s] finished." % self.client_address)
+		self.log.logmsg(logging.LOG_DEBUG, "Stopped thread: %s" % self)
 		self.transition('ok')
 
 	def startIOThreads(self, sock):
@@ -386,10 +401,8 @@ class TCPListenerSession(session.ListenerSession, util.isMonitored):
 		    This is done as a method to allow subclasses to overload this
 		    part of the initialisation easily.
 		"""
-		self.inputAvailable = threading.Condition()
-		self.inputDataQueue = TCPDataEnqueuer(self.log, sock, self, self.inputAvailable, self.inbound, self.ismonitoredEvent, self.read_timeout)
-		self.outputAvailable = threading.Condition()
-		self.outputDataQueue = TCPDataDequeuer(self.log, sock, self, self.outputAvailable, self.outbound, self.ismonitoredEvent )
+		self.inputDataQueue = TCPDataEnqueuer(self.log, sock, self, self.inbound, self.ismonitoredEvent, self.read_timeout, name="inputQ: %s[%s]" % self.client_address)
+		self.outputDataQueue = TCPDataDequeuer(self.log, sock, self, self.outbound, self.ismonitoredEvent, name="outputQ: %s[%s]" % self.client_address )
 		self.sessmgr.monitor.startMonitoring(self.inputDataQueue)
 		self.sessmgr.monitor.startMonitoring(self.outputDataQueue)
 		self.inputDataQueue.start()
@@ -398,36 +411,16 @@ class TCPListenerSession(session.ListenerSession, util.isMonitored):
 	def sendFrame(self, theframe):
 		data = str(theframe)
 		try:
-			self.outputAvailable.acquire()
-			self.outbound.put(data, 0)
-			self.outputAvailable.notify()
-			self.outputAvailable.release()
+			self.outbound.put(data)
 		except Queue.Full:
 			self.setError( SessionOutboundQueueFull('Outbound queue full') )
-			self.outputAvailable.release()
 
 	def recvFrame(self):
 		try:
-			self.inputAvailable.acquire()
-			theframe = self.dequeueData()
-			if not theframe:
-#				self.log.logmsg(logging.LOG_DEBUG, "Listener recvFrame: waiting for data...")
-				self.inputAvailable.wait(self.read_timeout)
-			self.inputAvailable.release()
-#			self.log.logmsg(logging.LOG_DEBUG, "input frame: %s" % theframe)
-
+			theframe = self.inbound.get()
 			return theframe
 		except:
-			self.inputAvailable.release()
 			raise
-
-	def dequeueData(self):
-		try:
-			data = self.inbound.get(0)
-			if data:
-				return data
-		except Queue.Empty:
-			pass
 
 	def close(self):
 		self.stop()
@@ -437,10 +430,11 @@ class TCPInitiatorSession(session.InitiatorSession, util.isMonitored):
 	def __init__(self, log, profileDict, server_address, sessmgr, read_timeout=1):
 
 		session.InitiatorSession.__init__(self, log, profileDict)
-		util.isMonitored.__init__(self, sessmgr.monitorEvent)
+		util.isMonitored.__init__(self, sessmgr.monitorEvent, name="client: %s[%s]" % server_address)
 		self.server_address = server_address
 		self.sessmgr = sessmgr
 		self.read_timeout = read_timeout
+		self.log.logmsg(logging.LOG_DEBUG, "Started thread: %s" % self)
 
 		self.start()
 
@@ -492,7 +486,7 @@ class TCPInitiatorSession(session.InitiatorSession, util.isMonitored):
 			return
 
 	def _stateCLOSING(self):
-		self.log.logmsg(logging.LOG_INFO, "Closing Session %d...", self.ID)
+		self.log.logmsg(logging.LOG_INFO, "Closing Session %d..." % self.ID)
 		self.closeAllChannels()
 		while len(self.channels.keys()) > 0:
 			if len(self.channels.keys()) == 1 and self.channels.has_key(0):
@@ -517,15 +511,26 @@ class TCPInitiatorSession(session.InitiatorSession, util.isMonitored):
 		self.sessmgr.monitor.stopMonitoring(self.inputDataQueue)
 
 		self.log.logmsg(logging.LOG_DEBUG, "Deleting channels...")
+
 		self.deleteAllChannels()
 
+		self.sessmgr.monitor.stopMonitoring(self)
+
+		self.log.logmsg(logging.LOG_INFO, "Tuning reset complete.")
+		self.log.logmsg(logging.LOG_DEBUG, "Stopped thread: %s" % self)
 		self.transition('ok')
 
 	def _stateTERMINATE(self):
 		self.inputDataQueue.stop()
 		self.outputDataQueue.stop()
 
+		self.sessmgr.monitor.stopMonitoring(self.inputDataQueue)
+		self.sessmgr.monitor.stopMonitoring(self.outputDataQueue)
+		self.sessmgr.monitor.stopMonitoring(self)
+		self.sessmgr.removeSession(self.ID)
+
 		self.log.logmsg(logging.LOG_NOTICE, "Session to %s[%s] exited." % self.server_address)
+		self.log.logmsg(logging.LOG_DEBUG, "Stopped thread: %s" % self)
 		self.transition('ok')
 
 	def startIOThreads(self, sock):
@@ -533,10 +538,8 @@ class TCPInitiatorSession(session.InitiatorSession, util.isMonitored):
 		    This is done as a method to allow subclasses to overload this
 		    part of the initialisation easily.
 		"""
-		self.inputAvailable = threading.Condition()
-		self.inputDataQueue = TCPDataEnqueuer(self.log, sock, self, self.inputAvailable, self.inbound, self.ismonitoredEvent, self.read_timeout)
-		self.outputAvailable = threading.Condition()
-		self.outputDataQueue = TCPDataDequeuer(self.log, sock, self, self.outputAvailable, self.outbound, self.ismonitoredEvent )
+		self.inputDataQueue = TCPDataEnqueuer(self.log, sock, self, self.inbound, self.ismonitoredEvent, self.read_timeout, name="inputQ: %s[%s]" % self.server_address )
+		self.outputDataQueue = TCPDataDequeuer(self.log, sock, self, self.outbound, self.ismonitoredEvent, name="outputQ: %s[%s]" % self.server_address )
 		self.sessmgr.monitor.startMonitoring(self.inputDataQueue)
 		self.sessmgr.monitor.startMonitoring(self.outputDataQueue)
 		self.inputDataQueue.start()
@@ -545,43 +548,23 @@ class TCPInitiatorSession(session.InitiatorSession, util.isMonitored):
 	def sendFrame(self, theframe):
 		data = str(theframe)
 		try:
-			self.outputAvailable.acquire()
-			self.outbound.put(data, 0)
-			self.outputAvailable.notify()
-			self.outputAvailable.release()
+			self.outbound.put(data)
 		except Queue.Full:
 			self.setError( SessionOutboundQueueFull('Outbound queue full') )
-			self.outputAvailable.release()
 
 	def recvFrame(self):
 		try:
-			self.inputAvailable.acquire()
-			theframe = self.dequeueData()
-			if not theframe:
-				self.log.logmsg(logging.LOG_DEBUG, "client recvFrame: waiting for data...")
-#				self.inputAvailable.wait(self.read_timeout)
-				self.inputAvailable.wait()
-			self.inputAvailable.release()
+			theframe = self.inbound.get()
 			return theframe
 		except:
-			self.inputAvailable.release()
 			raise
 
-	def dequeueData(self):
-		try:
-			data = self.inbound.get(0)
-			if data:
-				return data
-		except Queue.Empty:
-			pass
-
 	def close(self):
-		self.log.logmsg(logging.LOG_DEBUG, "I've been asked to stop.")
 		self.stop()
 
 class TCPSessionListener(session.SessionListener, util.LoopingThread):
 
-	def __init__(self, log, profileDict, host, port, daemon=0, max_connect=5, max_concurrent=50, accept_timeout=1, read_timeout=1 ):
+	def __init__(self, log, profileDict, host, port, daemon=0, max_connect=5, max_concurrent=50, accept_timeout=1, read_timeout=1, name=None ):
 
 
 		self.address = (host, port)
@@ -591,10 +574,10 @@ class TCPSessionListener(session.SessionListener, util.LoopingThread):
 		self.addTransition('ACTIVE', 'pause', 'PAUSED')
 		self.addTransition('PAUSED', 'ok', 'ACTIVE')
 		self.addTransition('PAUSED', 'close', 'CLOSE')
-		util.LoopingThread.__init__(self)
+		util.LoopingThread.__init__(self, name=name)
 
 		self.monitorEvent = threading.Event()
-		self.monitor = SessionMonitor(self.log, self.monitorEvent)
+		self.monitor = SessionMonitor(self.log, self.monitorEvent, read_timeout, name)
 		self.monitor.start()
 
 		self.max_connect = max_connect
@@ -603,6 +586,7 @@ class TCPSessionListener(session.SessionListener, util.LoopingThread):
 		self.read_timeout = read_timeout
 
 		self.setDaemon(daemon)
+		self.log.logmsg(logging.LOG_DEBUG, "Started thread: %s" % self)
 		self.start()
 
 	def _stateINIT(self):
@@ -649,7 +633,7 @@ class TCPSessionListener(session.SessionListener, util.LoopingThread):
 				return
 
 		except Exception, e:
-			self.log.logmsg(logging.LOG_DEBUG, "%s" % traceback.print_exc() )
+			traceback.print_exc(self.log.logfile)
 			self.transition('error')
 			return
 
@@ -680,6 +664,7 @@ class TCPSessionListener(session.SessionListener, util.LoopingThread):
 		self.sock.close()
 
 		self.log.logmsg(logging.LOG_NOTICE, "Listener at %s[%s] exited." % self.address)
+		self.log.logmsg(logging.LOG_DEBUG, "Stopped thread: %s" % self)
 		self.transition('ok')
 
 	def removeSession(self, sessId):
@@ -698,17 +683,18 @@ class TCPSessionListener(session.SessionListener, util.LoopingThread):
 
 class TCPInitiatorSessionManager(session.InitiatorManager, util.LoopingThread):
 
-	def __init__(self, log, profileDict, daemon=1, timeout=1):
-		util.LoopingThread.__init__(self)
+	def __init__(self, log, profileDict, daemon=1, timeout=1, name=None):
+		util.LoopingThread.__init__(self, name=name)
 		session.InitiatorManager.__init__(self, log, profileDict)
 
 		self.timeout = timeout
 
 		self.monitorEvent = threading.Event()
-		self.monitor = SessionMonitor(self.log, self.monitorEvent)
+		self.monitor = SessionMonitor(self.log, self.monitorEvent, timeout, name)
 		self.monitor.start()
 
 		self.setDaemon(daemon)
+		self.log.logmsg(logging.LOG_DEBUG, "Started thread: %s" % self)
 		self.start()
 
 	def _stateINIT(self):
@@ -716,14 +702,16 @@ class TCPInitiatorSessionManager(session.InitiatorManager, util.LoopingThread):
 		self.transition('ok')
 
 	def _stateACTIVE(self):
-		self._stop.wait(self.timeout)
+		# Wait indefinitely until _stop is set.
+		self._stop.wait()
 		self.transition('close')
 
 	def _stateCLOSING(self):
 		while self.sessionList:
 			for sessId in self.sessionList.keys():
 				sess = self.sessionList[sessId]
-				sess.close()
+				self.log.logmsg(logging.LOG_DEBUG, "InitiatorManager closing %s..." % sess)
+				sess.stop()
 				sess.join()
 				self.removeSession(sessId)
 
@@ -731,6 +719,8 @@ class TCPInitiatorSessionManager(session.InitiatorManager, util.LoopingThread):
 
 	def _stateTERMINATE(self):
 		self.deleteAllSessions()
+		self.monitor.stop()
+		self.log.logmsg(logging.LOG_DEBUG, "Stopped thread: %s" % self)
 		self.transition('ok')
 
 	def connectInitiator(self, host, port, profileDict=None):
@@ -740,6 +730,9 @@ class TCPInitiatorSessionManager(session.InitiatorManager, util.LoopingThread):
 		self.addSession(client)
 		return client
 
+	def close(self):
+		self.stop()
+
 class SessionMonitor(util.Monitor):
 	"""A SessionMonitor monitors sessions and handles their behaviour
 	   with respect to a SessionManager.
@@ -748,6 +741,7 @@ class SessionMonitor(util.Monitor):
 		self.log = log
 		util.Monitor.__init__(self, errEvent, timeout, name)
 		self.log.logmsg(logging.LOG_DEBUG, "Session monitor started.")
+		self.log.logmsg(logging.LOG_DEBUG, "Started thread: %s" % self)
 
 	def handleError(self, exc, obj):
 		try:
@@ -764,3 +758,6 @@ class SessionMonitor(util.Monitor):
 		except Exception, e:
 			self.log.logmsg(logging.LOG_DEBUG, "Unhandled Error from %s: %s" % (obj, exc) )
 
+	def stop(self):
+		self.log.logmsg(logging.LOG_DEBUG, "Stopped thread: %s" % self)
+		util.Monitor.stop(self)

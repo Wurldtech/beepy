@@ -1,5 +1,5 @@
-# $Id: test_saslanonymousprofile.py,v 1.3 2003/01/07 07:40:00 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: test_saslanonymousprofile.py,v 1.4 2003/01/08 05:38:12 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -61,7 +61,7 @@ class SASLAnonymousProfileTest(unittest.TestCase):
 		pdict1 = profile.ProfileDict()
 		pdict1[saslanonymousprofile.uri] = saslanonymousprofile
 		pdict1[echoprofile.uri] = echoprofile
-		sess = tcpsession.TCPSessionListener(self.serverlog, pdict1, 'localhost', 1976)
+		sess = tcpsession.TCPSessionListener(self.serverlog, pdict1, 'localhost', 1976, name="servermgr: localhost[1976]")
 		while not sess.isActive():
 			time.sleep(0.25)
 
@@ -69,7 +69,7 @@ class SASLAnonymousProfileTest(unittest.TestCase):
 		pdict2 = profile.ProfileDict()
 		pdict2[saslanonymousprofile.uri] = saslanonymousprofile
 		pdict2[echoprofile.uri] = echoprofile
-		clientmgr = tcpsession.TCPInitiatorSessionManager(self.clientlog, pdict2)
+		clientmgr = tcpsession.TCPInitiatorSessionManager(self.clientlog, pdict2, name="clientmgr")
 		while not clientmgr.isActive():
 			time.sleep(0.25)
 
@@ -116,13 +116,12 @@ class SASLAnonymousProfileTest(unittest.TestCase):
 		msgno = channel.sendMessage('Hello!')
 		self.clientlog.logmsg(logging.LOG_DEBUG, "Sent Hello (msgno: %d)" % msgno)
 
-		client.stop()
-
 		while channel.isMessageOutstanding():
 			time.sleep(0.25)
 		self.clientlog.logmsg(logging.LOG_DEBUG, "Got reply to Hello.")
 
 		self.clientlog.logmsg(logging.LOG_DEBUG, "Stopping client...")
+
 		client.stop()
 		while not client.isExited():
 			time.sleep(0.25)
@@ -135,6 +134,8 @@ class SASLAnonymousProfileTest(unittest.TestCase):
 		sess.close()
 		while not sess.isExited():
 			time.sleep(0.25)
+
+		self.clientlog.logmsg(logging.LOG_DEBUG, "Test complete.")
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
-# $Id: util.py,v 1.2 2003/01/07 07:39:58 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: util.py,v 1.3 2003/01/08 05:38:11 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -22,6 +22,7 @@
 
 import threading
 import Queue
+import exceptions
 
 class StatusObject:
 	STATUS_OK = 0
@@ -160,27 +161,84 @@ class isMonitored(LoopingThread):
 		self.statusObj.setStatus(StatusObject.STATUS_OK)
 		self.ismonitoredEvent.clear()
 
+class DataQueueFull(exceptions.Exception):
+	pass
+
+class DataQueue:
+	""" Implements a different kind of multi-producer/
+	    multi-consumer queue.
+	"""
+	def __init__(self, maxsize=0, timeout=1):
+		""" Initialise a queue with a given maximum size
+		    and a given wait timeout value
+		"""
+		self._q = Queue.Queue()
+		self._cv = threading.Condition()
+		self.timeout = timeout
+
+	def qsize(self):
+		return self._q.qsize()
+
+	def empty(self):
+		return self._q.empty()
+
+	def full(self):
+		return self._q.full()
+
+	def put(self, item):
+		try:
+			self._cv.acquire()
+			self._q.put_nowait(item)
+			self._cv.notify()
+			self._cv.release()
+		except Queue.Full:
+			self._cv.release()
+			raise DataQueueFull
+
+	def put_nowait(self, item):
+		return self.put(item)
+
+	def get(self, timeout=None):
+		if not timeout:
+			timeout = self.timeout
+
+		try:
+			self._cv.acquire()
+			item = self._q.get(0)
+			if not item:
+				self._cv.wait(self.timeout)
+			self._cv.release()
+			return item
+		except Queue.Empty:
+			self._cv.wait(self.timeout)
+			self._cv.release()
+
+	def get_nowait(self):
+		return self.get()
+
+	def notify(self):
+		""" This is a handy function which wakes up all
+		    waiting threads. 
+		"""
+		self._cv.acquire()
+		self._cv.notify()
+		self._cv.release()
+
 class DataEnqueuer(isMonitored):
 	"""A DataEnqueuer reads data from some sort of data source
-	   and puts it onto the provided Queue. Synchonisation
-	   with a corresponding DataDequeuer is performed via
-	   a shared Event which is passed in.
+	   and puts it onto the provided DataQueue.
 	"""
 
-	def __init__(self, condition, dataq, errEvent, name=None):
+	def __init__(self, dataq, errEvent, name=None):
 		"""event is a threading.Event to be used for synchronisation
 		   dataq is a Queue used to put the data onto.
 		"""
 		isMonitored.__init__(self, errEvent, name)
-		self.cv = condition
 		self.dataq = dataq
 
 	def loop(self):
 		try:
-			self.cv.acquire()
 			self.enqueueData()
-			self.cv.notify()
-			self.cv.release()
 		except Exception, e:
 			self.setError(e)
 
@@ -196,23 +254,16 @@ class DataDequeuer(isMonitored):
 	   DataQueuer via the provided Event
 	"""
 
-	def __init__(self, condition, dataq, errEvent, timeout=1, name=None):
+	def __init__(self, dataq, errEvent, name=None):
 		"""event is a threading.Event to be used for synchronisation
 		   dataq is a Queue used to put the data onto.
 		"""
 		isMonitored.__init__(self, errEvent, name)
-		self.cv = condition
 		self.dataq = dataq
-		self.timeout = timeout
 
 	def loop(self):
 		try:
-			self.cv.acquire()
-#			print "-- acquired DE queue lock --"
-			if not self.dequeueData():
-				self.cv.wait(self.timeout)
-			self.cv.release()
-#			print "-- released DE queue lock --"
+			self.dequeueData()
 
 		except Exception, e:
 			self.setError(e)
@@ -225,6 +276,4 @@ class DataDequeuer(isMonitored):
 		# Notify myself so that I stop
 		# This is actually called by a different
 		# thread, which is why this works
-		self.cv.acquire()
-		self.cv.notify()
-		self.cv.release()
+		self.dataq.notify()

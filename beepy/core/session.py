@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.3 2003/01/07 07:39:58 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: session.py,v 1.4 2003/01/08 05:38:11 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -24,6 +24,7 @@
 import socket
 import Queue
 
+import util
 import statemachine
 import constants
 import logging
@@ -32,6 +33,7 @@ import channel
 import frame
 import mgmtparser
 import mgmtcreator
+
 from beepy.profiles import profile
 from beepy.profiles import beepmgmtprofile
 
@@ -95,8 +97,8 @@ class Session(statemachine.StateMachine):
 
 		self.profileDict = profileDict
 
-		self.inbound = Queue.Queue(constants.MAX_INPUT_QUEUE_SIZE)
-		self.outbound = Queue.Queue(constants.MAX_INPUT_QUEUE_SIZE)
+		self.inbound = util.DataQueue(constants.MAX_INPUT_QUEUE_SIZE)
+		self.outbound = util.DataQueue(constants.MAX_INPUT_QUEUE_SIZE)
 
 	def _stateINIT(self):
 		raise NotImplementedError
@@ -508,6 +510,7 @@ class SessionManager(statemachine.StateMachine):
 			self.removeSession(sessId)
 
 	def getSessionById(self, sessId):
+		self.log.logmsg(logging.LOG_DEBUG, "Seeking session %d: in: %s" % (sessId, self.sessionList) ) 
 		sess = self.sessionList[sessId]
 		self.log.logmsg(logging.LOG_DEBUG, "Found session %d: %s" % (sessId, sess) ) 
 		return sess

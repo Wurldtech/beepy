@@ -1,5 +1,5 @@
-# $Id: test_conversation.py,v 1.7 2002/10/18 06:41:32 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: test_conversation.py,v 1.8 2002/10/23 04:51:17 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -32,10 +32,6 @@ from beep.profiles import echoprofile
 
 import dummyclient
 
-# This class assumes a server is available.
-# It tests the responses given to the client under a
-# variety of situations. Check the server logs to
-# see what the server was up to at the time.
 class ConversationTest(unittest.TestCase):
 	log = logging.Log()
 

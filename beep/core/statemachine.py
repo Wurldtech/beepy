@@ -1,5 +1,5 @@
-# $Id: statemachine.py,v 1.2 2002/08/13 13:08:23 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: statemachine.py,v 1.3 2002/08/14 03:51:57 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -25,37 +25,81 @@
 import errors
 
 class StateMachine:
-	handlers = {}		# What to do in a given state
-	startState = None	# Which state to start in
-	endStates = []		# Terminal states
 
 	def __init__(self):
-		self.handlers = {}
 		self.startState = None
-		self.endStates = []
+		self.terminalStates = []
+		self.fsmMap = {}
+		self.handlers = {}
+		self.currentState = None
+		self.nextState = None
 
-	def addState(self, name, handler, endstate = 0):
-		self.handlers[name] = handler
-		if endstate:
-			self.endStates.append(name)
+	def addState(self, state, handler, terminal=0):
+		if self.fsmMap.has_key(state):
+			raise StateMachineException("State %s already exists" % state)
+		else:
+			self.handlers[state] = handler
+			self.fsmMap[state] = {}
 
-	def setStart(self, name):
-		self.startState = name
+		if terminal:
+			self.terminalStates.append(state)
 
-	def run(self, cargo=None):
+	def setStart(self, state):
+		if state not in self.fsmMap.keys():
+			raise StateMachineException("state %s not defined. Cannot set as start state." % state)
+		self.startState = state
+
+	def addTransition(self, state, event, nextState):
+		"""addTransition sets up the rule for what to do if an event
+		   occurs in a given state. 
+		   Simply: in state, if event occurs, transition to nextState
+		"""
+		if not self.fsmMap.has_key(state):
+			raise StateMachineException("Cannot add transition to non-existant state")
+
+		self.fsmMap[state][event] = nextState
+
+	def transition(self, event):
+		"""transition is used to change the state of the FSM from
+		   the current state to the next state by telling it an
+		   event has occurred. This is a sortof callback mechanism.
+		"""
+		# A form of locking, first check that someone else hasn't
+		# already requested a state transition. If they have, we do
+		# nothing. First state transition takes precedence
+		if self.nextState != self.currentState:
+			print "nextState is different. transition has already been called"
+			pass
+
+		# make sure this event is valid for the current state
 		try:
+			if event not in self.fsmMap[self.currentState].keys():
+				raise StateMachineException("No rule for event %s in state %s" % (event, self.currentState))
+			else:
+				self.nextState = self.fsmMap[self.currentState][event]
+
+		except KeyError, e:
+			StateMachineException("no map entry for current state: %s" % self.currentState)
+
+	def run(self):
+		try:
+			self.currentState = self.startState
+			self.nextState = self.startState
 			handler = self.handlers[self.startState]
 		except:
 			raise StateMachineException("You must call .setStart() before .run()")
-		if not self.endStates:
+		if not self.terminalStates:
 			raise StateMachineException("There must be at least one terminal state")
 
-		while 1:
-			(newState, cargo) = handler(cargo)
-			if newState in self.endStates:
-				break
-			else:
-				handler = self.handlers[newState]
+		while self.currentState not in self.terminalStates:
+			handler()
+
+			# If nextState is different from the currentState, transition()
+			# has been called to flag a state transition.
+			if self.nextState != self.currentState:
+				print "changing state from %s to %s" % (self.currentState, self.nextState)
+				handler = self.handlers[self.nextState]
+				self.currentState = self.nextState
 
 class StateMachineException(errors.BEEPException):
 	def __init__(self, args=None):

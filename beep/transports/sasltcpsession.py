@@ -1,5 +1,5 @@
-# $Id: sasltcpsession.py,v 1.1 2002/08/13 14:39:33 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: sasltcpsession.py,v 1.2 2002/08/14 03:51:57 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -54,7 +54,7 @@ class SASLTCPListenerSession(tcpsession.TCPListenerSession, saslsession.SASLList
 		self.log.logmsg(logging.LOG_INFO, "%s: initialized" % self )
 		self.start()
 
-	def _stateINIT(self, None):
+	def _stateINIT(self):
 		self.log.logmsg(logging.LOG_DEBUG, "Waiting on old Session Thread to exit: %s" % self.oldsessionThread )
 		self.oldsessionThread.join()
 		self.log.logmsg(logging.LOG_DEBUG, "Old Session Thread finished: %s" % self.oldsessionThread )
@@ -62,8 +62,8 @@ class SASLTCPListenerSession(tcpsession.TCPListenerSession, saslsession.SASLList
 #			pass
 #		self.oldsessionThread.join(['30'])
 		self.log.logmsg(logging.LOG_INFO, "Tuning reset: reconnected to %s[%s]." % self.client_address )
-		tcpsession.TCPListenerSession._stateINIT(self, None)
-		return('ACTIVE', None)
+		tcpsession.TCPListenerSession._stateINIT(self)
+		return('ACTIVE')
 
 class SASLTCPInitiatorSession(tcpsession.TCPInitiatorSession, saslsession.SASLInitiatorSession):
 	def __init__(self, log, profileDict, host, port, sock, authentid, userid=None):

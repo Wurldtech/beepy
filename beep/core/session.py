@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.5 2002/08/13 14:37:35 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: session.py,v 1.6 2002/08/14 03:51:57 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -69,6 +69,16 @@ class Session(statemachine.StateMachine):
 		self.addState('EXITED', None, 1)
 		self.setStart('INIT')
 
+		# define the transitions
+		self.addTransition('INIT', 'ok', 'ACTIVE')
+		self.addTransition('ACTIVE', 'close', 'CLOSING')
+		self.addTransition('ACTIVE', 'error', 'TERMINATE')
+		self.addTransition('ACTIVE', 'reset', 'TUNING')
+		self.addTransition('CLOSING', 'error', 'ACTIVE')
+		self.addTransition('CLOSING', 'ok', 'TERMINATE')
+		self.addTransition('TUNING', 'ok', 'EXITED')
+		self.addTransition('TERMINATE', 'ok', 'EXITED')
+
 		self.log = log
 		self.sentGreeting = 0
 		self.receivedGreeting = 0
@@ -79,30 +89,31 @@ class Session(statemachine.StateMachine):
 		self.inbound = Queue.Queue(constants.MAX_INPUT_QUEUE_SIZE)
 		self.outbound = Queue.Queue(constants.MAX_INPUT_QUEUE_SIZE)
 
-	def _stateINIT(self, cargo=None):
+	def _stateINIT(self):
 		# Create channel 0 for this session
 		self.createChannelZero()
 
 		# go active when channelzero is online
-		return('ACTIVE', None)
+		self.transition('ok')
+		pass
 
-	def _stateACTIVE(self, cargo=None):
+	def _stateACTIVE(self):
 		""" overload _stateACTIVE in your subclass to implement the
 		    main processing loop
 		"""
 		raise NotImplementedError
 
-	def _stateCLOSING(self, cargo=None):
+	def _stateCLOSING(self):
 		""" _stateCLOSING attempts to shut down the session gracefully
 		"""
 		raise NotImplementedError
 
-	def _stateTUNING(self, cargo=None):
+	def _stateTUNING(self):
 		"""performs a tuning reset
 		"""
 		raise NotImplementedError
 
-	def _stateTERMINATE(self, cargo=None):
+	def _stateTERMINATE(self):
 		"""performs a tuning reset
 		"""
 		raise NotImplementedError
@@ -120,12 +131,39 @@ class Session(statemachine.StateMachine):
 		# Possibly change this to read all pending input frames
 		# up to a threshold for better scheduling.. 
 		# maybe variable for tuning?
-		theframe = self.recvFrame()
-		if( theframe ):
-#			self.log.logmsg(logging.LOG_DEBUG, "%s: unplexing frame" % self)
-			self.unplex(theframe)
+		self.unplexFrames()
 
 		# Now, process all channels, round robin style
+		self.processChannels()
+
+			# Now that that's over, get a pending frame and
+			# prepare it for sending over the wire
+		self.queueOutboundFrames()
+
+	# method to un-encapsulate frames recv'd from transport
+	def unplexFrames(self):
+		theframe = self.recvFrame()
+		if( theframe ):
+			if( theframe.frameType != 'data' ):
+				raise SessionException('Unknown Frame Type')
+			else:
+				if theframe.channelnum in self.channels.keys():
+					try:
+						self.channels[theframe.channelnum].push(theframe)
+					except channel.ChannelOutOfSequence, e:
+						# Out of sequence error terminates session without response, logs an error
+						self.log.logmsg(logging.LOG_ERR, "Channel %i out of sequence: %s" % (theframe.channelnum, e) )
+						raise TerminateException("Channel out of sequence")
+
+					except channel.ChannelRPYMsgnoInvalid, e:
+						self.log.logmsg(logging.LOG_NOTICE, "Channel %i received RPY with invalid msgno: %s" % (theframe.channelnum, e))
+				else:
+					# Attempted to send a frame to a non-existant channel number
+					# RFC says to terminate session
+					self.log.logmsg(logging.LOG_ERR, "Attempt to send frame to non-existant channel: %i" % theframe.channelnum)
+					raise TerminateException("Attempt to send to non-existant channel")
+
+	def processChannels(self):
 		chanlist = self.channels.keys()
 		for channelnum in chanlist:
 			# First up, get them to process inbound frames
@@ -138,36 +176,20 @@ class Session(statemachine.StateMachine):
 			except profile.ProfileException, e:
 				raise TerminateException(e)
 
-#			except Exception, e:
-#				self.log.logmsg(logging.LOG_INFO, "Exception in channel %i processMessages(): %s" % (channelnum, e))
-			# Now that that's over, get a pending frame and
-			# prepare it for sending over the wire
+			except Exception, e:
+				self.log.logmsg(logging.LOG_INFO, "Exception in channel %i processChannels(): %s" % (channelnum, e))
+
+	def queueOutboundFrames(self):
+		"""queueOutboundFrame() gets a single frame from each
+		   channel and places it on the outbound queue
+		"""
+		chanlist = self.channels.keys()
+		for channelnum in chanlist:
 			theframe = self.channels[channelnum].pull()
 			if( theframe ):
 				self.log.logmsg(logging.LOG_DEBUG, "sending data on channel %i: %s" % (channelnum, theframe) )
 				self.sendFrame(theframe)
 				del theframe
-
-	# method to un-encapsulate frames recv'd from transport
-	def unplex(self, theframe):
-		if( theframe.frameType != 'data' ):
-			raise SessionException('Unknown Frame Type')
-		else:
-			if theframe.channelnum in self.channels.keys():
-				try:
-					self.channels[theframe.channelnum].push(theframe)
-				except channel.ChannelOutOfSequence, e:
-					# Out of sequence error terminates session without response, logs an error
-					self.log.logmsg(logging.LOG_ERR, "Channel %i out of sequence: %s" % (theframe.channelnum, e) )
-					raise TerminateException("Channel out of sequence")
-
-				except channel.ChannelRPYMsgnoInvalid, e:
-					self.log.logmsg(logging.LOG_NOTICE, "Channel %i received RPY with invalid msgno: %s" % (theframe.channelnum, e))
-			else:
-				# Attempted to send a frame to a non-existant channel number
-				# RFC says to terminate session
-				self.log.logmsg(logging.LOG_ERR, "Attempt to send frame to non-existant channel: %i" % theframe.channelnum)
-				raise TerminateException("Attempt to send to non-existant channel")
 
 	# Open a new channel
 	def createChannel(self, channelnum, profile):
@@ -275,8 +297,7 @@ class Session(statemachine.StateMachine):
 
 	def recvFrame(self):
 		"""recvFrame() is used to get Frames from the inbound Queue for
-		processing by the Session. This is used by unplex() to place
-		Frames on the appropriate Channel
+		processing by the Session. 
 		It ignores an empty Queue condition since we want processing to
 		continue in that case.
 		"""

@@ -1,5 +1,5 @@
-# $Id: test_saslotpprofile.py,v 1.2 2003/01/01 23:37:39 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: test_saslotpprofile.py,v 1.3 2003/01/01 23:53:35 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -52,7 +52,7 @@ class SASLOTPProfileTest(unittest.TestCase):
 
 	def setUp(self):
 		self.log = logging.Log()
-		self.log.debuglevel = -1
+		self.log.debuglevel = 5
 
 	def test_createSASLOTPSession(self):
 		"""Test SASL OTP with no CDATA init"""

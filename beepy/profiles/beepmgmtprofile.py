@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: beepmgmtprofile.py,v 1.2 2003/01/01 23:53:34 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -30,7 +30,7 @@ from beepy.core import mgmtcreator
 from beepy.core import message
 #from beepy.core import session
 
-import beepy.core.session		# Have to do it this way, as beep.core.session imports
+import beepy.core.session		# Have to do it this way, as beepy.core.session imports
 					# this file.
 
 

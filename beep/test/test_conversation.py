@@ -1,5 +1,5 @@
-# $Id: test_conversation.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: test_conversation.py,v 1.3 2002/08/05 07:04:26 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -92,7 +92,7 @@ class ConversationTest(unittest.TestCase):
 		client.sendmsg('MSG 0 0 . 13 80\r\n<start number="6">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
 		data = client.getmsg()
 		client.terminate()
-		self.assertEqual(data, 'ERR 0 0 . 93 60\r\n<error code="501">\r\n  Syntax Error In Parameters\r\n</error>\r\nEND\r\n')
+		self.assertEqual(data, 'ERR 0 0 . 81 60\r\n<error code="501">\r\n  Syntax Error In Parameters\r\n</error>\r\nEND\r\n')
 		sess.close()
 		time.sleep(1)
 

@@ -1,5 +1,5 @@
-# $Id: test_client.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: test_client.py,v 1.3 2002/08/05 07:04:26 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -57,6 +57,7 @@ class ClientTest(unittest.TestCase):
 		time.sleep(1)
 		client.close()
 		listener.close()
+		time.sleep(1)
 
 if __name__ == '__main__':
 

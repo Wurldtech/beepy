@@ -1,8 +1,8 @@
-# $Id: saslotpprofile.py,v 1.6 2004/01/06 04:18:08 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: saslotpprofile.py,v 1.7 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -18,9 +18,10 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-#
-# This file implements the SASL OTP (One Time Password) mechanism as a profile
-#
+"""
+This module implements the SASL OTP (One Time Password)
+mechanism as a BEEPy profile.
+"""
 
 import saslprofile
 
@@ -43,8 +44,9 @@ __profileClass__ = "SASLOTPProfile"
 uri = "http://iana.org/beep/SASL/OTP"
 
 class SASLOTPProfile(saslprofile.SASLProfile):
-    """A SASLOTPProfile is a SASL Profile that implements
-       the OTP mechanism for one time password authentication.
+    """
+    A SASLOTPProfile is a SASL Profile that implements
+    the OTP mechanism for one time password authentication.
     """
 
     def __init__(self, session, profileInit=None, init_callback=None):
@@ -56,8 +58,9 @@ class SASLOTPProfile(saslprofile.SASLProfile):
         self.passphrase = ''
 
     def processFrame(self, theframe):
-        """All processFrame should do is move the session from
-           non-authenticated to authenticated.
+        """
+        All processFrame should do is move the session from
+        non-authenticated to authenticated.
         """
         self.channel.deallocateMsgno(theframe.msgno)
         try:
@@ -163,11 +166,12 @@ class SASLOTPProfile(saslprofile.SASLProfile):
         self.channel.sendMessage(data)
 
     def getPassphraseFromUser():
-        """When you implement an application that makes use of this
-           library, you will need to instanciate this class and
-           implement this function to interface with the user to
-           get the passphrase. It should return a string containing
-           the passphrase.
+        """
+        When you implement an application that makes use of this
+        library, you will need to instanciate this class and
+        implement this function to interface with the user to
+        get the passphrase. It should return a string containing
+        the passphrase.
         """
         raise NotImplementedError
 
@@ -178,9 +182,10 @@ class SASLOTPProfile(saslprofile.SASLProfile):
         return self.generator.authenticate(self.algo, self.session.userid, passhash)
 
     def parseResponse(self, data):
-        """parseResponse() converts whatever we received from the
-           other end into a bytestring. It needs to recognise
-           word:, hex:, init-word: and init-hex formats.
+        """
+        parseResponse() converts whatever we received from the
+        other end into a bytestring. It needs to recognise
+        word:, hex:, init-word: and init-hex formats.
         """
         # for now just string off the hex: at the beginning and
         # convert from hex to bytes
@@ -191,6 +196,10 @@ class SASLOTPProfile(saslprofile.SASLProfile):
         return data
 
     def setAlgorithm(self, algo):
+        """
+        Set the algorithm used for OTP.
+        Supported values are 'md5' or 'sha'.
+        """
         if self.algo != 'md5' or 'sha':
             raise ProfileException('Hash algorithm not supported')
         self.algo = algo
@@ -199,8 +208,9 @@ class SASLOTPProfile(saslprofile.SASLProfile):
         self.passphrase = passphrase
 
     def sendAuth(self, passphrase, authentid, userid=None):
-        """doAuthentication() performs the authentication phase of a OTP
-           session in a single call.
+        """
+        doAuthentication() performs the authentication phase of a OTP
+        session in a single call.
         """
         self.passphrase = passphrase
         self.session.authentid = authentid
@@ -214,8 +224,9 @@ class SASLOTPProfile(saslprofile.SASLProfile):
         return self.channel.sendMessage(data)
 
     def splitAuth(self, data):
-        """splitAuth() undoes the concatenation of userid and authentid
-           separated by a NUL character.
+        """
+        splitAuth() undoes the concatenation of userid and authentid
+        separated by a NUL character.
         """
         regex = re.compile('\000')
         parts = re.split(regex, data)
@@ -224,8 +235,9 @@ class SASLOTPProfile(saslprofile.SASLProfile):
         return parts
 
     def sendChallenge(self, msgno):
-        """sendChallenge() formats and sends a reply to the client
-           based on the userid and authentid sent as a message
+        """
+        sendChallenge() formats and sends a reply to the client
+        based on the userid and authentid sent as a message
         """
         try:
             challenge = self.generator.getChallenge(self.session.userid)
@@ -239,6 +251,10 @@ class SASLOTPProfile(saslprofile.SASLProfile):
             self.channel.sendError(msgno, data)
 
 class OTPUserEntry:
+    """
+    This class defines the values that are required for a user
+    entry in an OTP database.
+    """
     def __init__(self, username, algo, seed, passphrasehash, sequence):
         self.username = username
         self.algo = algo
@@ -247,35 +263,56 @@ class OTPUserEntry:
         self.sequence = sequence
 
 class OTPdbase:
-    """This is a Mixin class to provide standard OTP database
-       access methods.
+    """
+    This is a Mixin class to provide standard OTP database
+    access methods.
+
+    If you wanted to use a different database to store your
+    user OTP information in (such as an LDAP store) you would
+    subclass from this class and instruct your OTPProfile to
+    use your alternate database access class.
     """
 
     def __init__(self, dbasefile="OTPdbase.pik"):
         self.dbasefile = dbasefile
 
     def storeDBEntry(self, dbEntry):
-        """storeDBEntry() stores a single OTPUserEntry in the
-           database file set at initialisation. It uses the
-           shelve module.
+        """
+        storeDBEntry() stores a single OTPUserEntry in the
+        database file set at initialisation. It uses the
+        shelve module.
         """
         dbase = shelve.open(self.dbasefile)
         dbase[dbEntry.username] = dbEntry
         dbase.close()
 
     def retrieveDBEntry(self, username):
+        """
+        Retrieve a user entry from the database that
+        corresponds to the supplied username.
+
+        @param username: the user entry to retrieve.
+        """
         dbase = shelve.open(self.dbasefile)
         dbEntry = dbase[username]
         dbase.close
         return dbEntry
 
 class OTPGenerator(OTPdbase):
+    """
+    An OTPGenerator provides the methods required to generate
+    One Time Passwords.
+    """
     def __init__(self, dbasefile="OTPdbase.pik"):
 
         OTPdbase.__init__(self, dbasefile)
         self.otpDict = OTPDictionary()
 
     def promptAndGenerate(self):
+        """
+        A testing method used to create an OTP from
+        values entered at the command line.
+        """
         try:
             # Get the inputs and validate them
             username = raw_input("Enter username: ")
@@ -295,10 +332,11 @@ class OTPGenerator(OTPdbase):
             print "Error: %s" % e
 
     def createOTP(self, username, algo, seed, passphrase, sequence):
-        """createOTP() should be used if you want to get
-           all the relevent information using your own
-           user interface and just use the hash generation
-           code within this library.
+        """
+        createOTP() should be used if you want to get
+        all the relevent information using your own
+        user interface and just use the hash generation
+        code within this library.
         """
 
         passhash = self.createHash(username, algo, seed, passphrase, sequence)
@@ -310,6 +348,10 @@ class OTPGenerator(OTPdbase):
         return passhash
 
     def createHash(self, username, algo, seed, passphrase, sequence):
+        """
+        Create a hash of a passphrase based on the sequence number
+        and seed.
+        """
         # Convert seed to lower case
         seed = string.lower(seed)
 
@@ -323,6 +365,9 @@ class OTPGenerator(OTPdbase):
         return passphrasehash
 
     def validateUsername(self, username):
+        """
+        Check to make sure a username hasn't already been used.
+        """
         # See if an entry already exists for the user
         try:
             dbEntry = self.retrieveDBEntry(username)
@@ -332,6 +377,11 @@ class OTPGenerator(OTPdbase):
             pass
 
     def validatePassphrase(self, passphrase):
+        """
+        Check that a passphrase is a valid length.
+
+        @raise ValueError: if passphrase is invalid
+        """
         if not 10 < len(passphrase):
             raise ValueError("Passphrase too short")
 
@@ -339,6 +389,12 @@ class OTPGenerator(OTPdbase):
             log.notice("Passphrase longer than recommended length of 63 characters.")
 
     def validateSeed(self, seed):
+        """
+        Check that a seed is a valid length and doesn't contain
+        any invalid characters.
+
+        @raise ValueError: is seed is invalid
+        """
         if not 0 <= len(seed) < 16:
             raise ValueError("Seed length invalid")
 
@@ -348,15 +404,28 @@ class OTPGenerator(OTPdbase):
             raise ValueError("Invalid char in seed: %s" % match.group(0))
 
     def validateAlgorithm(self, algo):
+        """
+        Check that the algorithm is supported.
+
+        @raise ValueError: if algo is not supported
+        """
         if not algo == 'md5' or algo == 'sha':
             raise ValueError("Algorithm not supported")
 
     def validateSequence(self, seq):
+        """
+        Check that the sequence number is valid.
+        """
         if seq < 0:
             return 0
         return 1
 
     def generateHash(self, algo, data):
+        """
+        Generate a hash of the data.
+
+        @warning: only md5 hashes are currently supported.
+        """
         if algo == 'md5':
             md = md5.new(data).digest()
             # Fold into 64 bits
@@ -376,7 +445,10 @@ class OTPGenerator(OTPdbase):
             raise NotImplementedError
 
     def convertBytesToHex(self, bytestring):
-        """This method only accepts 8 byte bytestrings
+        """
+        Convert a bytestring to a string of hex characters.
+        
+        @warning: This method only accepts 8 byte bytestrings
         """
         if len(bytestring) != 8:
             raise ValueError('Illegal bytestring of length %d' % len(bytestring))
@@ -390,8 +462,11 @@ class OTPGenerator(OTPdbase):
         return retstring
 
     def convertHexToBytes(self, hexstring):
-        """This method converts a 16 character hex string
-           and converts it to a bytestring.
+        """
+        This method converts a 16 character hex string
+        to a bytestring.
+
+        @return: bytestring
         """
         bytes = ''
         if len(hexstring) != 16:
@@ -403,6 +478,11 @@ class OTPGenerator(OTPdbase):
         return bytes
 
     def convertBytesToLong(self, bytestring):
+        """
+        Converts an 8 byte bytestring to a long
+
+        @return: long
+        """
         if len(bytestring) != 8:
             raise ValueError('Invalid bytestring')
         bytes = struct.unpack('8B', bytestring)
@@ -413,6 +493,11 @@ class OTPGenerator(OTPdbase):
         return val
 
     def convertLongToBytes(self, hashlong):
+        """
+        Converts a long to an 8 byte bytestring
+
+        @return: bytestring
+        """
         bytes = []
         for i in range(8,0,-1):
             bytes.insert(0, chr(hashlong & 0xFF) )
@@ -425,18 +510,31 @@ class OTPGenerator(OTPdbase):
         return retstring
 
     def convertBytesToWords(self, bytestring):
+        """
+        Converts a bytestring to a string containing a
+        worded encoding of the bytes.
+
+        @return: string
+        """
         hashlong = self.convertBytesToLong(bytestring)
         return self.otpDict.convertHashlongToWords(hashlong)
 
     def convertWordsToBytes(self, wordstring):
+        """
+        Converts a series of words to the bytestring the
+        words have encoded.
+
+        @return: bytestring
+        """
         hashlong = self.otpDict.convertWordsToHashlong(wordstring)
         return self.convertLongToBytes(hashlong)
 
     def authenticate(self, algo, username, bytestring):
-        """authenticate() takes the username and passphrase hash it
-           receives (presumably from a client) and checks it
-           against the expected OTP in the dbase.
-           passhash is an 8 byte string
+        """
+        authenticate() takes the username and passphrase hash it
+        receives (presumably from a client) and checks it
+        against the expected OTP in the dbase.
+        passhash is an 8 byte string
         """
         dbEntry = self.retrieveDBEntry(username)
         mypasshash = self.generateHash(algo, bytestring)
@@ -449,8 +547,9 @@ class OTPGenerator(OTPdbase):
             return 1
 
     def getChallenge(self, username):
-        """getChallenge() looks up the username in the OTP dbase
-           and builds the appropriate OTP challenge string.
+        """
+        getChallenge() looks up the username in the OTP dbase
+        and builds the appropriate OTP challenge string.
         """
         challenge = 'otp-'
         dbEntry = self.retrieveDBEntry(username)
@@ -462,6 +561,13 @@ class OTPGenerator(OTPdbase):
         return challenge
 
 class OTPDictionary:
+    """
+    The OTPDictionary contains a list of 'words' used to encode
+    bytestrings into a human readable form that's easy to memorise
+    and respond to. This is mostly used for manual authentication
+    by humans. It's easier to get this right than having to enter
+    a string of hex digits.
+    """
     sixwords = [ 
             "A",     "ABE",   "ACE",   "ACT",   "AD",    "ADA",   "ADD",
         "AGO",   "AID",   "AIM",   "AIR",   "ALL",   "ALP",   "AM",    "AMY",

@@ -1,8 +1,8 @@
-# $Id: mgmtparser.py,v 1.2 2003/12/08 03:25:30 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: mgmtparser.py,v 1.1 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.1 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -18,33 +18,42 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-#
-# The BEEP Management Profile XML Parser
-# I'm being sneaky here so that I can use just what's available
-# within the Python Standard Library.
-# I want to use DOM, so I'm using minidom, but minidom doesn't
-# support parsing of CDATA sections. Dumb, but that's the way it
-# is. minidom _does_ support the creation of them and subsequent
-# output, so we cheat, using pyExpat to parse things in, but create
-# a minidom DOM document anyway, sidestepping the limitations of
-# minidom.
-# If minidom ever gets fixed up to support CDATA, we can do away
-# with this smoke and mirrors technique.
+"""
+The BEEP Management Profile XML Parser.
 
-import errors
-import message
-import logging
+I'm being sneaky here so that I can use just what's available
+within the Python Standard Library.
+I want to use DOM, so I'm using minidom, but minidom doesn't
+support parsing of CDATA sections. Dumb, but that's the way it
+is. minidom _does_ support the creation of them and subsequent
+output, so we cheat, using pyExpat to parse things in, but create
+a minidom DOM document anyway, sidestepping the limitations of
+minidom.
+
+If minidom ever gets fixed up to support CDATA, we can do away
+with this smoke and mirrors technique.
+"""
 
 import types
 import xml.dom.minidom
 import xml.parsers.expat
 import re
 
+from beepy.core import errors
+import message
+
+import logging
 log = logging.getLogger('MGMTParser')
 
 class Parser:
-
+    """
+    A Parser object takes in string encodings of XML documents
+    that represent a BEEP Management message
+    """
     def __init__(self, data=None):
+        """
+        Sets up an XML document parser.
+        """
         self.doc = None
         self.parser = xml.parsers.expat.ParserCreate()
         self.parser.StartElementHandler = self.startElementHandler
@@ -63,11 +72,18 @@ class Parser:
         self.close()
 
     def close(self):
+        """
+        Shutdown the parser and unlink any parsed documents
+        """
         self.flushParser()
         if self.doc:
             self.doc.unlink()
 
     def flushParser(self):
+        """
+        Zero the parser so that it is empty and ready to parse
+        a new message
+        """
         if self.parser:
             self.parser.Parse('',1)
             del self.parser
@@ -78,16 +94,19 @@ class Parser:
         self.parser.StartCdataSectionHandler = self.startCdataSectionHandler
         self.parser.EndCdataSectionHandler = self.endCdataSectionHandler
 
-    # Hand off some data to the parser
     def feed(self, data):
+        """
+        Hand off some data to the XML parser.
+        """
         try:
             self.parser.Parse(data, 0)
         except Exception, e:
             raise ParserException("Exception parsing document: %s" % e)
 
-    # Called when the beginning of a tag is found
     def startElementHandler(self, name, attrs):
-
+        """
+        Called when the beginning of a tag is found.
+        """
         # create the element and add its attributes
         element = self.doc.createElement(name)
         for attribname in attrs.keys():
@@ -96,8 +115,10 @@ class Parser:
         # plonk it on a stack in case this element has children
         self.elementStack.append(element)
 
-    # Called when an element close tag is found
     def endElementHandler(self, name):
+        """
+        Called when an element close tag is found.
+        """
         # we've just ended this element, so it should be 
         # on the top of the stack
         try:
@@ -123,12 +144,14 @@ class Parser:
             # That's, like, bad and stuff, so log an error
             raise ParserException("Possible bug: xml element started but not on stack: %s" % e)
 
-    # Called when character data is found
-    # Both normal text and CDATA text flag as character data
-    # so we use the extra flag self.withinCdataSection to
-    # know if we're within a CDATA section. Since a CDATA
-    # section isn't a container, we only need a boolean type flag.
     def dataHandler(self, data):
+        """
+        Called when character data is found.
+        Both normal text and CDATA text flag as character data
+        so we use the extra flag self.withinCdataSection to
+        know if we're within a CDATA section. Since a CDATA
+        section isn't a container, we only need a boolean type flag.
+        """
         # ignore nothing but whitespace
         whitespace = re.compile(r'^\s*$')
 
@@ -154,14 +177,24 @@ class Parser:
             self.elementStack.append(parent)
 
     def startCdataSectionHandler(self):
+        """
+        Called when the start of a CDATA section is found
+        """
         self.withinCdataSection = 1
 
     def endCdataSectionHandler(self):
+        """
+        Called when the end of a CDATA section is found
+        """
         self.withinCdataSection = 0
 
-    # Check to see if the message contains at least one profile tag
+
     def hasProfile(self, message=None):
+        """
+        Check to see if the message contains at least one profile tag.
+        """
         if message:
+        
             self._parseData(message)
 
         if not self.doc:
@@ -172,6 +205,11 @@ class Parser:
             return 1
 
     def getProfiles(self, message=None):
+        """
+        Get all the profiles in the message.
+
+        @return: DOM nodes with tagname of profile
+        """
         if message:
             self._parseData(message)
 
@@ -181,6 +219,11 @@ class Parser:
         return self.doc.getElementsByTagName('profile')
 
     def getProfileURIs(self, message=None):
+        """
+        Get all the profile URIs in the message.
+
+        @return: list of DOM nodes
+        """
         if message:
             self._parseData(message)
 
@@ -194,11 +237,19 @@ class Parser:
 
         return uriList
 
-    # A start message has 1 <start> element that is a child of
-    # the document root. It must have a number attrib, may have
-    # a serverName attrib and must have at least one profile
-    # element.
     def isStartMessage(self, message=None):
+        """
+        Check to see if this is a <start> message.
+
+        A start message has 1 <start> element that is a child of
+        the document root. It must have a number attrib, may have
+        a serverName attrib and must have at least one profile
+        lement.
+
+        @return: 1 if this is a <start> message.
+
+        @raise ParserException: if XML document is invalid
+        """
         if message:
             self._parseData(message)
 
@@ -211,9 +262,17 @@ class Parser:
         if len(nodelist) >= 1:
             raise ParserException("Too Many start Elements")
 
-    # A close message has 1 <close> element. It must have a number
-    # attrib as well as a code attrib.
     def isCloseMessage(self, message=None):
+        """
+        Check to see if this is a <close> message.
+        
+        A close message has 1 <close> element. It must have a number
+        attrib as well as a code attrib.
+
+        @return: 1 is this is a <close> message.
+
+        @raise ParserException: if XML document is invalid
+        """
         if message:
             self._parseData(message)
 
@@ -227,6 +286,13 @@ class Parser:
             raise ParserException("Too Many close Elements")
 
     def isOKMessage(self, message=None):
+        """
+        Check to see if this is an <ok> message.
+
+        @return: 1 if this is an <ok> message.
+
+        @raise ParserException: if XML document is invalid
+        """
         if message:
             self._parseData(message)
 
@@ -240,6 +306,13 @@ class Parser:
             raise ParserError("Too Many ok Elements")
 
     def isErrorMessage(self, message=None):
+        """
+        Check to see if this is an <error> message.
+
+        @return: 1 if this is an <error> message.
+
+        @raise ParserException: if XML document is invalid.
+        """
         if message:
             self._parseData(message)
 
@@ -253,6 +326,11 @@ class Parser:
             return 1
 
     def getStartChannelNum(self, message=None):
+        """
+        Get the channel number from a <start> message.
+
+        @return: string, the channel number
+        """
         if message:
             self._parseData(message)
 
@@ -263,6 +341,11 @@ class Parser:
         return nodelist[0].getAttribute('number')
 
     def getCloseChannelNum(self, message=None):
+        """
+        Get the channel number from a <close> message.
+
+        @return: string, the channel number
+        """
         if message:
             self._parseData(message)
 
@@ -273,6 +356,11 @@ class Parser:
         return nodelist[0].getAttribute('number')
 
     def getErrorCode(self, message=None):
+        """
+        Get the code from an <error> message.
+
+        @return: string, the error code
+        """
         if message:
             self._parseData(message)
 
@@ -283,6 +371,11 @@ class Parser:
         return nodelist[0].getAttribute('code')
 
     def getErrorString(self, message=None):
+        """
+        Get the description from an <error> message.
+
+        @return: string, the error description
+        """
         if message:
             self._parseData(message)
 
@@ -298,6 +391,13 @@ class Parser:
         return newnode.nodeValue
 
     def parse(self, data):
+        """
+        Parse a bytestring as an XML document encoding a
+        BEEP Management message.
+
+        @param data: the data to parse.
+        @type data: bytestring
+        """
         try:
             self._parseData(data)
             type = self._getMessageType()
@@ -307,6 +407,11 @@ class Parser:
             raise ParserException("%s" % e)
 
     def _parseData(self, data):
+        """
+        The internal parsing mechanism, used to create an XML DOM.
+
+        @raise ParserException: if XML is invalid.
+        """
         if type(data) == types.NoneType:
             # Passed in an empty data object, return None
             return None
@@ -335,14 +440,22 @@ class Parser:
             except Exception, e:
                 raise ParserException('Bad XML: %s' % e)
 
-    # The message type should be the first child node of the doc
-    # This is probably really fragile
     def _getMessageType(self):
+        """
+        The message type should be the first child node of the doc
+        This is probably really fragile.
+
+        I don't think this is used anywhere. Should be removed.
+        """
         children = self.doc.childNodes
         if len(children) != 1:
             raise ParserException('too many child nodes')
         return self.doc.childNodes[0].nodeName
 
 class ParserException(errors.BEEPException):
+    """
+    Exception raised if there are any errors during parsing
+    of XML data.
+    """
     def __init__(self, args=None):
         self.args = args

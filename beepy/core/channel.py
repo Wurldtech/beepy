@@ -1,8 +1,8 @@
-# $Id: channel.py,v 1.7 2003/12/09 02:37:30 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: channel.py,v 1.8 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -18,11 +18,13 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-#
-# Channel object
-# It's quite possible some locking may be required here
-# due to the threading of Sessions. Not sure yet.
-# Have to analyse the concurrency once the code stabilises a bit
+
+"""
+Channel related code
+
+@version: $Revision: 1.8 $
+@author: Justin Warren
+"""
 
 import constants
 import errors
@@ -35,14 +37,30 @@ import Queue
 log = logging.getLogger('Channel')
 
 class Channel:
+    """
+    A Channel object is an abstraction of a BEEP channel running over some
+    form of transport.
+    """
     channelnum = -1            # Channel number
     localSeqno = -1L        # My current Sequence number
     remoteSeqno = -1L        # Remote Sequence number
     profile = None            # channel Profile
-    state = 0
+#    state = 0
 
     # Create a new channel object
     def __init__(self, channelnum, profile, session):
+        """
+        @type channelnum: integer
+        @param channelnum: The number to assign to this Channel object
+
+        @type profile: Profile
+        @param profile: The Profile object to bind to this channel
+
+        @type session: Session
+        @param session: The Session object this Channel belongs to
+
+        @raise ChannelException: when the channel number is out of bounds.
+        """
         try:
             assert( constants.MIN_CHANNEL <= channelnum <= constants.MAX_CHANNEL)
             self.state = constants.CHANNEL_STARTING
@@ -71,18 +89,27 @@ class Channel:
         except AssertionError:
             raise ChannelException('Channel number %s out of bounds' % channelnum)
 
-    # Send frame over this channel
-    # Used by Profiles
-    def send(self, frame ):
+    def send(self, frame):
+        """
+        Used to send a frame over this channel. Predominantly used by
+        the Profile bound to this channel to send frames.
+        send() passes the frame to the Session and its associated
+        transport layer.
+
+        @type frame: a DataFrame object
+        @param frame: the DataFrame to send
+        """
         self.session.sendFrame(frame)
 
-    # Receive frame from this channel
-    # Used by Profiles
-    def recv(self):
-        """recv() is used by Profiles to receive
+    def _recv(self):
+        """
+        recv() is used by Profiles to receive
         frames from the Channel inbound Queue for
         processing in their processMessages() method.
         It ignores a Queue.Empty condition.
+        
+        Deprecated.
+        
         """
         if self.state is constants.CHANNEL_ACTIVE:
             try:
@@ -94,15 +121,22 @@ class Channel:
 
     # interface to Session
     def validateFrame(self, theframe):
-        """push() is used by a Session when it receives a frame
-        off the wire to place it into the Channel. The Channel
-        can then do some quick checks on the content of the frame
-        to make sure that it is contextually valid.
-        This is not syntax checking, that gets handled when the
-        Frame object is created.
         """
-        if self.state is not constants.CHANNEL_ACTIVE:
-            raise ChannelStateException('Channel not active')
+        Performs sanity checking on an inbound Frame before it is
+        passed to a profile for processing.
+
+        @type theframe: DataFrame
+        @param theframe: the DataFrame to validate
+
+        @raise ChannelStateException: if Channel is not active
+        @raise ChannelOutOfSequence: if frame seqno is not expected value
+        @raise ChannelException: if frametype is incorrect
+        @raise ChannelException: if frame msgno is not expected value
+        @raise ChannelMsgnoInvalid: if frame msgno is invalid
+
+        """
+#        if self.state is not constants.CHANNEL_ACTIVE:
+#            raise ChannelStateException('Channel not active')
         # check sequence number
         if theframe.seqno != self.remoteSeqno:
             raise ChannelOutOfSequence("Expected seqno: %i but got %i" % (self.remoteSeqno, theframe.seqno))
@@ -141,20 +175,33 @@ class Channel:
                     raise ChannelMsgnoInvalid('msgno %i not valid' % theframe.msgno)
 
     def processFrame(self, theframe):
-        """ This method is called when a frame is received
-	for this channel.
+        """
+        Called by a Session when it receives a frame on this Channel
+        to process the frame.
+
+        @type theframe: DataFrame
+        @param theframe: the DataFrame to process
 	"""
 	self.validateFrame(theframe)
 	## Once validated, the frame can be processed by the profile
 	self.profile.processFrame(theframe)
         pass
 
-    # Method for allocating the next sequence number
     # seqno = last_seqno + size and wraps around constants.MAX_SEQNO
-    # FIXME
-    # This code may need to be mutexed. Have to analyse the
-    # amount of concurrency.
+
     def allocateRemoteSeqno(self, msgsize):
+        """
+        Allocate the next sequence number for the remote side of
+        a channel connection.
+
+        Wraps to zero at MAX_SEQNO.
+
+        @type msgsize: integer
+        @param msgsize: the size of the message this seqno is for
+
+        @return: an integer sequence number for the message
+        """
+        
         new_seqno = self.remoteSeqno
         self.remoteSeqno += msgsize
         if self.remoteSeqno > constants.MAX_SEQNO:
@@ -162,6 +209,17 @@ class Channel:
         return new_seqno
 
     def allocateLocalSeqno(self, msgsize):
+        """
+        Identical to allocateRemoteSeqno() only used for the local
+        side of a Channel connection.
+
+        Wraps to zero at MAX_SEQNO.
+
+        @type msgsize: integer
+        @param msgsize: the size of the message this seqno is for
+
+        @return: an integer sequence number for the message
+        """
         new_seqno = self.localSeqno
         self.localSeqno += msgsize
         if self.localSeqno > constants.MAX_SEQNO:
@@ -175,14 +233,18 @@ class Channel:
     # replies.
     # This algorithm allocates the lowest available msgno
     def allocateMsgno(self):
-        """allocateMsgno() allocates a unique msgno for a message
+        """
+        allocateMsgno() allocates a unique msgno for a message
         by checking a list of allocated msgnos and picking the
         lowest number not already allocated. Allocated msgnos
         should be removed from the list when the complete reply
         to the message is received. See deallocateMsgno().
-        inputs: None
-        outputs: msgno
-        raises: ChannelOutOfMsgnos
+        
+        @raise ChannelOutOfMsgnos: if no more msgnos can be allocated for
+        this channel. This shouldn't ever happen, but if it does, messages
+        are not being acknowledged by the remote peer. Alternately, the
+        transport layer may be experiencing delays.
+
         """
         msgno = self.nextMsgno
         while msgno in self.allocatedMsgnos:
@@ -208,32 +270,32 @@ class Channel:
 
     # This method frees a msgno to be allocated again
     def deallocateMsgno(self, msgno):
-        """deallocateMsgno() deallocates a previously allocated
+        """
+        deallocateMsgno() deallocates a previously allocated
         msgno. This should be called when a complete reply to a
         message is received and processed. This is most likely
         to be used from within a profile to signify that the
         message has been completely dealt with.
-        inputs: msgno
-        outputs: None
-        raises: None
+
+        @type msgno: integer
+        @param msgno: the msgno of a received message reply.
         """
 
         if msgno in self.allocatedMsgnos:
             self.allocatedMsgnos.remove(msgno)
             log.debug("Channel %d: Deallocated msgno: %s" % (self.channelnum, msgno) )
-
-    def isMessageOutstanding(self, msgno=None):
-        """isMessageOutstanding() checks to see if a particular
-           message that was previously sent has been acknowledged.
-        """
-        if not msgno:
-            if len(self.allocatedMsgnos) > 0:
-                return 1
-        elif msgno in self.allocatedMsgnos:
-            return 1
-        return 0
-
     def allocateLocalAnsno(self, msgno):
+        """
+        Similar to allocateMsgno(), allocates a local ansno for a
+        given msgno.
+
+        Wraps to MIN_ANSNO at MAX_ANSNO.
+
+        @param msgno: the msgno to associate with the ansno
+        @type msgno: integer
+
+        @return: integer, The allocated ansno
+        """
         if msgno not in self.localAnsno.keys():
             self.localAnsno[msgno] = constants.MIN_ANSNO
 
@@ -243,13 +305,34 @@ class Channel:
             self.localAnsno[msgno] = constants.MIN_ANSNO
         return new_ansno
 
+    def isMessageOutstanding(self, msgno=None):
+        """
+        isMessageOutstanding() checks to see if a particular
+        message that was previously sent has been acknowledged.
+        If no msgno is supplies, checks to see if there are any
+        outstanding messages on this channel.
+
+        @param msgno: msgno to check
+        @type msgno: integer
+        """
+        if not msgno:
+            if len(self.allocatedMsgnos) > 0:
+                return 1
+        elif msgno in self.allocatedMsgnos:
+            return 1
+        return 0
+
+
     # Send a frame of type MSG
     def sendMessage(self, data, more=constants.MoreTypes['.']):
-        """sendMessage() is used for sending a frame of type MSG
-        It raises a ChannelQueueFull exception.
-        inputs: data, the payload of the message
-                more, a constants.MoreType designating if this is the last message
-        outputs: msgno, the msgno of the message that was sent
+        """
+        sendMessage() is used for sending a frame of type MSG
+
+        @param data: the payload of the message
+        @param more: a constants.MoreType designating if this is the
+        last message
+
+        @return: integer, the msgno of the message that was sent
         """
 
         size = len(data)
@@ -267,9 +350,17 @@ class Channel:
 
     # msgno here is the msgno to which this a reply
     def sendReply(self, msgno, data, more=constants.MoreTypes['.']):
-        """sendReply() is used for sending a frame of type RPY
+        """
+        sendReply() is used for sending a frame of type RPY
+        
         The msgno here is the msgno of the message to which this is a reply.
-        It raises a ChannelQueueFull exception.
+
+        @param msgno: The msgno for which this is the reply.
+        @type msgno: integer
+        
+        @param data: The RPY payload
+        @param more: a continuation indicator
+        
         """
         # First check we are responding to a MSG frame we received
         if msgno not in self.receivedMsgnos:
@@ -286,10 +377,15 @@ class Channel:
             log.debug("%s" % traceback.print_exc() )
 
     def sendGreetingReply(self, data):
-        """sendGreetingReply() is identical to sendReply except that
-           it doesn't check for a received Msgno as there isn't one.
-           The msgno for this message is set to 0 as this must be
-           the first frame sent.
+        """
+        sendGreetingReply() is used to send the initial greeting message
+        when a peer connects. It is identical to sendReply except that
+        it doesn't check for a received Msgno as there isn't one.
+        The msgno for this message is set to 0 as this must be
+        the first frame sent.
+
+        @param data: the greeting frame payload
+        
         """
         size = len(data)
         seqno = self.allocateLocalSeqno(size)
@@ -304,10 +400,13 @@ class Channel:
 
     # seqno and more are not required for ERR frames
     # msgno is the MSG to which this error is a reply
-    def sendError(self, msgno, data ):
-        """sendError() is used for sending a frame of type ERR
-        The msgno here is the msgno of the message to which this is a reply.
-        It raises a ChannelQueueFull exception.
+    def sendError(self, msgno, data):
+        """
+        sendError() is used for sending a frame of type ERR
+
+        @param msgno: the msgno this error is raised in reply to
+        @param data: the payload of the ERR frame
+        
         """
         size = len(data)
         seqno = self.allocateLocalSeqno(size)
@@ -322,9 +421,13 @@ class Channel:
 
     # msgno here is the msgno to which this an answer
     def sendAnswer(self, msgno, data, more=constants.MoreTypes['.']):
-        """sendAnswer() is used for sending a frame of type ANS
-        The msgno here is the msgno of the message to which this is an answer.
-        It raises a ChannelQueueFull exception.
+        """
+        sendAnswer() is used for sending a frame of type ANS
+
+        @param msgno: the msgno this ANS is in reply to
+        @param data: the payload of the ANS frame
+        @param more: a continuation indicator for if there are more ANS
+        frames to follow.
         """
         size = len(data)
         seqno = self.allocateLocalSeqno(size)
@@ -340,11 +443,15 @@ class Channel:
             log.debug("%s" % traceback.print_exc() )
 
     def sendNul(self, msgno):
-        """sendNul() is used for sending a frame of type NUL
+        """
+        sendNul() is used for sending a frame of type NUL
 
-           NUL frames are used to finish a series of ANS frames
-           in response to a MSG. The msgno here is the msgno of the
-           message to which the previous ANS frames were an answer to.
+        NUL frames are used to finish a series of ANS frames
+        in response to a MSG. The msgno here is the msgno of the
+        message to which the previous ANS frames were an answer to.
+
+        @param msgno: the msgno all previous ANS frames have been in
+        response to, and to which this is the final response frame.
         """
         try:
             seqno = self.allocateLocalSeqno(0)
@@ -358,23 +465,14 @@ class Channel:
             log.info("Data Encapsulation Failed: %s" % e)
             log.debug("%s" % traceback.print_exc() )
 
-    def processFrames(self):
-        """processFrames is called by a Session to get this
-        Channel to process any pending frames. This gets
-        handled by the Profile bound to this Channel.
-        """
-        if self.profile:
-            self.profile.processMessages()
-        else:
-            raise ChannelException('No profile bound to channel')
-
     def close(self):
-        """close() attempts to close the Channel.
+        """
+        close() attempts to close the Channel.
+        
         A Channel is not supposed to close unless all messages
         sent on the channel have been acknowledged.
-        inputs: none
-        outputs: none
-        raises: ChannelMessagesOutstanding, if not all sent messages
+
+        @raise ChannelMessagesOutstanding: if not all sent messages
                 have been acknowledged.
         """
         if len(self.allocatedMsgnos) > 0:
@@ -382,34 +480,6 @@ class Channel:
 
         del self.inbound
         del self.profile
-
-    def transition(self, newstate):
-        """transition() attempts to move the Channel to the
-        requested state, performing various state transition
-        checks before it does.
-        """
-        if newstate is constants.CHANNEL_STOPPED:
-            if self.state != constants.CHANNEL_CLOSING or constants.CHANNEL_STARTING:
-                raise ChannelCannotTransition("Cannot move to STOPPED unless CLOSING or STARTING")
-            else:
-                self.state = constants.CHANNEL_STOPPED
-#        elif newstate is constants.CHANNEL_STARTING:
-#            if self.state is not constants.CHANNEL_STOPPED:
-#                raise ChannelCannotTransition("Cannot move to STARTING unless STOPPED")
-#            else:
-#                self.state = constants.CHANNEL_STARTING
-        elif newstate is constants.CHANNEL_ACTIVE:
-            if self.state is not constants.CHANNEL_STARTING and constants.CHANNEL_CLOSING:
-                raise ChannelCannotTransition("Cannot move to ACTIVE unless STARTING or CLOSING")
-            else:
-                self.state = constants.CHANNEL_ACTIVE
-        elif newstate is constants.CHANNEL_CLOSING:
-            if self.state is not constants.CHANNEL_ACTIVE:
-                raise ChannelCannotTransition("Cannot move to CLOSING unless ACTIVE")
-            else:
-                self.state = constants.CHANNEL_CLOSING
-        else:
-            raise ChannelCannotTransition("invalid state: %s" % newstate)
 
 # Exception classes
 class ChannelException(errors.BEEPException):

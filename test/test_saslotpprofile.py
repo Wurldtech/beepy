@@ -1,8 +1,8 @@
-# $Id: test_saslotpprofile.py,v 1.10 2004/01/06 04:18:08 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: test_saslotpprofile.py,v 1.11 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -25,11 +25,11 @@ import time
 
 sys.path.append('..')
 
-from beepy.transports.twistedsession import SASLServerFactory
-from beepy.transports.twistedsession import SASLClientProtocol
-from beepy.transports.twistedsession import SASLClientFactory
+from beepy.transports.tcp import SASLServerFactory
+from beepy.transports.tcp import SASLClientProtocol
+from beepy.transports.tcp import SASLClientFactory
 
-from twisted.internet import reactor, error
+from beepy.transports.tcp import reactor
 
 from beepy.profiles import saslotpprofile
 from beepy.profiles import echoprofile

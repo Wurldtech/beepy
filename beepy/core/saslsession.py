@@ -1,8 +1,8 @@
-# $Id: saslsession.py,v 1.4 2004/01/06 04:18:07 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: saslsession.py,v 1.5 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -19,6 +19,19 @@
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 
+"""
+Specialised classes for SASL operation of sessions.
+
+Adds a userid and an authentid to a standard session as well
+as some methods to query these variables by applications.
+
+You would use these classes when you're writing something that
+makes use of SASL authentication.
+
+@version: $Revision: 1.5 $
+@author: Justin Warren
+"""
+
 from beepy.core.session import Session, Listener, Initiator, SessionException
 
 import logging
@@ -26,6 +39,9 @@ from beepy.core import debug
 log = logging.getLogger('SASLSession')
 
 class SASLSession(Session):
+    """
+    A base Session subclass used for SASL sessions.
+    """
     userid = None
     authentid = None
 
@@ -44,23 +60,25 @@ class SASLSession(Session):
         raise SessionException('Authentication Failed')
         
     def useridRequested(self):
-        """ This is a callback that should be overloaded in servers
+        """
+        This is a callback that should be overloaded in servers
         or client for when authentication information is required.
         """
         log.debug('userid requested')
         raise NotImplementedError('useridRequested must be defined')
     
     def authentidRequested(self):
-        """ This is a callback that should be overloaded in servers
+        """
+        This is a callback that should be overloaded in servers
         or clients for when authentication information is required.
         """
         log.debug('authentid requested')
         raise NotImplementedError('authentidRequested must be defined')
 
 class SASLListener(Listener, SASLSession):
-    """ A SASL Listener
+    """ A SASL capable Listener
     """
 
 class SASLInitiator(Initiator, SASLSession):
-    """ A SASL Initiator
+    """ A SASL capable Initiator
     """

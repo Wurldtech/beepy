@@ -1,14 +1,33 @@
+# $Id: saslanonclient.py,v 1.2 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.2 $
+#
+#    BEEPy - A Python BEEP Library
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
+#
+#    This library is free software; you can redistribute it and/or
+#    modify it under the terms of the GNU Lesser General Public
+#    License as published by the Free Software Foundation; either
+#    version 2.1 of the License, or (at your option) any later version.
+#
+#    This library is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#    Lesser General Public License for more details.
+#
+#    You should have received a copy of the GNU Lesser General Public
+#    License along with this library; if not, write to the Free Software
+#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
 ## This test client authenticates via SASL Anonymous
 ## before opening a channel with the echo profile
 
 import sys
 sys.path.append('..')
 
-from beepy.transports.twistedsession import SASLClientProtocol
-from beepy.transports.twistedsession import SASLClientFactory
+from beepy.transports.tcp import SASLClientProtocol
+from beepy.transports.tcp import SASLClientFactory
 
-from twisted.internet import reactor
-from twisted.application import internet, service
+from beepy.transports.tcp import reactor
 
 from beepy.profiles import echoprofile
 from beepy.profiles import saslanonymousprofile
@@ -51,8 +70,8 @@ class SASLAnonClientProtocol(SASLClientProtocol):
         else:
             log.debug('Unknown channel created: %d' % channelnum)
 
-    def authenticationComplete(self):
-        log.debug('overloaded authComplete')
+    def authenticationSucceeded(self):
+        log.debug('Authentication Succeeded!')
         self.echochannel = self.newChannel(echoprofile)
 
 class SASLAnonClientFactory(SASLClientFactory):

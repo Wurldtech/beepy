@@ -1,8 +1,8 @@
-# $Id: session.py,v 1.12 2004/01/06 04:18:07 jpwarren Exp $
-# $Revision: 1.12 $
+# $Id: session.py,v 1.13 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.13 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -18,8 +18,13 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-#
-# Session object
+
+"""
+This module defines the Session layer API for BEEPy.
+Applications will spend a large amount of time interacting
+with the API defined here, in concert with beepy.channel
+and the transport layer.
+"""
 
 import socket
 import threading
@@ -28,14 +33,10 @@ import traceback
 import logging
 
 import debug
-import util
-import statemachine
 import constants
 import errors
 import channel
 import frame
-import mgmtparser
-import mgmtcreator
 
 from beepy.profiles import profile
 from beepy.profiles import beepmgmtprofile
@@ -53,25 +54,31 @@ TUNING = 5
 
 class Session:
     """
-    The Session class is an abstract class with only core functions
-    implemented. All transport related functions remain unimplemented
-    and should be implemented in a class that inherits from Session
+    A Session is the main entity relating to a BEEP peer connection. A
+    session represents a single connection to a remote peer and can contain
+    numerous channels for processing.
     """
 
     def __init__(self):
-
+        """
+        Create a new Session.
+        """
         self.state = PRE_GREETING
         self.channels = {}
         self.ID = 0
 
         self.profileDict = profile.ProfileDict()
 
-        self.inbound = util.DataQueue(constants.MAX_INPUT_QUEUE_SIZE)
-        self.outbound = util.DataQueue(constants.MAX_INPUT_QUEUE_SIZE)
-
         self.setStartingChannelNum()
 
     def setStartingChannelNum(self):
+        """
+        Sets the channel number of the first channel that should be
+        created. This is used to differentiate between Listener channels
+        and Initiator channels.
+
+        Is overridden in subclasses.
+        """
         print "Called as a", self
         if isinstance(self, Listener):
             print "I am a listener"
@@ -80,16 +87,24 @@ class Session:
         
         raise NotImplementedError
 
-    def setID(self, sessId):
+    def _setID(self, sessId):
         self.ID = sessId
 
     def processFrame(self, theframe):
-        """ Allocate a given frame to the channel it belongs to
-        and call the channel's processing method
+        """
+        Allocate a given frame to the channel it belongs to
+        and call the channel's processing method.
+
+        @param theframe: the frame to process
+        @type theframe: a DataFrame object
         """
         if self.channels.has_key(theframe.channelnum):
             try:
                 self.channels[theframe.channelnum].processFrame(theframe)
+
+            except TerminateException, e:
+                self.close()
+                
             except Exception, e:
                 raise
         else:
@@ -97,19 +112,48 @@ class Session:
             raise SessionException('Invalid Channel Number')
 
     def addProfile(self, profileModule):
-        """ This method adds a given profile to the Session so that
+        """
+        This method adds a given profile to the Session so that
         it is known to be a supported profile. It will then get
         advertised in greeting messages and be able to be bound
-        to a channel, and suchlike
+        to a channel, and suchlike.
+
+        @param profileModule: the profile to add
+        @type profileModule: an imported module reference
         """
         self.profileDict.addProfile(profileModule)
 
-    # Open a new channel
     def createChannel(self, channelnum, profile):
+        """
+        Creates a new channel with the given channel number
+        and binds the given profile to it for processing.
+
+        @param channelnum: the channel number for the channel
+        @type channelnum: integer
+
+        @param profile: the profile to bind to the channel
+        @type profile: a Profile object
+        """
         newchan = channel.Channel(channelnum, profile, self)
         self.channels[channelnum] = newchan
 
     def createChannelFromURIList(self, channelnum, uriList, profileInit=None):
+        """
+        Attempts to create a channel given a list of possible profiles
+        to bind to the channel. Searches the Session's ProfileDict for
+        the first supported profile and then creates a channel bound to
+        that profile.
+
+        This is used on the Listener side of a connection.
+
+        @param channelnum: the channel number of the channel to create
+        @param uriList: a list of URIs in order of preference
+        @param profileInit: a method to use for create time initialisation
+        of the channel's profile
+
+        @return: the URI of the profile used to create the channel
+        
+        """
         if not self.profileDict:
             log.critical("Session's profileDict is undefined!")
             raise SessionException("Session's profileDict is undefined!")
@@ -145,6 +189,9 @@ class Session:
         raise SessionException("Profile not supported by Session")
 
     def closeAllChannels(self):
+        """
+        Attempts to close all channels on this Session
+        """
         try:
             chanlist = self.channels.keys()
             log.debug("Channels to close: %s" % chanlist)
@@ -163,7 +210,8 @@ class Session:
             traceback.print_exc()
 
     def shutdown(self):
-        """attempts to close all the channels in a session
+        """
+        Attempts to close all the channels in a session
         before closing down the session itself.
         """
         log.debug('shutdown() started...')
@@ -172,9 +220,12 @@ class Session:
         self.state = CLOSED
 
     def tuningReset(self):
-        """ A tuning reset causes all channels, including channel
+        """
+        A tuning reset causes all channels, including channel
         Zero to be closed and a new channel zero to be created,
         with a new greeting sent.
+        
+        This is used for turning on TLS.
         """
         self.state = TUNING
         self.deleteAllChannels()
@@ -184,6 +235,12 @@ class Session:
         self.createChannelZero()
 
     def deleteChannel(self, channelnum):
+        """
+        Delete a single channel from the Session
+
+        @param channelnum: the channel number to delete
+        @type channelnum: integer
+        """
         log.debug("sessID %d: Deleting channel %d..." % (self.ID, channelnum) )
         if self.channels.has_key(channelnum):
             try:
@@ -198,12 +255,19 @@ class Session:
             raise SessionException('No such channel')
 
     def deleteAllChannels(self):
+        """
+        Attempt to delete all channels on the session
+        """
         chanlist = self.channels.keys()
         for channelnum in chanlist:
             del self.channels[channelnum]
 
     def createChannelZero(self):
-        """Create the Channel 0 for the Session.
+        """
+        Create the Channel 0 for the Session.
+        A special case of createChannel that explicitly binds the channel
+        to the BEEPManagementProfile.
+        
         Should only get called once when a Session initialises
         """
         if self.channels.has_key(0):
@@ -215,30 +279,45 @@ class Session:
             self.createChannel(0, profile)
 
     def isChannelActive(self, channelnum):
-        """This method provides a way of figuring out if a channel is
-           running.
+        """
+        This method provides a way of figuring out if a channel is
+        running.
+
+        @param channelnum: the channel number to check
+        @type channelnum: int
         """
         if self.channels.has_key(channelnum):
             return 1
         else:
             return 0
 
-    def getActiveChannel(self, channelnum):
-        """This method provides a way of getting the channel object
-           by number.
+    def _getActiveChannel(self, channelnum):
+        """
+        This method provides a way of getting the channel object
+        by number.
+
+        Deprecated
         """
         if self.isChannelActive(channelnum):
             return self.channels[channelnum]
         return None
 
-    def isChannelError(self, channelnum):
+    def _isChannelError(self, channelnum):
+        """
+        Checks to see if the channel has encountered an error condition.
+
+        Deprecated.
+        """
         return self.channels[0].profile.isChannelError(channelnum)
 
-    def flushChannelOutbound(self):
-        """This method gets all pending messages from all channels
-           one at a time and places them on the Session Outbound Queue.
-           This should probably only be used in Tuning Resets, but you
-           never know when it might come in handy.
+    def _flushChannelOutbound(self):
+        """
+        This method gets all pending messages from all channels
+        one at a time and places them on the Session Outbound Queue.
+        This should probably only be used in Tuning Resets, but you
+        never know when it might come in handy.
+
+        Deprecated.
         """
         chanlist = self.channels.keys()
         for channelnum in chanlist:
@@ -248,39 +327,16 @@ class Session:
                 self.sendFrame(theframe)
                 del theframe
 
-    def sendFrame(self, theframe):
-        """sendFrame() is used to place outbound Frames onto the
-        output Queue for later collection by the transport layer
-        and sending over the wire. It converts a Frame into the
-        data representation of the Frame before it is placed on the Queue.
-        If the Queue is full, it raises a SessionOutboundQueueFull exception.
-        """
-        raise NotImplementedError
-        
-    def recvFrame(self):
-        """recvFrame() is used to get Frames from the inbound Queue for
-        processing by the Session. 
-        It ignores an empty Queue condition since we want processing to
-        continue in that case.
-        """
-        raise NotImplementedError
-        try:
-            theframe = self.inbound.get(0)
-            if theframe:
-                return theframe
-
-        except Queue.Empty:
-            pass
-
     def _handleGreeting(self):
         if not self.state == PRE_GREETING:
-            raise SessionException('Greeting already received')
+            raise TerminateException('Greeting already received')
         else:
             self.state = ACTIVE
             self.greetingReceived()
 
     def greetingReceived(self):
-        """ This is a callback from the management profile
+        """
+        This is a callback from the management profile
         to trigger processing once the connection greeting
         is received from the remote end.
         Servers don't really do anything with this, but
@@ -290,26 +346,75 @@ class Session:
         pass
 
     def getProfileDict(self):
+        """
+        Returns this session's profile dictionary.
+        """
         return self.profileDict
 
-    def getChannelZeroProfile(self):
+    def _getChannelZeroProfile(self):
+        """ Deprecated.
+        """
         return self.channels[0].profile
 
-    def reset(self):
-        """reset() does a tuning reset which closes all channels and
-           terminates the session.
+    def _reset(self):
+        """
+        reset() does a tuning reset which closes all channels and
+        terminates the session.
+
+        Deprecated.
         """
         self.transition('reset')
 
     def getChannelState(self, channelnum):
+        """
+        Get the state of a particular channel.
+
+        """
         return self.channels[0].profile.getChannelState(channelnum)
 
     def newChannel(self, profile, chardata=None, encoding=None):
+        """
+        Attempt to start a new Channel with a given profile.
+        This method is used by a peer to request a BEEP peer to start a
+        new channel with the given profile.
+
+        This is mostly a convenience function for the common case of
+        starting a simple channel with a single profile. For more complex
+        start scenarios, use startChannel().
+
+        @param profile: the profile to bind to the channel
+        @param chardata: initialisation data to send as part of the
+        channel start request.
+        """
         log.debug('trying to start channel with %s' % profile.uri)
         return self.startChannel([[profile.uri, encoding, chardata]])
 
     def startChannel(self, profileList):
-        """startChannel() attempts to start a new channel for communication.
+        """
+        startChannel() attempts to start a new channel for communication.
+        It uses a more complex profileList to determine what to send to
+        the remote peer as part of the start request.
+
+        the profileList is a list of lists with the following structure:
+
+        [ uri, encoding, chardata ]
+
+        where uri is a string URI of the profile to request,
+        encoding is an optional encoding to use and chardata is any
+        initialisation data to send as part of the start message.
+
+        To start a channel with the echoprofile and no special requirements,
+        you would use a list like this:
+
+        [ [echoprofile.uri, None, None] ]
+
+        To try to start a channel first using SASL/OTP, then SASL/ANONYMOUS,
+        you would use a list like this:
+
+        [ [saslotpprofile.uri, None, None], [saslanonymousprofile.uri, None, None] ]
+
+        More complex scenarios are possible.
+        
         """
         log.debug('profileList: %s' % profileList)
 
@@ -328,16 +433,22 @@ class Session:
             raise SessionException('Attempt to start channel when not ACTIVE')
 
     def channelStarted(self, channelnum):
-        """ Action to take when a positive RPY to a channel
+        """
+        Action to take when a positive RPY to a channel
         start message is received.
         Default is to do nothing, so override this in your subclass
         if you want anything to happen at this event.
+
+        @param channelnum: The channel number that was started.
         """
         pass
 
     def channelStartedError(self, channelnum):
-        """ Action to take when a negative RPY to a channel
+        """
+        Action to take when a negative RPY to a channel
         start message is received.
+
+        @param channelnum: the channel number that failed to start
         """
         state, code, desc = self.getChannelState(channelnum)
         log.error('Failed to start channel: %d %s' % (code, desc) )
@@ -345,10 +456,9 @@ class Session:
         pass
 
     def closeChannel(self, channelnum):
-        """closeChannel() attempts to close a channel.
-        inputs: channelnum, the number of the channel to close
-        outputs: none
-        raises: none
+        """
+        closeChannel() attempts to close a channel.
+        @param channelnum: the number of the channel to close
         """
         log.debug("Attempting to close channel %s..." % channelnum)
         if self.channels.has_key(channelnum):
@@ -383,180 +493,82 @@ class Session:
         for var in self.__dict__.keys():
             log.debug("%s: %s" % (var, self.__dict__[var]))
 
-class SessionManager(statemachine.StateMachine):
-    """A SessionManager is used to create and destroy sessions that
-       handle BEEP connections
-    """
-
-    def __init__(self):
-        self.log = log
-        self.profileDict = profileDict
-        self.sessionList = {}
-        self.sessionIds = []
-
-        self.sessionError = {}
-
-        statemachine.StateMachine.__init__(self)
-
-        self.addState('INIT', self._stateINIT)
-        self.addState('ACTIVE', self._stateACTIVE)
-        self.addState('CLOSING', self._stateCLOSING)
-        self.addState('TERMINATE', self._stateTERMINATE)
-        self.addState('EXITED', None, 1)
-        self.setStart('INIT')
-
-        self.addTransition('INIT', 'ok', 'ACTIVE')
-        self.addTransition('INIT', 'error', 'EXITED')
-        self.addTransition('INIT', 'close', 'EXITED')
-        self.addTransition('ACTIVE', 'close', 'CLOSING')
-        self.addTransition('ACTIVE', 'error', 'TERMINATE')
-        self.addTransition('CLOSING', 'ok', 'TERMINATE')
-        self.addTransition('CLOSING', 'close', 'TERMINATE')
-        self.addTransition('TERMINATE', 'ok', 'EXITED')
-        self.addTransition('TERMINATE', 'close', 'TERMINATE')
-        self.addTransition('EXITED', 'close', 'EXITED')
-
-    def _stateINIT(self):
-        raise NotImplementedError
-
-    def _stateACTIVE(self):
-        raise NotImplementedError
-
-    def _stateCLOSING(self):
-        raise NotImplementedError
-
-    def _stateTERMINATE(self):
-        raise NotImplementedError
-
-    def isActive(self):
-        if self.currentState != 'ACTIVE':
-            return 0
-        return 1
-
-    def isExited(self):
-        if self.currentState == 'EXITED':
-            return 1
-        return 0
-
-    # Add a Session instance to the sessionList
-    def addSession(self, sessionInst):
-        sessId = 0
-        while sessId in self.sessionIds:
-            sessId += 1
-
-        sessionInst.setID(sessId)
-        self.sessionList[sessId] = sessionInst
-        self.sessionIds.append(sessId)
-#        self.log.logmsg(logging.LOG_DEBUG, "Allocated sessId: %d to %s" % (sessId, sessionInst))
-        return sessId
-
-    def deleteSession(self, sessId):
-        self.log.logmsg(logging.LOG_DEBUG, "Removing session: %d..." % sessId)
-        if sessId in self.sessionIds:
-            del self.sessionList[sessId]
-            self.sessionIds.remove(sessId)
-
-    def replaceSession(self, sessId, sessionInst):
-        self.sessionList[sessId] = sessionInst
-        self.log.logmsg(logging.LOG_DEBUG, "Reallocated sessId: %d to %s" % (sessId, sessionInst))
-
-    def deleteAllSessions(self):
-        for sessId in self.sessionIds:
-            self.deleteSession(sessId)
-
-    def getSessionById(self, sessId):
-        self.log.logmsg(logging.LOG_DEBUG, "Seeking session %d: in: %s" % (sessId, self.sessionList) ) 
-        sess = self.sessionList[sessId]
-        self.log.logmsg(logging.LOG_DEBUG, "Found session %d: %s" % (sessId, sess) ) 
-        return sess
-
-    def closeSession(self, sessionId):
-        """ shutdown a given Session that is managed by this
-            SessionManager.
-        """
-        sessionInst = self.getSessionById(sessionId)
-        sessionInst.close()
-        self.deleteSession(sessionInst.ID)
-
-    def closeAllSessions(self):
-        """ shutdown all Sessions managed by this SessionManager.
-        """
-        for sessionId in self.sessionIds:
-            self.closeSession(sessionId)
-
-    def setSessionError(self, sessionId, errorstr):
-        """ Sets a session error in case a Session exits
-            for some unexpected reason. This will get called
-            from the Session itself.
-        """
-        self.sessionError[sessionId] = errorstr
-
-    def getSessionError(self, sessionId):
-        return self.sessionError[sessionId]
-
-    def close(self):
-        raise NotImplementedError
-
-    def _showInternalState(self):
-        self.log.logmsg(logging.LOG_DEBUG, "Current internal state of %s" % self)
-        for var in self.__dict__.keys():
-            self.log.logmsg(logging.LOG_DEBUG, "%s: %s" % (var, self.__dict__[var]))
-
-# A ListenerManager is a special type of SessionManager that listens for
-# incoming connections and creates Sessions to handle them.
-# It is an abstract class.
-class ListenerManager(SessionManager):
-
-    def __init__(self, log, profileDict):
-        SessionManager.__init__(self, log, profileDict)
-
 class Listener(Session):
-    """A Listener is a Session that is the result of
+    """
+    A Listener is a Session that is the result of
     a connection to a ListenerManager. It is the server side
     of a client/server connection. An Initiator would
     form the client side.
     """
     def setStartingChannelNum(self):
-
+        """
+        Listeners only start even numbered channels.
+        """
         log.debug('setting server starting number...')
         self.nextChannelNum = 2
 
-class InitiatorManager(SessionManager):
-    def __init__(self, log, profileDict):
-        SessionManager.__init__(self, log, profileDict)
-
 class Initiator(Session):
-    """An Initiator is a Session that initiates a connection
+    """
+    An Initiator is a Session that initiates a connection
     to a ListenerManager and then communicates with the resulting
     Listener. It forms the client side of a client/server
     connection.
     """
     
     def setStartingChannelNum(self):
+        """
+        Initiators only start odd numbered channels.
+        """
         log.debug('Setting client starting number')
         self.nextChannelNum = 1
 
 # Exception classes
 class SessionException(errors.BEEPException):
+    """
+    Base exception class for Sessions.
+    """
     def __init__(self, args=None):
         self.args = args
 
 class TerminateException(SessionException):
+    """
+    Raised when a session encounters an error that
+    should result in the session being terminated/dropped.
+    """
     def __init__(self, args=None):
         self.args = args
 
 class TuningReset(SessionException):
+    """
+    Raised when a tuning reset should occur.
+    @depreciated: This is no longer used and will be removed soon.
+    """
     def __init__(self, args=None):
         self.args = args
 
 class ChannelZeroOutOfSequence(SessionException):
+    """
+    Raised if channel 0 ever gets out of sequence.
+    """
     def __init__(self, args=None):
         self.args = args
 
 class SessionInboundQueueFull(SessionException):
+    """
+    Used when the session's inbound message queue is full.
+
+    @depreciated: Was used in the old threading model. No
+    longer used and will be removed.
+    """
     def __init__(self, args=None):
         self.args = args
 
 class SessionOutboundQueueFull(SessionException):
+    """
+    Used when the session's outbound message queue is full.
+
+    @depreciated: Was used in the old threading model. No
+    longer used and will be removed.
+    """
     def __init__(self, args=None):
         self.args = args

@@ -1,8 +1,8 @@
-# $Id: echoprofile.py,v 1.3 2003/12/08 03:25:30 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: echoprofile.py,v 1.4 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -18,11 +18,11 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-#
-# EchoProfile implements an example profile that simply
-# echoes back whatever the content of a frame is.
-# It sends a Reply to each Message it receives.
-
+"""
+EchoProfile implements an example profile that simply
+echoes back whatever the content of a frame is.
+It sends a Reply to each Message it receives.
+"""
 __profileClass__ = "EchoProfile"
 uri = "http://www.eigenmagic.com/beep/ECHO"
 
@@ -33,12 +33,26 @@ from beepy.core import debug
 log = logging.getLogger(__profileClass__)
 
 class EchoProfile(profile.Profile):
+    """
+    A very basic example profile that just echos frames.
+    """
 
     def __init__(self, session, profileInit=None, init_callback=None):
         profile.Profile.__init__(self, session)
         self.numReplies = 0
 
     def processFrame(self, theframe):
+        """
+        An EchoProfile simply sends a RPY frame to each MSG frame
+        it receives containing the same payload as what was received.
+
+        For demonstration purposes, this EchoProfile also asks the
+        controlling session to shutdown() if more than 5 MSGs are
+        received.
+
+        @raise profile.TerminalProfileException: if any exception occurs
+        during processing.
+        """
         log.debug("EchoProfile: processing frame: %s" % theframe)
         try:
             if theframe.isMSG():

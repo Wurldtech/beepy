@@ -1,8 +1,8 @@
-# $Id: reverbprofile.py,v 1.2 2003/12/08 03:25:30 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: reverbprofile.py,v 1.3 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -18,15 +18,17 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# ReverbProfile is an extended example of the EchoServer that echos back
-# multiple frames. It received a MSG frame with a payload of the form:
-# <repeat_number> <delay> <content>
-# Where <repeat_number> is the number of times to echo the <content>
-# and <delay> is how long in seconds to delay between echos.
-#
-# Each echo is sent as an ANS frame.
-# MSG frames that are not in the above format and replied to with an
-# ERR frame.
+"""
+ReverbProfile is an extended example of the EchoServer that echos back
+multiple frames. It received a MSG frame with a payload of the form:
+<repeat_number> <delay> <content>
+Where <repeat_number> is the number of times to echo the <content>
+and <delay> is how long in seconds to delay between echos.
+
+Each echo is sent as an ANS frame.
+MSG frames that are not in the above format and replied to with an
+ERR frame.
+"""
 
 __profileClass__ = "ReverbProfile"
 uri = "http://www.eigenmagic.com/beep/REVERB"

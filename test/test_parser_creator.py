@@ -1,8 +1,8 @@
-# $Id: test_parser_creator.py,v 1.6 2003/12/08 03:25:30 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: test_parser_creator.py,v 1.7 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -27,8 +27,8 @@ import sys, os.path
 import logging
 
 sys.path.append('../')
-from beepy.core import mgmtparser
-from beepy.core import mgmtcreator
+from beepy.profiles import mgmtparser
+from beepy.profiles import mgmtcreator
 
 log = logging.getLogger('ParserCreatorTest')
 

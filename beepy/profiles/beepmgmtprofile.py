@@ -1,8 +1,8 @@
-# $Id: beepmgmtprofile.py,v 1.8 2003/12/23 04:36:40 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: beepmgmtprofile.py,v 1.9 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -18,15 +18,20 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-#
-# The BEEP Channel Management Profile implementation
-# This Profile is used to manage BEEP Sessions
+"""
+This module implements the BEEP Management profile.
+
+This profile is used to manage BEEP sessions and channels.
+
+@version: $Revision: 1.9 $
+@author: Justin Warren
+"""
 
 import profile
 from beepy.core import constants
-from beepy.core import mgmtparser 
-from beepy.core import mgmtcreator
-from beepy.core import message
+import mgmtparser 
+import mgmtcreator
+import message
 
 # Have to do it this way, as beepy.core.session imports
 # this file.
@@ -39,12 +44,11 @@ from beepy.core import debug
 log = logging.getLogger('mgmtProfile')
 
 class BEEPManagementProfile(profile.Profile):
-#    mgmtParser = None        # The parser for BEEP channel management messages
-#    mgmtCreator = None        # The creator for BEEP Channel management messages
-#    receivedGreeting = -1        # Have I received a greeting from the other end yet?
-#    session = None            # Session I'm associated with
-#    startingChannel = {}        # Dictionary of channels I'm trying to start
-#    closingChannel = {}        # Dictionary of channels I'm trying to close
+    """
+    The BEEPManagementProfile is used on Channel 0 for all Sessions
+    to control the management of the Session and all channels on it.
+    """
+
     CONTENT_TYPE = "application/beep+xml"
 
     CHANNEL_STARTING = 1
@@ -54,6 +58,10 @@ class BEEPManagementProfile(profile.Profile):
     CHANNEL_ERROR = 5
 
     def __init__(self, session):
+        """
+        Create a new profile instance for the given session.
+        @param session: the session this profile's channel is on.
+        """
         profile.Profile.__init__(self, session)
         self.mgmtParser = mgmtparser.Parser()
         self.mgmtCreator = mgmtcreator.Creator()
@@ -68,6 +76,11 @@ class BEEPManagementProfile(profile.Profile):
         self.channelState = {}
 
     def processFrame(self, theframe):
+        """
+        process any incoming frames as per RFC3080
+
+        @param theframe: an incoming DataFrame object
+        """
         try:
             self.channel.deallocateMsgno(theframe.msgno)
             
@@ -85,7 +98,10 @@ class BEEPManagementProfile(profile.Profile):
 
                 # handle <greeting> RPY frames
                 if msg.isGreeting():
-                    self.session._handleGreeting()
+                    try:
+                        self.session._handleGreeting()
+                    except beepy.core.session.TerminateException, e:
+                        raise profile.TerminalProfileException(e)
                 else:
                     log.debug("Non-greeting RPY received" ) 
 
@@ -324,7 +340,8 @@ class BEEPManagementProfile(profile.Profile):
             return self.channelState[channelnum]
 
     def startChannel(self, channelnum, profileList, startedOk, startedError, serverName=None):
-        """startChannel() attempts to start a new Channel by sending a
+        """
+        startChannel() attempts to start a new Channel by sending a
         message on the management channel to the remote end, requesting
         a channel start.
         """

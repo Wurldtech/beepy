@@ -1,8 +1,8 @@
-# $Id: constants.py,v 1.3 2003/01/30 09:24:29 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: constants.py,v 1.4 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -18,6 +18,15 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
+
+"""
+Constant definitions for BEEPy.
+Invariant data is defined here as a single reference point
+for common data used throughout BEEPy.
+
+@version: $Revision: 1.4 $
+@author: Justin Warren
+"""
 
 FrameTypes = [ 'data', 'seq' ]	# possible frame types
 

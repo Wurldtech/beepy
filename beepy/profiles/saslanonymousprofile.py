@@ -1,8 +1,8 @@
-# $Id: saslanonymousprofile.py,v 1.6 2003/12/23 04:36:40 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: saslanonymousprofile.py,v 1.7 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -19,6 +19,14 @@
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 
+"""
+This module implements the SASL ANONYMOUS mechanism as a
+BEEPy profile.
+
+@version: $Revision: 1.7 $
+@author: Justin Warren
+"""
+
 __profileClass__ = "SASLAnonymousProfile"
 uri = "http://iana.org/beep/SASL/ANONYMOUS"
 
@@ -31,8 +39,9 @@ from beepy.core import debug
 log = logging.getLogger('SASLAnonymous')
 
 class SASLAnonymousProfile(saslprofile.SASLProfile):
-    """A SASLAnonymousProfile is a SASL Profile that implements
-       the ANONYMOUS mechanism for anonymous authentication.
+    """
+    A SASLAnonymousProfile is a SASL Profile that implements
+    the ANONYMOUS mechanism for anonymous authentication.
     """
 
     def __init__(self, session, profileInit=None, init_callback=None):
@@ -40,8 +49,9 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
         log.debug("initstring: %s" % profileInit)
 
     def processFrame(self, theframe):
-        """All processFrame should do is move the session from
-           non-authenticated to authenticated.
+        """
+        All processFrame should do is move the session from
+        non-authenticated to authenticated.
         """
         self.channel.deallocateMsgno(theframe.msgno)
 	try:
@@ -87,6 +97,9 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
             raise TerminalProfileException("Exception: %s" % e)
             
     def sendAuth(self, authentid, authid=None):
+        """
+        Send my authentication identification to the remove peer.
+        """
         self.authentid = authentid
         data = self.encodeBlob(authentid)
         return self.channel.sendMessage(data)

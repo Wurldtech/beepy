@@ -1,8 +1,8 @@
-# $Id: test_tlsprofile.py,v 1.11 2004/01/06 04:42:41 jpwarren Exp $
-# $Revision: 1.11 $
+# $Id: test_tlsprofile.py,v 1.12 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.12 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -26,12 +26,11 @@ import unittest
 import sys
 sys.path.append('..')
 
-from beepy.transports.twistedsession import TLSServerFactory
-from beepy.transports.twistedsession import TLSClientProtocol
-from beepy.transports.twistedsession import TLSClientFactory
+from beepy.transports.tls import TLSServerFactory
+from beepy.transports.tls import TLSClientProtocol
+from beepy.transports.tls import TLSClientFactory
 
-from twisted.internet import reactor, error
-from twisted.application import internet, service
+from beepy.transports.tcp import reactor
 
 from beepy.profiles import echoprofile
 from beepy.profiles import tlsprofile

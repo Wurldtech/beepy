@@ -1,8 +1,8 @@
-# $Id: message.py,v 1.3 2003/12/08 03:25:30 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: message.py,v 1.1 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.1 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -18,24 +18,49 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-#
-# Messages are BEEP Management messages
 
-import errors
+
+"""
+This module defines a BEEP Management message, used on
+Channel 0 of all sessions.
+
+Management messages are XML formatted, so we use minidom
+to represent them.
+
+@version: $Revision: 1.1 $
+@author: Justin Warren
+"""
+
 import xml.dom.minidom
 import string
 import re
 
+from beepy.core import errors
+
 import logging
-import debug
+from beepy.core import debug
 log = logging.getLogger('Message')
 
 MessageTypes = ('greeting', 'start', 'close', 'ok', 'error', 'profile')
 numberRegex = re.compile(r'[^0-9]')
 
 class Message:
+    """
+    The Message class defines a BEEP Management message object.
+    This is used by the BEEPManagementProfile to coordinate
+    channel and session management operations.
+
+    @see: beepmgmtprofile
+    """
 
     def __init__(self, type, doc):
+        """
+        @param type: type, the message type
+        @type type: a valid BEEP management message type
+
+        @param doc: an XML document
+        @type doc: an xml.dom.minidom.doc document
+        """
         if type not in MessageTypes:
             raise MessageException('Invalid Message Type')
         self.type = type
@@ -44,38 +69,77 @@ class Message:
             raise MessageInvalid('Invalid BEEP Message')
 
     def __del__(self):
+        """
+        In order to remove all references to a Message object
+        we need to specifically unlink the XML document self.doc
+        """
         if self.doc:
             self.doc.unlink()
 
     # These validation checkers are far from complete.
     # Really need a validating parser or something for completeness
     def isGreeting(self):
+        """
+        Is this Message a greeting message?
+        
+        @return: 1, if Message is a greeting
+        """
         if self.type == 'greeting':
             return 1
 
-    # Message of type profile are replies to a channel start MSG
-    # that was successful
     def isProfile(self):
+        """
+        Messages of type profile are replies to a channel
+        start MSG that was successful.
+        
+        @return: 1, if Message is a profile
+        """
         if self.type == 'profile':
             return 1
 
     def isStart(self):
+        """
+        Is this Message a greeting message?
+        
+        @return: 1, if Message is a greeting
+        """
         if self.type == 'start':
             return 1
 
     def isError(self):
+        """
+        Is this Message an error message?
+        
+        @return: 1, if Message is a greeting
+        """
         if self.type == 'error':
             return 1
 
     def isOK(self):
+        """
+        Is this Message an ok message?
+        
+        @return: 1, if Message is a greeting
+        """
         if self.type == 'ok':
             return 1
 
     def isClose(self):
+        """
+        Is this Message a close message?
+        
+        @return: 1, if Message is a greeting
+        """
         if self.type == 'close':
             return 1
 
     def getCloseChannelNum(self):
+        """
+        If this is a close message, find the channel number
+        that the close message refers to.
+
+        @returns: the channel number to close.
+        """
         if self.isClose():
             channelnum = self.doc.childNodes[0].getAttribute('number')
             if numberRegex.search(channelnum):
@@ -84,6 +148,12 @@ class Message:
             return string.atoi(channelnum)
 
     def getStartChannelNum(self):
+        """
+        If this is a start message, find the channel number
+        that the start message refers to.
+
+        @return: the channel number to start.
+        """
         if self.isStart():
             channelnum = self.doc.childNodes[0].getAttribute('number')
             if numberRegex.search(channelnum):
@@ -92,6 +162,12 @@ class Message:
             return string.atoi(channelnum)
 
     def getErrorCode(self):
+        """
+        If this is an error message, get the error code
+        from the message.
+
+        @return: the error code
+        """
         if self.isError():
             errorCode = self.doc.childNodes[0].getAttribute('code')
             if numberRegex.search(errorCode):
@@ -100,6 +176,12 @@ class Message:
             return string.atoi(errorCode)
 
     def getErrorDescription(self):
+        """
+        If this is an error message, get the error description
+        from the message.
+
+        @return: a string containing the error description
+        """
         if self.isError():
             return self.doc.childNodes[0].childNodes[0].nodeValue
 
@@ -109,23 +191,34 @@ class Message:
 # This appears to work so far.. but it isn't guaranteed to work all the
 # time.
     def getProfileURI(self):
-        """getProfileURI returns the uri attribute of the first
+        """
+        Returns the uri attribute of the first
         profile element found.
-        inputs: None
-        outputs: uri, string
-        raises: None
+
+        @return: a string containing the URI for the profile
+
+        @warning: getProfileURI may be broken. It depends on how
+        getElementsByTagName processes the DOM structure I've
+        hacked together to get around the lack of CDATA
+        functionality in minidom. It appears to work so far,
+        but there are no guarantees.
         """
         nodelist = self.doc.getElementsByTagName('profile')
         uri = nodelist[0].getAttribute('uri')
         return uri
 
     def getProfileURIList(self):
-        """getProfileURIList() finds all the uri attributes of
-        any profile elements and places them in a sequence, which
-        is returned.
-        inputs: None
-        outputs: uriList, sequence of uri strings
-        raises: None
+        """
+        Finds all the uri attributes of any profile elements and places
+        them in a sequence, which is returned.
+
+        @return: a sequence of uri strings
+
+        @warning: getProfileURIList may be broken. It depends on how
+        getElementsByTagName processes the DOM structure I've
+        hacked together to get around the lack of CDATA
+        functionality in minidom. It appears to work so far,
+        but there are no guarantees.
         """
         nodelist = self.doc.getElementsByTagName('profile')
 #        nodelist = self.doc.childNodes[0].getElementsByTagName('profile')
@@ -136,9 +229,12 @@ class Message:
         return uriList
 
     def getStartProfileBlob(self):
-        """getStartProfileBlob() gets the contents of the CDATA
-           element within a <start> message profile, which should
-           be a <blob></blob> section to be passed to the profile.
+        """
+        getStartProfileBlob() gets the contents of the CDATA
+        element within a <start> message profile, which should
+        be a <blob></blob> section to be passed to the profile.
+
+        @return: a string containing the CDATA
         """
         if not self.isStart():
             raise MessageException("Message isn't a start message")
@@ -147,13 +243,15 @@ class Message:
         if nodelist[0].hasChildNodes():
             return nodelist[0].childNodes[0].nodeValue
 
-    # This is a hack because I can't be bothered integrating
-    # a validating XML parser into the core just yet. Maybe later.
-    # All this does is validate the message against the
-    # BEEP management profile DTD.
-    # returns 1 if valid. If invalid, raises MessageException
     def validate(self):
-
+        """
+        This is a hack because I can't be bothered integrating
+        a validating XML parser into the core just yet. Maybe later.
+        All this does is validate the message against the
+        BEEP management profile DTD.
+        @return: 1 if valid.
+        @raise MessageException: if message is invalid
+        """
         # firstly, the document should only have one child
         # node
         if len(self.doc.childNodes) != 1:
@@ -275,6 +373,9 @@ class Message:
         raise MessageInvalid('Invalid BEEP Message')
 
     def __str__(self):
+        """
+        Print the XML DOM out for debugging purposes.
+        """
         retstr = ''
         for node in self.doc.childNodes:
             retstr += "%s (parent: %s)\n" % (node.nodeName, node.parentNode)
@@ -284,10 +385,18 @@ class Message:
         return retstr
 
 class MessageException ( errors.BEEPException ):
+    """
+    A base class for all Message exceptions.
+
+    Somewhat redundant and should probably be removed.
+    """
     def __init__(self, args=None):
         self.args = args
 
 class MessageInvalid( MessageException ):
+    """
+    Raised whenever a message fails validation.
+    """
     def __init__(self, args=None):
         self.args = args
 

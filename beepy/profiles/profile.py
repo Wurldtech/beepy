@@ -1,8 +1,8 @@
-# $Id: profile.py,v 1.9 2003/12/09 02:37:30 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: profile.py,v 1.10 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -18,10 +18,13 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-#
-# Profile objects
-# This is an abstract class that should be inherited from to implement
-# an actual profile.
+"""
+This module defines the basic Profile class and related code.
+
+Profiles are used by BEEP to define the protocol used over
+a BEEP channel. You will need to implement or use profiles
+in your applications, which will need to inherit from this class.
+"""
 
 import logging
 
@@ -43,72 +46,63 @@ import traceback
 __profileClass__ = "Profile"
 
 class Profile:
+    """
+    The profile class is the base class for all BEEP profile classes.
+    It defines the base profile API that all profile classes need to
+    implement.
+    """
 
-    # Create a new Profile object
     def __init__(self, session, profileInit=None, init_callback=None):
-        """Subclasses of Profile should call this method from their
-        __init__() methods.
+        """
+        Create a new Profile object.
+
+        @param session: the session to which this profile's channel
+        belongs.
+        @type session: a Session object
+        
+        @param profileInit: initialisation data passed to the profile
+        @type profileInit: bytestring
+
+        @param init_callback: a method that will do further, more complex,
+        profile initialisation at create time.
+        @type init_callback: a bound method
         """
         self.session = session
         self.channel = None
         self.type = None
         self.encoding = None
-        self.asyncflag = 0
         if init_callback:
             init_callback(self)
 
     def setChannel(self, channel):
-        """setChannel() binds this Profile to the Channel
-        it is processing. If this method is not called to set
-        the Channel for the Profile, it will be unable to
-        processMessages()
+        """
+        setChannel() binds this Profile to the Channel
+        it belongs to. If this method is not called to set
+        the Channel for the Profile, they channel will be
+        unable to process any messages.
         """
         self.channel = channel
-        self.channel.transition(constants.CHANNEL_ACTIVE)
 
-    def isSynchronous(self):
-        """Test to see if this profile is synchronous or
-           asynchronous.
+    def processFrame(self, theframe):
         """
-        return self.async_flag
+        processFrame() is called by the Channel to which this profile
+        is bound. This forms the main processing method of a profile.
 
-    def doProcessing(self):
-        """doProcessing() is where the real guts of the
-        message processing takes place, so subclasses should
-        implement this method to do work.
+        This method should be overridden by subclasses.
+
+        @param theframe: the frame to process
+        @type theframe: a DataFrame object
         """
-        # doProcessing() will only be used by synchronous
-        # profiles. asynchronous profiles will use other
-        # methods.
         raise NotImplementedError
 
-    def processMessages(self):
-        if not self.channel:
-            raise TerminalProfileException("Profile not bound to Channel")
-
-        else:
-            try:
-                self.doProcessing()
-
-            except TuningReset:
-                raise
-
-            except TerminalProfileException:
-                raise
-
-            except ProfileException:
-                raise
-
-            except Exception, e:
-                log.debug('Unmanaged exception: %s: %s' % (e.__class__, e))
-                log.debug('%s' % traceback.print_exc() )
-                raise TerminalProfileException("Unmanaged exception in %s: %s: %s" % (self.__class__, e.__class__, e) )
-
     def mimeDecode(self, payload):
-        """mimeDecode is a convenience function used to help
-           make life easier for profile programmers, like me.
-           It takes the payload and extracts the data from
-           the headers.
+        """
+        mimeDecode() is a convenience function used to help
+        make life easier for profile programmers, like me.
+        It takes the payload and extracts the data from
+        the headers.
+
+        @param payload: the data to decode
         """
         self.type = constants.DEFAULT_MIME_CONTENT_TYPE
         instring = StringIO.StringIO(payload)
@@ -136,12 +130,18 @@ class Profile:
         return msg
 
     def mimeEncode(self, payload, contentType=constants.DEFAULT_MIME_CONTENT_TYPE, encoding=None):
-        """mimeEncode is a convenience function used to help
-           make life easier for profile programmers, like me.
-           It takes a given payload and adds MIME headers to it.
-           Note: The separation between the MIME headers is a
-           single newline '\n', not '\r\n'. Not sure why, but MimeWriter
-           is doing it for some reason.
+        """
+        mimeEncode() is a convenience function used to help
+        make life easier for profile programmers, like me.
+
+        It takes a given payload and adds MIME headers to it.
+        Note: The separation between the MIME headers is a
+        single newline '\n', not '\r\n'. Not sure why, but MimeWriter
+        is doing it for some reason.
+
+        @param payload: the data to encode
+        @param contentType: the MIME content type
+        @param encoding: an alternate encoding.
         """
         outstring = StringIO.StringIO()
         writer = MimeWriter.MimeWriter(outstring)
@@ -188,7 +188,10 @@ class TuningReset(ProfileException):
 # called when the profile is instanciated.
 
 class ProfileDict:
-
+    """
+    a ProfileDict is a specialised dictionary for managing profiles
+    known by a Session.
+    """
     def __init__(self):
         self._profiles = {}
         self._callbacks = {}
@@ -202,26 +205,69 @@ class ProfileDict:
     # uri is the uri used to refer to this profile
     # module is the path to the module for dynamic loading
     def __setitem__(self, uri, module):
+        """
+        Adds a profile to the dictionary
+
+        @param uri: the uri used to refer to the profile
+        @type uri: string
+        
+        @param module: a reference to a loaded module
+        @type module: an imported module reference
+        """
         self._profiles[uri] = module
         self._callbacks[uri] = None
 
     def __delitem__(self, uri):
+        """
+        Remove a profile from the dictionary
+
+        @param uri: the uri of the profile to remove
+        """
         del self._profiles[uri]
 
-    # Get a list of URIs of supported profiles
     def getURIList(self):
+        """
+        Gets a list of the URIs of profiles in the dictionary
+
+        @return: a list of URI strings
+        """
         if self._profiles:
             return self._profiles.keys()
 
     def addProfile(self, profileModule, init_callback=None):
+        """
+        Adds a module to the dictionary without needing to know the
+        uri of the module.
+
+        @param profileModule: the module to add
+        @type profileModule: an imported module reference
+
+        @param init_callback: a profile initialisation method to use
+        at create time
+        @type init_callback: a bound method
+        """
         self._profiles[profileModule.uri] = profileModule
         self._callbacks[profileModule.uri] = init_callback
 
     def removeProfile(self, uri):
+        """
+        Remove a profile from the dictionary
+        
+        @param uri: the URI of the profile to remove
+        @type uri: string
+        """
         del self._profiles[uri]
         del self._callbacks[uri]
 
     def getCallback(self, uri):
+        """
+        Return a reference to a module's initalisation callback
+
+        @param uri: the URI of the profile
+        @type uri: string
+
+        @return: a reference to a bound method
+        """
         return self._callbacks[uri]
 
 class ProfileDictException(errors.BEEPException):

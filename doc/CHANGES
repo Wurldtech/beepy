@@ -1,8 +1,8 @@
-# $Id: CHANGES,v 1.17 2004/01/07 04:53:25 jpwarren Exp $
-# $Revision: 1.17 $
+# $Id: CHANGES,v 1.18 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.18 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -18,6 +18,18 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
+
+0.4 -> 0.5
+----------
+- Now using epydoc for code documentation.
+- Basic non-twisted transport code. Bare bones functionality only.
+  Likely to contain plenty of bugs. Use twisted folks, it rocks.
+- Refactored transport layer code into 3 modules:
+  beepy.transports.base: basic non-twisted transport code.
+  beepy.transports.tcp: Majority of TCP related transport code.
+  beepy.transports.tls: TLS specific code
+- Moved message.py, mgmtparser.pt and mgmtcreator.py to beepy.profiles
+  where they should have been.
 
 0.3 -> 0.4
 ----------

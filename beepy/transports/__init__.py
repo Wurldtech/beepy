@@ -1,8 +1,8 @@
-# $Id: __init__.py,v 1.3 2003/12/23 04:38:46 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: __init__.py,v 1.4 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -18,6 +18,6 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-__version__ = "$Revision: 1.3 $".split()[1]
+__version__ = "$Revision: 1.4 $".split()[1]
 
-__all__ = ['twistedsession', 'sasltcpsession', 'tcpsession', 'tlstcpsession']
+__all__ = ['tcp', 'tls']

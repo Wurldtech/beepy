@@ -1,8 +1,8 @@
-# $Id: test_framing.py,v 1.9 2004/01/06 04:18:08 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: test_framing.py,v 1.10 2004/01/15 05:41:13 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -38,8 +38,8 @@ log.setLevel(logging.DEBUG)
 import dummyclient
 
 from beepy.profiles import echoprofile
-from beepy.transports.twistedsession import BeepServerFactory
-from twisted.internet import reactor
+from beepy.transports.tcp import BeepServerFactory
+from beepy.transports.tcp import reactor
 
 class FramingTest(unittest.TestCase):
 

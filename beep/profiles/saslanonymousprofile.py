@@ -1,5 +1,5 @@
-# $Id: saslanonymousprofile.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: saslanonymousprofile.py,v 1.3 2002/08/08 06:52:56 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -29,9 +29,9 @@ from beep.core import logging
 import re
 import base64
 
-__profileClass__ = "SASLProfile"
+__profileClass__ = "SASL_ANONYMOUS_Profile"
 
-class SASLData:
+class SASL_ANONYMOUS_Profile:
 	data = []
 	status = ''
 	authentid = ''

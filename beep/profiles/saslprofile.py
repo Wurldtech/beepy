@@ -1,5 +1,5 @@
-# $Id: saslprofile.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: saslprofile.py,v 1.3 2002/08/08 06:52:56 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -38,6 +38,8 @@ class SASLData:
 	userid = ''
 	locked = 0
 
+class SASLData:
+
 	def __init__(self, data, status=None, authenid=None, userid=None, locked=0):
 		try:
 			self.data = self.decodeBlob(data)
@@ -52,6 +54,12 @@ class SASLProfile(profile.Profile):
 	""" This is an abstract class to provide the core SASL Profile API
 	"""
 	uri = "http://www.eigenmagic.com/beep/SASL"
+
+	def __init__(self):
+		"""__init__() is used to set up special SASL data such
+		   as certificates, user dbases, etc.
+		"""
+		profile.Profile.__init__(self)
 
 	def doProcessing(self):
 		"""doProcessing() isn't defined by the abstract SASLProfile.

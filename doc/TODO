@@ -1,5 +1,5 @@
-# $Id: TODO,v 1.4 2002/08/08 02:38:59 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: TODO,v 1.5 2002/08/08 06:52:56 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -42,3 +42,20 @@
 - Where does fragmentation get handled? Probably should be in the
   transport code somewhere, so we need to be careful with buffer overflows
   in the rest of the code. May also affect where MIME encoding occurs.
+- I think I've finally worked out how the complex profiles should work.
+  To fit with my model, you really need to have a supporting transport
+  for anything that deals with raw sockets like TLS. What a TLS profile
+  would do is deal with the channel side of things to set up a tuning
+  reset, which means it would deal directly with the SessionManager to
+  migrate the open socket from the current Session to a new TLSSession,
+  such as a TLSTCPSession which would inherit from TCPSessionListener
+  (for example) and simply overload the TCPCommsMixin class to define
+  TLS layer stuff. This would mean the encryption/decryption will happen
+  before the Session class even sees the frames, and so once a tuning
+  reset occurs, BEEP could get restarted happily. Everything would be
+  tunnelled over TLS at raw socket level, but once the data came through
+  the TLSCommsMixin functions it would be the same data as you'd get from
+  a TCPCommsMixin over an unencrypted connection. Once the socket got
+  moved over to the new Session, the current Profile would exit and
+  the other session would just kick off as if it'd just been started.
+  Easy.

@@ -1,5 +1,5 @@
-# $Id: EchoServer.py,v 1.1 2002/09/19 02:36:46 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: EchoServer.py,v 1.2 2002/09/19 02:45:56 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -33,34 +33,20 @@ import beep.transports.tcpsession
 
 import beep.profiles.echoprofile
 
-class EchoServer:
+if __name__ == '__main__':
 	log = Log()
 
-	def __init__(self):
-		profileDict = beep.profiles.profile.ProfileDict()
-		profileDict['http://www.eigenmagic.com/beep/ECHO'] = beep.profiles.echoprofile
-		self.server = beep.transports.tcpsession.TCPSessionListener(self.log, profileDict, 'localhost', 1976)
-
-	def isActive(self):
-		return self.server.isActive()
-
-	def shutdown(self):
-		self.server.close()
-		while self.server.isActive():
-			pass
-
-if __name__ == '__main__':
-
-	server = EchoServer()
+	profileDict = beep.profiles.profile.ProfileDict()
+	profileDict['http://www.eigenmagic.com/beep/ECHO'] = beep.profiles.echoprofile
+	server = beep.transports.tcpsession.TCPSessionListener(log, profileDict, 'localhost', 1976)
 
 	def cleanup():
-		server.shutdown()
+		server.close()
 		while server.isActive():
 			pass
 
 	sys.exitfunc = cleanup
 
-	printed = 0
 	while(1):
 		pass
 

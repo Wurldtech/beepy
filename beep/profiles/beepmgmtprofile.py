@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.11 2002/10/07 05:52:04 jpwarren Exp $
-# $Revision: 1.11 $
+# $Id: beepmgmtprofile.py,v 1.12 2002/10/15 06:50:47 jpwarren Exp $
+# $Revision: 1.12 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -52,10 +52,14 @@ class BEEPManagementProfile(profile.Profile):
 		theframe = self.channel.recv()
 		if theframe:
 #			self.log.logmsg(logging.LOG_DEBUG, "MGMT: processing frame: %s" % theframe)
+			if isinstance(self.session, beep.core.session.ListenerSession):
+				self.log.logmsg(logging.LOG_DEBUG, "--Listener MGMT Session--")
+			else:
+				self.log.logmsg(logging.LOG_DEBUG, "--Initiator MGMT Session--")
 			try:
 				data = self.mimeDecode(theframe.payload)
 				if self.type != self.CONTENT_TYPE:
-					raise BEEPManagementProfileException("Invalid content type for message: %s != %s" % (self.type, self.CONTENT_TYPE) )
+					raise profile.TerminalProfileException("Invalid content type for message: %s != %s" % (self.type, self.CONTENT_TYPE) )
 
 				msg = self.mgmtParser.parse(data)
 
@@ -86,23 +90,26 @@ class BEEPManagementProfile(profile.Profile):
 
 					self.log.logmsg( logging.LOG_DEBUG, "%s: channel 0 MSG: %s" % (self, theframe))
 					if not self.receivedGreeting:
-						raise BEEPManagementProfileException("Client sent MSG before greeting.")
+						raise TerminalProfileException("Client sent MSG before greeting.")
 	
 					if msg.isStart():
-						self.log.logmsg( logging.LOG_DEBUG, "isStart" )
+						self.log.logmsg( logging.LOG_DEBUG, "msg isStart" )
 						self._handleStart(theframe, msg)
 		
 					elif msg.isClose():
 						# Attempt to close the channel
-						self.log.logmsg( logging.LOG_DEBUG, "attempting to close channel" )
-						self._handleClose(theframe, msg)
+						self.log.logmsg( logging.LOG_DEBUG, "msg isClose " )
+						try:
+							self._handleClose(theframe, msg)
+						except Exception, e:
+							self.log.logmsg("Exception handling channel closure: %s" % e)
 
 					else:
 						# you shouldn't ever get here, as this should have been
 						# caught earlier during initial message parsing, but
 						# just for completeness
 						self.log.logmsg( logging.LOG_ERR, "Unknown MSG type in doProcessing()" )
-						raise BEEPManagementProfileException("Unknown MSG type in doProcessing()")
+						raise TerminalProfileException("Unknown MSG type in doProcessing()")
 	
 				elif theframe.isERR():
 					self.log.logmsg( logging.LOG_DEBUG, "channel 0 ERR" )
@@ -129,7 +136,7 @@ class BEEPManagementProfile(profile.Profile):
 					self.channel.sendError(theframe.msgno, errmsg)
 					return
 				else:
-					raise BEEPManagementProfileException("Malformed Message: %s" % e)
+					raise TerminalProfileException("Malformed Message: %s" % e)
 
 	def _handleGreeting(self, theframe, msg):
 		"""_handleGreeting is an internal method used from within
@@ -142,7 +149,7 @@ class BEEPManagementProfile(profile.Profile):
 			self.log.logmsg( logging.LOG_INFO, "%s -> Received Greeting" % self )
 		else:
 			self.log.logmsg( logging.LOG_INFO, "%s: Man, these guys are really friendly!" % self)
-			raise BEEPManagementProfileException("Too many greetings.")
+			raise TerminalProfileException("Too many greetings.")
 
 	def _handleProfile(self, theframe, msg):
 		self.log.logmsg( logging.LOG_DEBUG, "%s: entered _handleProfile()" % self )
@@ -153,7 +160,7 @@ class BEEPManagementProfile(profile.Profile):
 			# starting, which is bad, so kill session.
 			self.log.logmsg( logging.LOG_ERR, "Attempt to confirm start of channel we didn't ask for.")
 			self.channel.deallocateMsgno(theframe.msgno)
-			raise BEEPManagementProfileException("Invalid Profile RPY Message")
+			raise TerminalProfileException("Invalid Profile RPY Message")
 
 		del self.startingChannel[theframe.msgno]
 		self.channel.deallocateMsgno(theframe.msgno)
@@ -178,7 +185,7 @@ class BEEPManagementProfile(profile.Profile):
 
 		except Exception, e:
 			self.log.logmsg(logging.LOG_ERR, "Unhandled exception: %s" % e)
-			raise BEEPManagementProfileException("%s" % e)
+			raise TerminalProfileException("%s" % e)
 
 	def _handleStart(self, theframe, msg):
 		"""_handleStart() is an internal method used from within
@@ -229,13 +236,18 @@ class BEEPManagementProfile(profile.Profile):
 		channelnum = msg.getCloseChannelNum()
 		# If channelnum is 0, this is a request to close the
 		# session completely
+		self.log.logmsg(logging.LOG_DEBUG, "_handleClose() closing channel %d" % channelnum)
 		if channelnum == 0:
+			self.log.logmsg(logging.LOG_DEBUG, "_handleClose() channelnum is 0")
 			self.session.close()
 		else:
+			self.log.logmsg(logging.LOG_DEBUG, "_handleClose() deleting channel")
 			self.session.deleteChannel(channelnum)
 			msg = self.mgmtCreator.createOKMessage()
 			msg = self.mimeEncode(msg, self.CONTENT_TYPE)
 			self.channel.sendReply(theframe.msgno, msg)
+
+		self.log.logmsg(logging.LOG_DEBUG, "_handleClose() finished.")
 
 	def _handleOK(self, theframe, msg):
 		"""_handleOK is an internal method used from within
@@ -243,11 +255,14 @@ class BEEPManagementProfile(profile.Profile):
 		It deals with <ok> MSG frames, such as those used to confirm
 		a channel close.
 		"""
+		self.log.logmsg(logging.LOG_DEBUG, "isOK")
 		# First, we check if this is a close confirmation
 		if self.closingChannel.has_key(theframe.msgno):
 			# yep, we're closing, and it's ok to delete this end
 			self.session.deleteChannel(self.closingChannel[theframe.msgno])
 			del self.closingChannel[theframe.msgno]
+
+		self.log.logmsg(logging.LOG_DEBUG, "deallocating Msgno")
 		self.channel.deallocateMsgno(theframe.msgno)
 
 	def startChannel(self, channelnum, profileList, serverName=None):
@@ -265,12 +280,11 @@ class BEEPManagementProfile(profile.Profile):
 		"""closeChannel() attempts to close a Channel at the remote end
 		by sending a <close> message to the remote end.
 		"""
-		self.log.logmsg(logging.LOG_DEBUG, "queuing close msg...")
+		self.log.logmsg(logging.LOG_DEBUG, "Initiating closure of channel %s" % channelnum)
 		msg = self.mgmtCreator.createCloseMessage(channelnum, code)
 		msg = self.mimeEncode(msg, self.CONTENT_TYPE)
 		msgno = self.channel.sendMessage(msg)
 		self.closingChannel[msgno] = channelnum
-		self.log.logmsg(logging.LOG_DEBUG, "queued close msg")
 
 	def setChannel(self, channel):
 		"""This profile overloads setChannel to perform some

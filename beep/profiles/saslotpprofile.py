@@ -1,5 +1,5 @@
-# $Id: saslotpprofile.py,v 1.1 2002/10/15 01:57:45 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: saslotpprofile.py,v 1.2 2002/10/15 06:50:47 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -26,6 +26,7 @@ import saslprofile
 from profile import TuningReset
 from beep.core import logging
 from beep.core import constants
+from beep.core import session
 from beep.transports import sasltcpsession
 
 import md5, sha
@@ -48,6 +49,9 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 		self.tuning = 0
 		self.algo = 'md5'
 		self.sentchallenge = 0
+		self.generator = OTPGenerator(self.log)
+		self.authenticator = OTPAuthenticator(self.log)
+		self.passphrase = ''
 
 	def doProcessing(self):
 		"""All doProcessing should do is move the session from
@@ -57,8 +61,12 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 		if theframe:
 			status = self.parseStatus(theframe.payload)
 			if status:
+				self.channel.deallocateMsgno(theframe.msgno)
 				# do status code processing
-				raise NotImplementedError("status processing not implemented")
+				self.log.logmsg(logging.LOG_DEBUG, "status: %s" % status)
+				if status == 'error':
+					self.log.logmsg(logging.LOG_INFO, "Unable to authenticate")
+
 			else:
 				blob = self.decodeBlob(theframe.payload)
 				if blob:
@@ -71,28 +79,87 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 					if not self.authentid:
 						(self.authentid, self.authid) = self.splitAuth(blob)
 
-					if not self.sentchallenge:
-						self.sendChallenge()
+					# ok, here is where we need to do different things
+					# if we're a client or a server.
+					if isinstance(self.session, session.ListenerSession):
+						# Do listener stuff
+						self.log.logmsg(logging.LOG_DEBUG, "OTP session is listener")
+						if self.sentchallenge:
 
-					# Ok, start setting up for a tuning reset
-					# copy connection to new session object
-					conn = self.session.connection
-					client_address = self.session.client_address
-					sessmgr = self.session.server
+							# If we sent the challenge, this should be a
+							# response to the challenge, so do authentication
 
-					# Session object should wait for this session thread to exit before
-					# going to ACTIVE state.
-					newsess = sasltcpsession.SASLTCPListenerSession(conn, client_address, sessmgr, self.session, authentid)
-					data = '<blob status="complete">'
-					self.channel.sendReply(theframe.msgno, data)
-					self.log.logmsg(logging.LOG_DEBUG, "Queued success message")
-					# finally, reset Session
-					raise TuningReset("SASL OTP authentication succeeded")
+							if self.authenticate(blob):
+
+								# Ok, start setting up for a tuning reset
+								# copy connection to new session object
+								conn = self.session.connection
+								client_address = self.session.client_address
+								sessmgr = self.session.server
+
+								# Session object should wait for this session thread to exit before
+								# going to ACTIVE state.
+								newsess = sasltcpsession.SASLTCPListenerSession(conn, client_address, sessmgr, self.session, authentid)
+								data = '<blob status="complete"/>'
+								self.channel.sendReply(theframe.msgno, data)
+								self.log.logmsg(logging.LOG_DEBUG, "Queued success message.")
+								# finally, reset Session
+								raise TuningReset("SASL OTP authentication succeeded")
+
+							else:
+								# Authentication failed, respond appropriately.
+								self.log.logmsg(logging.LOG_INFO, "OTP authentication failed.")
+								data = '<blob status="error"/>'
+								self.channel.sendReply(theframe.msgno, data)
+						else:
+							self.sendChallenge(theframe.msgno)
+
+					else:
+						# Do initiator stuff
+						self.log.logmsg(logging.LOG_DEBUG, "OTP session is initiator")
+						# If I'm an initiator, this blob should be a challenge, so
+						# I need to send my corresponding authentication.
+						self.respondToChallenge(blob, theframe)
+
+	def respondToChallenge(self, challenge, theframe):
+		self.log.logmsg(logging.LOG_DEBUG, "Responding to challenge...")
+		# The challenge string should be 4 tokens
+		parts = string.split(challenge, ' ')
+		# First part is the algorithm
+		algo = parts[0][4:]
+		sequence = string.atoi(parts[1])
+
+# FIXME: This is commented out so I can test the library.
+#		passphrase = self.getPassphraseFromUser()
+		if not self.passphrase:
+			self.log.logmsg(logging.LOG_DEBUG, "No passphrase...")
+			raise saslprofile.SASLProfileException("Passphrase not set")
+#		passphrase = 'This is a test.'
+
+		passhash = self.generator.createHash(self.authid, algo, parts[2], self.passphrase, sequence)
+		data = 'hex:' + self.generator.convertBytesToHex(passhash)
+		data = self.encodeBlob(data)
+		self.channel.sendReply(theframe.msgno, data)
+
+	def getPassphraseFromUser():
+		"""When you implement an application that makes use of this
+		   library, you will need to instanciate this class and
+		   implement this function to interface with the user to
+		   get the passphrase. It should return a string containing
+		   the passphrase.
+		"""
+		raise NotImplementedError
+
+	def authenticate(self, blob):
+		self.log.logmsg(logging.LOG_DEBUG, "Authenticating client...")
 
 	def setAlgorithm(self, algo):
 		if self.algo != 'md5' or 'sha':
 			raise ProfileException('Hash algorithm not supported')
 		self.algo = algo
+
+	def setPassphrase(self, passphrase):
+		self.passphrase = passphrase
 
 	def sendAuth(self, authentid, authid=None):
 		"""doAuthentication() performs the authentication phase of a OTP
@@ -118,11 +185,14 @@ class SASLOTPProfile(saslprofile.SASLProfile):
 			raise ProfileException('Invalid format for authorisation blob')
 		return parts
 
-	def sendChallenge(self):
-		"""sendChallenge() formats and sends a message to the client
-		   based on the authid and authentid passed to it.
+	def sendChallenge(self, msgno):
+		"""sendChallenge() formats and sends a reply to the client
+		   based on the authid and authentid sent as a message
 		"""
-		raise NotImplementedError
+		challenge = self.authenticator.getChallenge(self.authid)
+		data = self.encodeBlob(challenge)
+		self.channel.sendReply(msgno, data)
+		self.sentchallenge = 1
 
 class OTPUserEntry:
 	def __init__(self, username, algo, seed, passphrasehash, sequence):
@@ -187,6 +257,15 @@ class OTPGenerator(OTPdbase):
 		   code within this library.
 		"""
 
+		passhash = self.createHash(username, algo, seed, passphrase, sequence)
+		hexhash = self.convertBytesToHex(passhash)
+
+		# Store new OTP info in dbase
+		dbEntry = OTPUserEntry(username, algo, seed, hexhash, sequence)
+		self.storeDBEntry(dbEntry)
+		return passhash
+
+	def createHash(self, username, algo, seed, passphrase, sequence):
 		# Convert seed to lower case
 		seed = string.lower(seed)
 
@@ -197,11 +276,6 @@ class OTPGenerator(OTPdbase):
 			temp = self.generateHash(algo, passphrasehash)
 			passphrasehash = temp
 
-		hexhash = self.convertBytesToHex(passphrasehash)
-
-		# Store new OTP info in dbase
-		dbEntry = OTPUserEntry(username, algo, seed, passphrasehash, sequence)
-		self.storeDBEntry(dbEntry)
 		return passphrasehash
 
 	def validateUsername(self, username):
@@ -316,10 +390,26 @@ class OTPGenerator(OTPdbase):
 		return self.convertLongToBytes(hashlong)
 
 class OTPAuthenticator(OTPdbase):
-	def __init__(self, log, dbasefile):
+	def __init__(self, log, dbasefile='OTPdbase.pik'):
 		self.log = log
 		OTPdbase.__init__(self, dbasefile="OTPdbase.pik")
+		self.otpDict = OTPDictionary()
 
+#	def authenticate(self, username )
+
+	def getChallenge(self, username):
+		"""getChallenge() looks up the username in the OTP dbase
+		   and builds the appropriate OTP challenge string.
+		"""
+		challenge = 'otp-'
+		dbEntry = self.retrieveDBEntry(username)
+		challenge += dbEntry.algo
+		challenge += ' '
+		challenge += '%s ' % dbEntry.sequence
+		challenge += dbEntry.seed
+		challenge += ' ext'
+
+		return challenge
 
 class OTPDictionary:
 	"""This class is basically just a port from the java beepcore library.

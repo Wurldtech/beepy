@@ -1,5 +1,5 @@
-# $Id: test_saslotpprofile.py,v 1.1 2002/10/15 01:57:45 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: test_saslotpprofile.py,v 1.2 2002/10/15 06:50:47 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -82,7 +82,7 @@ class SASLOTPProfileTest(unittest.TestCase):
 		while channel.isMessageOutstanding(msgno):
 			pass
 
-		client.closeChannel(channelnum)
+#		client.closeChannel(channelnum)
 		while client.isChannelActive(channelnum):
 			pass
 		print "Channel closed."

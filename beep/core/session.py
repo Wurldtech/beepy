@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.11 2002/10/07 05:52:04 jpwarren Exp $
-# $Revision: 1.11 $
+# $Id: session.py,v 1.12 2002/10/15 06:50:46 jpwarren Exp $
+# $Revision: 1.12 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -179,6 +179,7 @@ class Session(statemachine.StateMachine):
 					raise TerminateException("Attempt to send to non-existant channel")
 
 	def processChannels(self):
+
 		chanlist = self.channels.keys()
 		for channelnum in chanlist:
 			# First up, get them to process inbound frames
@@ -188,8 +189,14 @@ class Session(statemachine.StateMachine):
 			except profile.TuningReset, e:
 				raise TuningReset("Profile Tuning Reset: %s" % e)
 
-			except profile.ProfileException, e:
+			except profile.TerminalProfileException, e:
 				raise TerminateException(e)
+
+			except profile.ProfileException, e:
+				if channelnum != 0:
+#					self.log.logmsg(logging.LOG_DEBUG, "ProfileException: %s. Closing Channel." % e )
+#					self.channels[0].profile.closeChannel(channelnum, '554')
+					break
 
 			except Exception, e:
 				self.log.logmsg(logging.LOG_INFO, "Exception in channel %i: %s" % (channelnum, e))
@@ -267,10 +274,16 @@ class Session(statemachine.StateMachine):
 			self.log.logmsg("Unable to close Session: %s" % e)
 
 	def deleteChannel(self, channelnum):
+		self.log.logmsg(logging.LOG_INFO, "Deleting channel %d." % channelnum)
 		if self.channels.has_key(channelnum):
-			self.channels[channelnum].close()
-			del self.channels[channelnum]
-			self.log.logmsg(logging.LOG_INFO, "Channel %i closed successfully." % channelnum)
+			try:
+				self.log.logmsg(logging.LOG_INFO, "Calling channel.close()..." )
+				self.channels[channelnum].close()
+				del self.channels[channelnum]
+				self.log.logmsg(logging.LOG_INFO, "Channel %d closed successfully." % channelnum)
+			except channel.ChannelMessagesOutstanding, e:
+				raise SessionException(e)
+
 		else:
 			raise SessionException('No such channel')
 
@@ -356,7 +369,7 @@ class Session(statemachine.StateMachine):
 		and converted to a Frame object.
 		"""	
 		try:
-			self.log.logmsg(logging.LOG_DEBUG, "pushing frame: %s" % theframe)
+#			self.log.logmsg(logging.LOG_DEBUG, "pushing frame: %s" % theframe)
 			self.inbound.put(theframe, 0)
 
 		# Drop frames if queue is full

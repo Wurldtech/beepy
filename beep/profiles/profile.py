@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.8 2002/10/07 05:52:04 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: profile.py,v 1.9 2002/10/15 06:50:47 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -26,6 +26,7 @@
 from beep.core import constants
 from beep.core import errors
 from beep.core import logging
+import beep.core.session
 
 # All payloads are expected to be MIME structured, so we include the
 # library here.
@@ -73,7 +74,7 @@ class Profile:
 
 	def processMessages(self):
 		if not self.channel:
-			raise ProfileException("Profile not bound to Channel")
+			raise TerminalProfileException("Profile not bound to Channel")
 
 		else:
 			try:
@@ -82,8 +83,11 @@ class Profile:
 			except TuningReset:
 				raise
 
+			except TerminalProfileException:
+				raise
+
 			except Exception, e:
-				raise ProfileException("Unmanaged exception in profile %s: %s" % (self, e) )
+				raise ProfileException("Unmanaged exception in %s: %s" % (self.__class__, e) )
 
 	def mimeDecode(self, payload):
 		"""mimeDecode is a convenience function used to help
@@ -137,11 +141,15 @@ class Profile:
 		msg = outstring.read()
 
 		if len(msg) > constants.MAX_PAYLOAD_SIZE:
-			raise ProfileException("payload is large and should be fragmented")
+			self.log.logmsg(logging.LOG_WARN, "payload is large and should be fragmented")
 
 		return msg
 
 class ProfileException(errors.BEEPException):
+	def __init__(self, args):
+		self.args = args
+
+class TerminalProfileException(ProfileException):
 	def __init__(self, args):
 		self.args = args
 

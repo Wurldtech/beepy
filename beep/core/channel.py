@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.9 2002/10/07 05:52:04 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: channel.py,v 1.10 2002/10/15 06:50:46 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -53,6 +53,7 @@ class Channel:
 			self.state = constants.CHANNEL_STARTING
 			self.number = channelnum
 			self.allocatedMsgnos = []
+			self.nextMsgno = constants.MIN_MSGNO + 1
 			self.started = 0
 			self.localSeqno = 0
 			self.remoteSeqno = 0
@@ -194,7 +195,7 @@ class Channel:
 		outputs: msgno
 		raises: ChannelOutOfMsgnos
 		"""
-		msgno = constants.MIN_MSGNO
+		msgno = self.nextMsgno
 		while msgno in self.allocatedMsgnos:
 			msgno += 1
 			# Since we start at MIN_MSGNO, if we make it
@@ -205,11 +206,14 @@ class Channel:
 			# Not sure what should happen. Probably terminate
 			# the channel immediately.
 			if msgno > constants.MAX_MSGNO:
-				raise ChannelOutOfMsgnos('No available msgnos on channel', self.channelnum)
+				raise ChannelOutOfMsgnos('No available msgnos on channel', self.number)
 		# If we got here, then we've found the lowest
 		# available msgno, so allocate it
 		self.allocatedMsgnos.append(msgno)
 		self.log.logmsg(logging.LOG_DEBUG, "%s: Allocated msgno: %s" % (self, msgno) )
+		self.nextMsgno += 1
+		if self.nextMsgno > constants.MAX_MSGNO:
+			self.nextMsgno = constants.MINX_MSGNO
 		return msgno
 
 	# This method frees a msgno to be allocated again
@@ -223,8 +227,9 @@ class Channel:
 		outputs: None
 		raises: None
 		"""
+
 		if msgno in self.allocatedMsgnos:
-			del self.allocatedMsgnos[msgno]
+			self.allocatedMsgnos.remove(msgno)
 
 		self.log.logmsg(logging.LOG_DEBUG, "%s: Deallocated msgno: %s" % (self, msgno) )
 
@@ -336,8 +341,10 @@ class Channel:
 		        have been acknowledged.
 		"""
 		if len(self.allocatedMsgnos) > 0:
-			raise ChannelMessagesOutstanding("%s: %s allocatedMsgsnos unanswered: %s" % (self, len(self.allocatedMsgnos), self.allocatedMsgnos) )
+			self.log.logmsg(logging.LOG_INFO, "unanswered msgnos.")
+			raise ChannelMessagesOutstanding("Channel %d: %s allocatedMsgno(s) unanswered: %s" % (self.number, len(self.allocatedMsgnos), self.allocatedMsgnos) )
 
+		self.log.logmsg(logging.LOG_INFO, "Deleting channel inbound queue...")
 		del self.inbound
 		del self.outbound
 		del self.profile

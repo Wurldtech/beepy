@@ -1,5 +1,5 @@
-# $Id: echoprofile.py,v 1.4 2002/10/07 05:52:04 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: echoprofile.py,v 1.5 2002/10/15 06:50:47 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -43,4 +43,4 @@ class EchoProfile(profile.Profile):
 					self.channel.deallocateMsgno(theframe.msgno)
 
 			except Exception, e:
-				raise ProfileException("Exception echoing: %s" % e)
+				raise profile.TerminalProfileException("Exception echoing: %s" % e)

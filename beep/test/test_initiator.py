@@ -1,5 +1,5 @@
-# $Id: test_initiator.py,v 1.1 2002/09/18 07:08:18 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: test_initiator.py,v 1.2 2002/10/15 06:50:47 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -69,14 +69,20 @@ class TCPInitatorSessionTest(unittest.TestCase):
 
 		# create and connect an initiator
 		pdict2 = profile.ProfileDict()
-		pdict2['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
-		client = tcpsession.TCPInitiatorSession(self.log, pdict2, 'localhost', 1976)
-		while client.currentState != 'ACTIVE':
+		pdict2[echoprofile.uri] = echoprofile
+		clientmgr = tcpsession.TCPInitiatorSessionManager(self.log, pdict2)
+		while not clientmgr.isActive():
 			pass
 
-		self.log.logmsg(logging.LOG_DEBUG, "client profileDict: %s" % client.profileDict )
+		client = clientmgr.connectInitiator('localhost', 1976)
+		clientid = client.ID
+		while not client.isActive():
+			if client.isExited():
+				print "Cannot connect to server."
+				exit(1)
+			pass
 
-		profileList = [['http://www.eigenmagic.com/beep/ECHO',None,None]]
+		profileList = [[echoprofile.uri,None,None]]
 		channelnum = client.startChannel(profileList)
 		while not client.isChannelActive(channelnum):
 			pass

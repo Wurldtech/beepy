@@ -1,5 +1,5 @@
-# $Id: test_tlsprofile.py,v 1.17 2004/09/28 01:19:21 jpwarren Exp $
-# $Revision: 1.17 $
+# $Id: test_tlsprofile.py,v 1.18 2004/11/22 05:13:51 jpwarren Exp $
+# $Revision: 1.18 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -76,15 +76,20 @@ class TLSEchoClientProtocol(TLSClientProtocol):
                 msgno = channel.sendMessage('Echo 5!')
                 msgno = channel.sendMessage('Echo 6!')
 
+    def connectionLost(self, reason):
+        reactor.stop()
+
 class TLSEchoClientFactory(TLSClientFactory):
     """ This is a short factory for echo clients
     """
     protocol = TLSEchoClientProtocol
 
 class TestTLSServerProtocol(TLSServerProtocol):
-
-    def connectionLost(self, reason):
-        reactor.stop()
+    """
+    A TLS Test Server protocol
+    """
+#    def connectionLost(self, reason):
+#        log.debug('Server connection lost: %s' % reason)
 
 class TestTLSServerFactory(TLSServerFactory):
   
@@ -116,6 +121,8 @@ class TLSProfileTest(unittest.TestCase):
 
         reactor.connectTCP('localhost', 1976, factory)
         reactor.run()
+
+        log.debug('Finished reactor run')
 
         if factory.reason:
             log.debug('oh no! normal reason!')

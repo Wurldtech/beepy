@@ -1,5 +1,5 @@
-# $Id: CHANGES,v 1.10 2003/01/07 07:39:59 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: CHANGES,v 1.11 2003/01/08 06:16:07 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -25,7 +25,8 @@
   time output.
 - Asynchronous threading for greater efficiency.
 - Cleaner inheritance model
-
+- tracebacks appear in logfiles for ease in debugging. These occur
+  when major Exceptions go off to make it easier to bugfix.
 
 0.2a -> 0.3
 ------------

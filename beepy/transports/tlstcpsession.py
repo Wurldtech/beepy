@@ -1,5 +1,5 @@
-# $Id: tlstcpsession.py,v 1.6 2003/01/07 07:39:59 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: tlstcpsession.py,v 1.7 2003/01/08 06:16:07 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -111,7 +111,6 @@ class TLSTCPListenerSession(tcpsession.TCPListenerSession):
 		self.oldsession = oldsession
 
 		self.log.logmsg(logging.LOG_INFO, "%s: initialized" % self)
-		self.start()
 
 	def _stateINIT(self):
 		# This join goes here because we won't be in a new thread until
@@ -158,7 +157,9 @@ class TLSTCPListenerSession(tcpsession.TCPListenerSession):
 
 class TLSTCPInitiatorSession(tcpsession.TCPInitiatorSession):
 
-	def __init__(self, conn, server_address, sessmgr, oldsession, keyFile, certFile, passphrase, read_timeout=1 ):
+	def __init__(self, sock, server_address, sessmgr, oldsession, keyFile, certFile, passphrase, read_timeout=1 ):
+
+		self.sock = sock
 
 		tcpsession.TCPInitiatorSession.__init__(self, sessmgr.log, sessmgr.profileDict, server_address, sessmgr, read_timeout)
 
@@ -181,11 +182,10 @@ class TLSTCPInitiatorSession(tcpsession.TCPInitiatorSession):
 		self.oldsession = oldsession
 
 		self.log.logmsg(logging.LOG_INFO, "%s: initialized" % self)
-		self.start()
 
 	def _stateINIT(self):
-		self.log.logmsg(logging.LOG_DEBUG, "Waiting on old Session thread to exit: %s" % oldsession )
-		oldsession.join()
+		self.log.logmsg(logging.LOG_DEBUG, "Waiting on old Session thread to exit: %s" % self.oldsession )
+		self.oldsession.join()
 		self.log.logmsg(logging.LOG_DEBUG, "Tuning reset: reconnected to %s[%s]." % self.server_address )
 
 		try:

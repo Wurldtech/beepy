@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.4 2003/01/08 05:38:11 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: session.py,v 1.5 2003/01/08 06:16:05 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -23,6 +23,7 @@
 
 import socket
 import Queue
+import traceback
 
 import util
 import statemachine
@@ -203,6 +204,7 @@ class Session(statemachine.StateMachine):
 
 			except Exception, e:
 				self.log.logmsg(logging.LOG_INFO, "Exception in channel %i: %s" % (channelnum, e))
+				traceback.print_exc(file=self.log.logfile)
 
 	# Open a new channel
 	def createChannel(self, channelnum, profile):
@@ -354,33 +356,33 @@ class Session(statemachine.StateMachine):
 		except Queue.Empty:
 			pass
 
-	def pushFrame(self, theframe):
-		"""pushFrame() is used by the transport layer to place Frames
-		into the inbound Queue after the data is read off the wire
-		and converted to a Frame object.
-		"""	
-		try:
+#	def pushFrame(self, theframe):
+#		"""pushFrame() is used by the transport layer to place Frames
+#		into the inbound Queue after the data is read off the wire
+#		and converted to a Frame object.
+#		"""	
+#		try:
 #			self.log.logmsg(logging.LOG_DEBUG, "pushing frame: %s" % theframe)
-			self.inbound.put(theframe, 0)
+#			self.inbound.put(theframe, 0)
+#
+#		# Drop frames if queue is full
+#		# log a warning
+#		except Queue.Full:
+#			raise SessionInboundQueueFull('Inbound Queue Full')
 
-		# Drop frames if queue is full
-		# log a warning
-		except Queue.Full:
-			raise SessionInboundQueueFull('Inbound Queue Full')
-
-	def pullFrame(self):
-		"""
-		pullFrame() is used by the transport layer to get Frames
-		from the outbound Queue so it can send them out over the wire.
-		Ignore Queue.Empty condition.
-		"""
-		try:
-			theframe = self.outbound.get(0)
-			if theframe:
+#	def pullFrame(self):
+#		"""
+#		pullFrame() is used by the transport layer to get Frames
+#		from the outbound Queue so it can send them out over the wire.
+#		Ignore Queue.Empty condition.
+#		"""
+#		try:
+#			theframe = self.outbound.get(0)
+#			if theframe:
 #				self.log.logmsg(logging.LOG_DEBUG, "pulling frame: %s" % theframe)
-				return theframe
-		except Queue.Empty:
-			pass
+#				return theframe
+#		except Queue.Empty:
+#			pass
 
 	def getProfileDict(self):
 		return self.profileDict

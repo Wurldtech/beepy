@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.4 2003/01/08 05:38:12 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: tcpsession.py,v 1.5 2003/01/08 06:16:06 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -633,7 +633,7 @@ class TCPSessionListener(session.SessionListener, util.LoopingThread):
 				return
 
 		except Exception, e:
-			traceback.print_exc(self.log.logfile)
+			traceback.print_exc(file=self.log.logfile)
 			self.transition('error')
 			return
 

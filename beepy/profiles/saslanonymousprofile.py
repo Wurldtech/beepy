@@ -1,8 +1,8 @@
-# $Id: saslanonymousprofile.py,v 1.12 2004/08/22 04:15:58 jpwarren Exp $
-# $Revision: 1.12 $
+# $Id: saslanonymousprofile.py,v 1.13 2004/09/28 01:19:20 jpwarren Exp $
+# $Revision: 1.13 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -23,7 +23,7 @@
 This module implements the SASL ANONYMOUS mechanism as a
 BEEPy profile.
 
-@version: $Revision: 1.12 $
+@version: $Revision: 1.13 $
 @author: Justin Warren
 """
 

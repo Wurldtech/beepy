@@ -1,8 +1,8 @@
-# $Id: message.py,v 1.8 2004/08/22 04:15:57 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: message.py,v 1.9 2004/09/28 01:19:20 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -30,7 +30,7 @@ and transport layer.
 
 Profiles and applications deal with Messages, not directly with Frames.
 
-@version: $Revision: 1.8 $
+@version: $Revision: 1.9 $
 @author: Justin Warren
 
 """
@@ -57,8 +57,8 @@ class Message:
     
     def __init__(self, dataframe=None, msgType=None, msgno=None, payload='', ansno=None, cb=None, args=None):
         """
-        @type dataFrame: DataFrame
-        @param dataFrame: a raw dataFrame
+        @type dataframe: DataFrame
+        @param dataframe: a raw dataFrame
         """
         ## Create directly from a dataframe
         if dataframe:

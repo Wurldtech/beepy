@@ -1,8 +1,8 @@
-# $Id: README,v 1.8 2004/08/02 09:46:01 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: README,v 1.9 2004/09/28 01:19:19 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -28,9 +28,8 @@ For more information on the protocol itself, check out
 http://www.beepcore.org/.
 
 BEEPy attempts to implement the protocol as a library written from the
-ground up in Python, using the native Python libraries wherever possible.
-This helps make BEEPy portable to any platform with the standard Python
-interpreter installed.
+ground up in Python. This helps make BEEPy portable to any platform
+with the standard Python interpreter installed. 
 
 BEEPy is written using the twisted framework (http://www.twisted-matrix.com)
 to implement asynchronous network communications. You will need to have
@@ -67,8 +66,7 @@ Dependencies
 - Python 2.3 or higher.
 - Twisted 2.3 or higher.
 - for TLS support:
-  - OpenSSL 0.9.6 or higher
-  - pyOpenSSL
+  - pyOpenSSL as required by Twisted
 
 Getting Started
 ---------------

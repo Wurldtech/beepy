@@ -1,8 +1,8 @@
-# $Id: frame.py,v 1.10 2004/08/22 04:15:57 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: frame.py,v 1.11 2004/09/28 01:19:20 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -29,7 +29,7 @@ general and subclassed it to a DataFrame. This way, if other
 frames are used for some reason, they can also subclass from
 Frame. All the guts are in DataFrame, but that's what the RFC says.
 
-@version: $Revision: 1.10 $
+@version: $Revision: 1.11 $
 @author: Justin Warren
 
 """

@@ -1,8 +1,8 @@
-# $Id: start_client.py,v 1.5 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: start_client.py,v 1.6 2004/09/28 01:19:21 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public

@@ -1,8 +1,8 @@
-# $Id: message.py,v 1.4 2004/08/02 09:46:07 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: message.py,v 1.5 2004/09/28 01:19:20 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -27,7 +27,7 @@ Channel 0 of all sessions.
 Management messages are XML formatted, so we use minidom
 to represent them.
 
-@version: $Revision: 1.4 $
+@version: $Revision: 1.5 $
 @author: Justin Warren
 """
 import logging

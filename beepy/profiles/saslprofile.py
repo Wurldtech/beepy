@@ -1,8 +1,8 @@
-# $Id: saslprofile.py,v 1.7 2004/08/02 09:46:07 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: saslprofile.py,v 1.8 2004/09/28 01:19:20 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public

@@ -1,8 +1,8 @@
-# $Id: profile.py,v 1.15 2004/08/22 04:15:58 jpwarren Exp $
-# $Revision: 1.15 $
+# $Id: profile.py,v 1.16 2004/09/28 01:19:20 jpwarren Exp $
+# $Revision: 1.16 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -59,7 +59,7 @@ class Profile:
 
         @param session: the session to which this profile's channel
         belongs.
-        @type session: a Session object
+        @type session: a C{beepy.core.session.Session} object
         
         @param profileInit: initialisation data passed to the profile
         @type profileInit: bytestring
@@ -115,6 +115,7 @@ class Profile:
             self.type = msgtype
 
         msgencoding = headers.getencoding()
+
         # only support base64 or binary encodings, default is binary
         outstring = StringIO.StringIO()
         if msgencoding:
@@ -134,7 +135,6 @@ class Profile:
         """
         mimeEncode() is a convenience function used to help
         make life easier for profile programmers, like me.
-
         It takes a given payload and adds MIME headers to it.
         Note: The separation between the MIME headers is a
         single newline '\n', not '\r\n'. Not sure why, but MimeWriter

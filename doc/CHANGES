@@ -1,8 +1,8 @@
-# $Id: CHANGES,v 1.22 2004/08/22 04:27:17 jpwarren Exp $
-# $Revision: 1.22 $
+# $Id: CHANGES,v 1.23 2004/09/28 01:19:21 jpwarren Exp $
+# $Revision: 1.23 $
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -37,7 +37,7 @@
 - Logging streamlined somewhat.
 - More asynchronous API migration work. DEBUG mode is still very verbose.
 - BeepClientFactory no longer calls reactor.stop() in clientConnectionLost()
-  or clientConnectionFailed(). You can no take other actions if you wish.
+  or clientConnectionFailed(). You can now take other actions if you wish.
   Example servers now implement their own test protocol to cause the server
   to exit when the single client session disconnects.
 - Fixed bug in Channel where the msgno would be deallocated for message
@@ -46,6 +46,7 @@
   interfere with the transport protocol setup for TLS.
 - Added channel close error callback triggering to beepmgmtprofile.
 - Fixed up the logging import method in test/test_*.py.
+- Added .zip source distribution to standard packaging for sourceforge.
 
 0.3 -> 0.4
 ----------

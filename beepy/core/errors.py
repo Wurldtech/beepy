@@ -1,8 +1,8 @@
-# $Id: errors.py,v 1.2 2004/01/15 05:41:13 jpwarren Exp $
+# $Id: errors.py,v 1.3 2004/09/28 01:19:20 jpwarren Exp $
 # $Revision
 #
 #    BEEPy - A Python BEEP Library
-#    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
+#    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
 #
 #    This library is free software; you can redistribute it and/or
 #    modify it under the terms of the GNU Lesser General Public
@@ -25,7 +25,7 @@ Customised exceptions used throughout BEEPy.
 This code is fairly redundant, but allows all exceptions
 in BEEPy to inherit from a common superclass.
 
-@version: $Revision: 1.2 $
+@version: $Revision: 1.3 $
 @author: Justin Warren
 """
 

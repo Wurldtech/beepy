@@ -1,5 +1,5 @@
-# $Id: HOWTO,v 1.1 2002/08/07 02:54:59 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: HOWTO,v 1.2 2002/09/19 04:32:34 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -31,6 +31,8 @@ a bit rough at the moment. The aim is to write more convenience functions
 as the library stabilises to make writing applications with it as
 painless as possible.
 
+BEEP Basics
+-----------
 BEEPy functions by making point-to-point connections between two BEEP
 components, an Initiator and a Listener (or client and server, if you
 prefer). Depending on the role of each part of your code, you will need
@@ -45,83 +47,172 @@ multiple Channels. Each Channel functions more or less independently
 from one another, with Channel 0 reserved for administrative commands.
 Check RFC3080 for a more indepth explanation of this.
 
-A good place to look right now is in beep/test/test_echoprofile.py. This
-is a basic example of how to use the core library features.
+A Simple Example - an Echo server
+---------------------------------
+The canonical simple case of client/server programming: a server that
+echos back whatever you send it. With BEEP, this is a little different,
+but the principles are the same. In this case, we're going to build an
+server that understands the Echo profile (more on profiles in a moment).
+When the server receives a BEEP MSG frame, it will respond with a RPY
+frame containing the contents of the MSG frame copied verbatim. That's it.
 
-Right near the beginning of the test, you should see this line:
+There's some example code for you to look at while you follow this HOWTO,
+so look now in beep/test/EchoServer.py. As always, the first thing we do
+is to load the appropriate modules that we want to use. Note the line
+loading beep.profiles.echoprofile. echoprofile is a module supplied with
+BEEPy as an example of how to use BEEPy profiles to implement services.
+As you know, whenever you create a channel in BEEP you associate (or bind)
+a certain profile to it that defines the communications protocol on that
+profile. When a BEEPy Listener or Initiator is created, it automatically
+creates Channel 0 and binds it to the BEEP Management profile.
 
-pdict = profile.ProfileDict()
+BEEPy Profiles
+--------------
+In order to use our Echo protocol, we need to build a profile for it.
+Have a look now at beep/profiles/echoprofile. Since we're implementing a
+profile, we need to inherit from beep.profiles.profile.Profile which
+defines all the base profile behaviour. Note the line:
 
-This line creates an empty ProfileDict: a dictionary of the profiles that
-this application supports. Profiles are at the heart of BEEPy's functionality.
-A Profile defines what should happen on any given Channel. For example,
-when a connection is first made, Channel 0 is created and bound to the
-BEEP Management Profile (defined in beep/profiles/beepmgmtprofile.py). This
-profile handles all the Channel management functions. It's hard coded into
-the library, so you won't need to add this to your profile dictionary.
+__profileClass__ = "EchoProfile"
 
-But, the management profile is pretty limited in what it does, and isn't
-any use to your application, really. What you need is a profile that will
-do all the funky comms things you need for your application, right? Easy.
-You simply write a profile that does all that. We're going to use the
-EchoProfile as an example.
+This is vitally important for how BEEPy manages the dynamic management of
+profiles. BEEPy searches for this string to identify the entry point to
+the profile class. If this line is missing or wrong, BEEPy won't know how
+to instanciate your profile class.
 
-Back to the test_echoprofile.py file. The next line looks like this:
+Now we have our actual class definition, inheriting from profile.Profile
+and setting the uri used to refer to this profile, as defined by the
+BEEP standard.
 
-pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
+Then we define a single method: doProcessing(). This method is called by
+BEEPy periodically to handle the processing of any frames that may be
+present on the channel's inbound FIFO queue. First off, we get a frame 
+from profile's channel using the channel's API, self.channel.recv(), which 
+returns a single frame from the channel's inbound FIFO queue. If this is 
+successful, we log it so that you can see what's going on in the example.
+You'd leave this logging line out normally.
 
-This line adds a profile into the profile dictionary. The URI used to
-refer to this profile is http://www.eigenmagic.com/beep/ECHO and it
-binds to a module called echoprofile. This is the path to the file you've
-defined the profile in, and the library searches for it in beep/profiles
-by default.
+Now comes the meat of our protocol definition. If the frame we received
+is a MSG frame, we send a reply frame (using channel.sendReply) with the
+same msgno as the frame (since this is the message number we're replying to)
+and the same contents as the frame (theframe.payload).
 
-So now, let's go and see what a profile looks like.
+Easy right? Ah, but we're not quite finished. A conversation takes two
+sides: a speaker and a listener. Since a channel has to have the same
+profile on both ends, we need to cater for both when we receive a MSG
+as a listener, and when we receive the corresponding RPY as a speaker.
+Otherwise, we'd have to have a special 'speaker' version of the Echo
+profile and another 'listener' version. That's nearly double the code.
+What a drag!
 
-$ cd beep/profiles
+So, we handle both cases in this profile. If we receive a RPY frame, we
+assume it's a RPY to a MSG we sent. Since BEEP keeps track of sent MSGs,
+we need to acknowledge receipt of the RPY. If we don't, when we try to
+close the channel, BEEPy will raise an exception telling us that there are
+unacknowledged messages in the channel. This is part of the reliability
+of BEEP. Cool huh? So, when we receive a RPY frame, we call 
+channel.deallocateMsgno() with the frame's msgno as the argument.
 
-Open up echoprofile.py. First you'll see we import the base profile class
-definition. This handles the core profile functions for us, so we don't
-have to bother with that guff. There are two important things required of
-us to allow our profile to be used by the library.
+Note that this profile doesn't do a lot of error handling (for example,
+a RPY frame to a MSG that we didn't sent would be silently ignored) but
+it doesn't really matter in this example. If an Exception were to occur,
+BEEPy will drop the connection.
 
-The first is to define __profileClass__. This variable is used by the
-library to work out which class definition to instanciate when we try
-to use the profile (which is identified by its URI, defined above,
-remember?) This needs to match the class name. With that done, you create
-a class definition (in this case EchoProfile) with the correct name and
-subclass it from profile.Profile, as well as any other modules you might
-need.
+Finishing the Server
+--------------------
+With our profile done, we've completed the hard part of writing our
+server. Now we just need to set up a Listener to listen for incoming
+BEEP connections and set it up to handle the echo profile. So, let's
+go back to beep/test/EchoServer.py.
 
-Now you just need to define a single method: doProcessing(). This method
-gets called by the library to process any outstanding frames for the
-channel, using your profile.
+We need to create a Log so that our server knows where to log it's stuff.
+You can specify a filename as an argument, but the default is to simply
+log to STDOUT. Next, we need to create a profile dictionary to store our
+list of known profiles. The management profile is handled internally by
+BEEPy, so we don't need to worry about that, just our Echo profile.
+So, after creating a ProfileDict, we need to populate it with a single
+entry: the Echo profile.
 
-Our example is pretty simple: read in a single frame (if there is one)
-and if it's a MSG frame, reply back with the same payload. As you can
-see, the code is pretty simple.
+profileDict['http://www.eigenmagic.com/beep/ECHO'] = beep.profiles.echoprofile
 
-That's it. You've just implemented a profile. Easy, wasn't it? Of course,
-you could do a lot more complex operations than this, depending on what
-your application needs to do.
+This is the line that does it. Here's how it works: The key for the
+entry in the dictionary is the URI used to refer to the profile,
+http://www.eigenmagic.com/beep/ECHO. The entry it points to the the
+actual module name of the profile, just as you used it above in the
+import statement. This is how BEEPy associates URIs with the actual code
+you've written when it dynamically loads profiles to bind to channels.
 
-Now, back to the main file, test_echoprofile.py. The next line we see is:
+Now you just create a listener, in this case a TCPSessionListener, because
+we're going to use TCP as our transport method. We pass it a reference
+to the Log we've set up, our newly populated profile dictionary, and
+the last two arguments are the interface address you want to start the
+listener on, and the port number to listen on. In this case we're going
+to listen on localhost(127.0.0.1) port 1976.
 
-sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
+We define a quick function to call on sys.exit and then simply enter a while
+loop. Since the server is threaded, it will happily handle all the processing
+while the main process just sits and waits for us to stop it with CTRL-C.
+You could implement a daemon process or more complex signal handling here.
 
-This line creates a TCPSessionListener called sess, gives it a logfile
-and the ProfileDict we defined above (so it can use our EchoProfile) and
-tells it to listen on 'localhost' on port 1976 for incoming connections.
-That's it. That line starts a BEEP server on port 1976 and will process
-any incoming messages. TCP is the only transport method supported by
-BEEPy at the moment, but it's the one most people are likely to want to
-use. I also want to implement an example alternative transport to prove
-the modularity of the transport interface code. I'm thinking BEEP over
-SMTP would be somewhat novel. :)
+That's it. You've just built a server using BEEPy. Easy, wasn't it?
 
-So, we now simulate a client connecting to the server and sending BEEP
-messages to start a channel (number 1, in this case) and use our
-EchoProfile on that channel. We then send a couple of test MSG messages
-to see if we get RPY replies echoed back to us.
+Building a Client
+-----------------
+No client/server system would be complete without a client. You could test
+the server by connecting with telnet and entering BEEP frames by hand, but
+that's slow, tedious, and a right royal pain. Instead, let's use the handy
+Initiator code provided by BEEPy. Again, check out the example in
+beep/test/EchoClient.py.
 
+Again, we import the modules we're going to use, including the echoprofile
+module. We also set up a handy exit function. We need a log, and a profile
+dictionary, so we create those too, populating the dictionary in the same
+way as for the server. We now create a profile list. A profile list is used
+when we request to start a channel with a given profile. We provide a list
+of options for the Listener to respond to, and it will pick what it deems
+the best supported profile. This can be used to request multiple levels of
+authentication, for example, and the server would choose the best level
+that it knows about. In our case, we're only going to request the Echo
+profile, so that's all we add to our list.
+
+Each individual list entry is a list itself. The first part is the URI for
+the profile we're going to request. The second part is the encoding to use
+for data sent over the channel. In our case, the Echo profile doesn't support
+any special encodings so we enter None. The third and last part of the entry
+is used for profiles that support a start operation with data passed to it,
+such as for certain authentication and encryption profiles. Again, our profile
+doesn't support any of that, so we say None.
+
+Now we're ready to create a client and connect to the server. This is done
+in one line, which is very similar to the line used for the server above.
+We're using TCP, so we create a TCPInitiatorSession, passing it the log
+and profile dictionary, as well as the address of the server. We then
+wait for the client to become active, checking to see if the connection
+fails for any reason.
+
+Once our client has connected and done it's initial handshaking (such as
+the BEEP greeting message), we need to create a channel using the Echo
+profile. So, we call client.startChannel() with our profile list defining
+which profiles we want to use on the channel. So long as the server supports
+our profile, each end should negotiate to start a channel using Echo.
+Since this happens asynchronously, we need to wait until the channel is
+set up and becomes active before we try to send messages over it.
+Once the channel has become active, we want to get a reference to it so
+that we can use the channel's API to send messages. We do this using
+getActiveChannel(). 
+
+Now we can send a message over the channel by using client.sendMessage().
+This returns the msgno of the message so that we can track which messages
+we've sent and whether or not they've been replied to, though most of this
+is handled by our profile and the BEEPy library. We wait for the message
+to be received by the server and its reply received, and then close the
+channel. Again, channel closure is asynchronous, so we need to wait for
+the channel to become inactive before closing the client. You don't 
+actually have to do this, as client.close() attempts to close all open
+channels before shutting down, but it's good to see how to do it yourself.
+
+So, there you have it. A simple client that connects to a BEEP server,
+starts a channel using the Echo profile, send a single message over the
+channel and then closes the channel and disconnects. You've now implemented
+your first client/server program with BEEPy.
 

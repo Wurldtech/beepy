@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.7 2002/09/18 07:06:57 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: channel.py,v 1.8 2002/09/19 04:32:33 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -224,6 +224,14 @@ class Channel:
 		"""
 		if msgno in self.allocatedMsgnos:
 			del self.allocatedMsgnos[msgno]
+
+	def isMessageOutstanding(self, msgno):
+		"""isMessageOutstanding() checks to see if a particular
+		   message that was previously sent has been acknowledged.
+		"""
+		if msgno in self.allocatedMsgnos:
+			return 1
+		return 0
 
 	# Send a frame of type MSG
 	def sendMessage(self, data, more=constants.MoreTypes['.']):

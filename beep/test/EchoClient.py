@@ -1,5 +1,5 @@
-# $Id: EchoClient.py,v 1.2 2002/09/19 03:54:45 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: EchoClient.py,v 1.3 2002/09/19 04:32:34 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -41,10 +41,10 @@ sys.exitfunc = quit
 log = Log()
 profileDict = beep.profiles.profile.ProfileDict()
 
-# We only support MSGNET
+# We only support ECHO profile
 profileDict['http://www.eigenmagic.com/beep/ECHO'] = beep.profiles.echoprofile
 
-# And we will only request MSGNET with default params
+# And we will only request ECHO profile with default params
 profileList = [['http://www.eigenmagic.com/beep/ECHO', None, None]]
 
 # Create the client and wait for it to become active
@@ -69,8 +69,11 @@ if not channel:
 
 msgno = channel.sendMessage('Hello!\n')
 # Any replies should be handled by the profile
-time.sleep(1)
+while channel.isMessageOutstanding(msgno):
+	pass
 
 client.closeChannel(channelnum)
 while client.isChannelActive(channelnum):
 	pass
+
+client.close()

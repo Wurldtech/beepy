@@ -1,5 +1,5 @@
-# $Id: TODO,v 1.8 2002/09/17 06:51:44 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: TODO,v 1.9 2002/09/19 04:32:34 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -29,36 +29,21 @@
 - Possible rationalisation of Exceptions classes in some cases. I'm having
   to draw lots of Exception classes in Dia to document this thing. I wonder
   if string comparison is quicker than class instanciation during exception
-  processing?
+  processing? Update: May not be an issue so much any more as I've
+  deleted a whole swag of exceptions now.
 - architecture.dia: SEQFrame.type == 'SEQ'. Is this in beep.core.constants
   somewhere, and why?
 - beep.core.message should probably be moved to beep.core.profiles since
   message is an enabling class for the BEEPMgmtProfile class. mgmtcreator
   and mgmtparser can probably be moved too, since the mgmt thingo is
   structured in as a profile, not core anymore.
-- How does the library search for user defined profiles?
 - If we define the URI for a profile when we add it to a ProfileDict, 
-  why does the Profile have a uri attribute?
+  why does the Profile have a uri attribute? Completeness?
 - Where does fragmentation get handled? Probably should be in the
   transport code somewhere, so we need to be careful with buffer overflows
-  in the rest of the code. May also affect where MIME encoding occurs.
-- I think I've finally worked out how the complex profiles should work.
-  To fit with my model, you really need to have a supporting transport
-  for anything that deals with raw sockets like TLS. What a TLS profile
-  would do is deal with the channel side of things to set up a tuning
-  reset, which means it would deal directly with the SessionManager to
-  migrate the open socket from the current Session to a new TLSSession,
-  such as a TLSTCPSession which would inherit from TCPSessionListener
-  (for example) and simply overload the TCPCommsMixin class to define
-  TLS layer stuff. This would mean the encryption/decryption will happen
-  before the Session class even sees the frames, and so once a tuning
-  reset occurs, BEEP could get restarted happily. Everything would be
-  tunnelled over TLS at raw socket level, but once the data came through
-  the TLSCommsMixin functions it would be the same data as you'd get from
-  a TCPCommsMixin over an unencrypted connection. Once the socket got
-  moved over to the new Session, the current Profile would exit and
-  the other session would just kick off as if it'd just been started.
-  Easy.
+  in the rest of the code. This is for sending of frames only as frame
+  reassembly works correctly on reception, including DoS prevention
+  and checking for buffer overflow.
 - Add profile priorities for when a client might ask to start a channel
   and give a list of profiles. The server will then pick the one that it
   knows about that has the highest priority. This allows the server to

@@ -1,5 +1,5 @@
-# $Id: TODO,v 1.2 2002/08/05 04:22:22 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: TODO,v 1.3 2002/08/07 02:54:59 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -36,3 +36,6 @@
   message is an enabling class for the BEEPMgmtProfile class. mgmtcreator
   and mgmtparser can probably be moved too, since the mgmt thingo is
   structured in as a profile, not core anymore.
+- How does the library search for user defined profiles?
+- If we define the URI for a profile when we add it to a ProfileDict, 
+  why does the Profile have a uri attribute?

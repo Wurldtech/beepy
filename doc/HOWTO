@@ -1,0 +1,127 @@
+# $Id: HOWTO,v 1.1 2002/08/07 02:54:59 jpwarren Exp $
+# $Revision: 1.1 $
+#
+#    BEEPy - A Python BEEP Library
+#    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
+#
+#    This library is free software; you can redistribute it and/or
+#    modify it under the terms of the GNU Lesser General Public
+#    License as published by the Free Software Foundation; either
+#    version 2.1 of the License, or (at your option) any later version.
+#
+#    This library is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#    Lesser General Public License for more details.
+#
+#    You should have received a copy of the GNU Lesser General Public
+#    License along with this library; if not, write to the Free Software
+#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+
+So, you've decided you want to use BEEPy for something. Cool! I've tried
+to make BEEPy as easy as possible to use, as I use it myself and I'm
+inherently lazy. 95% of the BEEP stuff is handled by the library, including
+threading, so hopefully you won't need to play with any of that. You
+should really only need to deal with the specifics of your application
+and make a couple of calls into the BEEP library to handle certain events.
+
+Please note that BEEPy is still under heavy development so the API is
+a bit rough at the moment. The aim is to write more convenience functions
+as the library stabilises to make writing applications with it as
+painless as possible.
+
+BEEPy functions by making point-to-point connections between two BEEP
+components, an Initiator and a Listener (or client and server, if you
+prefer). Depending on the role of each part of your code, you will need
+to instanciate a Listener or an Initiator. There needs to be a BEEP
+Listener out there somewhere for you to talk to, though not necessarily
+one written using BEEPy. (Devel note: cross-library compatibility is
+probably broken right now, but should be fixed soonish. BEEPy only for
+now, sorry.)
+
+Over each of those point-to-point connections, BEEP allows you to use
+multiple Channels. Each Channel functions more or less independently
+from one another, with Channel 0 reserved for administrative commands.
+Check RFC3080 for a more indepth explanation of this.
+
+A good place to look right now is in beep/test/test_echoprofile.py. This
+is a basic example of how to use the core library features.
+
+Right near the beginning of the test, you should see this line:
+
+pdict = profile.ProfileDict()
+
+This line creates an empty ProfileDict: a dictionary of the profiles that
+this application supports. Profiles are at the heart of BEEPy's functionality.
+A Profile defines what should happen on any given Channel. For example,
+when a connection is first made, Channel 0 is created and bound to the
+BEEP Management Profile (defined in beep/profiles/beepmgmtprofile.py). This
+profile handles all the Channel management functions. It's hard coded into
+the library, so you won't need to add this to your profile dictionary.
+
+But, the management profile is pretty limited in what it does, and isn't
+any use to your application, really. What you need is a profile that will
+do all the funky comms things you need for your application, right? Easy.
+You simply write a profile that does all that. We're going to use the
+EchoProfile as an example.
+
+Back to the test_echoprofile.py file. The next line looks like this:
+
+pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
+
+This line adds a profile into the profile dictionary. The URI used to
+refer to this profile is http://www.eigenmagic.com/beep/ECHO and it
+binds to a module called echoprofile. This is the path to the file you've
+defined the profile in, and the library searches for it in beep/profiles
+by default.
+
+So now, let's go and see what a profile looks like.
+
+$ cd beep/profiles
+
+Open up echoprofile.py. First you'll see we import the base profile class
+definition. This handles the core profile functions for us, so we don't
+have to bother with that guff. There are two important things required of
+us to allow our profile to be used by the library.
+
+The first is to define __profileClass__. This variable is used by the
+library to work out which class definition to instanciate when we try
+to use the profile (which is identified by its URI, defined above,
+remember?) This needs to match the class name. With that done, you create
+a class definition (in this case EchoProfile) with the correct name and
+subclass it from profile.Profile, as well as any other modules you might
+need.
+
+Now you just need to define a single method: doProcessing(). This method
+gets called by the library to process any outstanding frames for the
+channel, using your profile.
+
+Our example is pretty simple: read in a single frame (if there is one)
+and if it's a MSG frame, reply back with the same payload. As you can
+see, the code is pretty simple.
+
+That's it. You've just implemented a profile. Easy, wasn't it? Of course,
+you could do a lot more complex operations than this, depending on what
+your application needs to do.
+
+Now, back to the main file, test_echoprofile.py. The next line we see is:
+
+sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
+
+This line creates a TCPSessionListener called sess, gives it a logfile
+and the ProfileDict we defined above (so it can use our EchoProfile) and
+tells it to listen on 'localhost' on port 1976 for incoming connections.
+That's it. That line starts a BEEP server on port 1976 and will process
+any incoming messages. TCP is the only transport method supported by
+BEEPy at the moment, but it's the one most people are likely to want to
+use. I also want to implement an example alternative transport to prove
+the modularity of the transport interface code. I'm thinking BEEP over
+SMTP would be somewhat novel. :)
+
+So, we now simulate a client connecting to the server and sending BEEP
+messages to start a channel (number 1, in this case) and use our
+EchoProfile on that channel. We then send a couple of test MSG messages
+to see if we get RPY replies echoed back to us.
+
+

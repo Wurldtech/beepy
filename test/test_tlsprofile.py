@@ -1,5 +1,5 @@
-# $Id: test_tlsprofile.py,v 1.15 2004/08/02 09:46:08 jpwarren Exp $
-# $Revision: 1.15 $
+# $Id: test_tlsprofile.py,v 1.16 2004/08/22 04:15:58 jpwarren Exp $
+# $Revision: 1.16 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -26,6 +26,8 @@ import unittest
 import sys
 sys.path.append('..')
 
+from beepy.core.debug import log
+
 from beepy.transports.tls import TLSServerProtocol
 from beepy.transports.tls import TLSServerFactory
 from beepy.transports.tls import TLSClientProtocol
@@ -35,11 +37,6 @@ from beepy.transports.tcp import reactor
 
 from beepy.profiles import echoprofile
 from beepy.profiles import tlsprofile
-
-import logging
-from beepy.core import debug
-
-log = logging.getLogger('tlsclient')
 
 ## Ok, let's define our client application
 

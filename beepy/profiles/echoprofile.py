@@ -1,5 +1,5 @@
-# $Id: echoprofile.py,v 1.8 2004/08/02 09:46:07 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: echoprofile.py,v 1.9 2004/08/22 04:15:58 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -26,9 +26,9 @@ It sends a Reply to each Message it receives.
 __profileClass__ = "EchoProfile"
 uri = "http://www.eigenmagic.com/beep/ECHO"
 
-import logging
-from beepy.core import debug
-log = logging.getLogger('beepy')
+#import logging
+from beepy.core.debug import log
+#log = logging.getLogger('beepy')
 
 import profile
 

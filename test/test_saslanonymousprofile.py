@@ -1,5 +1,5 @@
-# $Id: test_saslanonymousprofile.py,v 1.13 2004/08/02 09:46:08 jpwarren Exp $
-# $Revision: 1.13 $
+# $Id: test_saslanonymousprofile.py,v 1.14 2004/08/22 04:15:58 jpwarren Exp $
+# $Revision: 1.14 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -23,11 +23,10 @@ import unittest
 import sys
 import time
 import threading
-import logging
 
 sys.path.append('../')
-from beepy.core import debug
-log = logging.getLogger('beepy')
+
+from beepy.core.debug import log
 
 from beepy.transports.tcp import SASLServerProtocol
 from beepy.transports.tcp import SASLServerFactory

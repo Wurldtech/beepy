@@ -1,5 +1,5 @@
-# $Id: test_creator.py,v 1.6 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: test_creator.py,v 1.7 2004/08/22 04:15:58 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -79,7 +79,7 @@ class CreatorTest(unittest.TestCase):
         """Create error message"""
         creator = mgmtcreator.Creator()
         msg = creator.createErrorMessage('550')
-        self.assertEqual(msg, '<error code="550"/>\r\n')
+        self.assertEqual(msg, '<error code="550">\r\n  Requested Action Not Taken\r\n</error>\r\n')
 
     def test_createErrorMessageWithText(self):
         """Create error message with text message"""

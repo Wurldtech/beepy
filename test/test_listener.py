@@ -1,5 +1,5 @@
-# $Id: test_listener.py,v 1.13 2004/08/02 09:46:08 jpwarren Exp $
-# $Revision: 1.13 $
+# $Id: test_listener.py,v 1.14 2004/08/22 04:15:58 jpwarren Exp $
+# $Revision: 1.14 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -30,10 +30,9 @@ from beepy.core import constants
 from beepy.profiles import profile
 from beepy.profiles import echoprofile
 
-import logging
-from beepy.core import debug
-log = logging.getLogger('ServerTest')
-log.setLevel(logging.DEBUG)
+from beepy.core.debug import log
+#from logging import DEBUG
+#log.setLevel(DEBUG)
 
 import dummyclient
 

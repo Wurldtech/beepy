@@ -1,5 +1,5 @@
-# $Id: saslotpprofile.py,v 1.11 2004/08/02 09:46:07 jpwarren Exp $
-# $Revision: 1.11 $
+# $Id: saslotpprofile.py,v 1.12 2004/08/22 04:15:58 jpwarren Exp $
+# $Revision: 1.12 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -22,9 +22,9 @@
 This module implements the SASL OTP (One Time Password)
 mechanism as a BEEPy profile.
 """
-import logging
-from beepy.core import debug
-log = logging.getLogger('beepy')
+#import logging
+from beepy.core.debug import log
+#log = logging.getLogger('beepy')
 
 import saslprofile
 

@@ -1,5 +1,5 @@
-# $Id: tcp.py,v 1.5 2004/08/02 09:46:08 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: tcp.py,v 1.6 2004/08/22 04:15:58 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -18,9 +18,10 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-import logging
-from beepy.core import debug
-log = logging.getLogger('beepy')
+
+#import logging
+from beepy.core.debug import log
+#log = logging.getLogger('beepy')
 
 ## If we have twisted, use this stuff
 try:

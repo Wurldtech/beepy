@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.13 2004/08/02 09:46:07 jpwarren Exp $
-# $Revision: 1.13 $
+# $Id: beepmgmtprofile.py,v 1.14 2004/08/22 04:15:58 jpwarren Exp $
+# $Revision: 1.14 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -23,12 +23,12 @@ This module implements the BEEP Management profile.
 
 This profile is used to manage BEEP sessions and channels.
 
-@version: $Revision: 1.13 $
+@version: $Revision: 1.14 $
 @author: Justin Warren
 """
-import logging
-from beepy.core import debug
-log = logging.getLogger('beepy')
+#import logging
+from beepy.core.debug import log
+#log = logging.getLogger('beepy')
 
 import profile
 from beepy.core import constants

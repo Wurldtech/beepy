@@ -1,5 +1,5 @@
-# $Id: saslsession.py,v 1.7 2004/08/02 09:46:07 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: saslsession.py,v 1.8 2004/08/22 04:15:57 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -28,12 +28,12 @@ as some methods to query these variables by applications.
 You would use these classes when you're writing something that
 makes use of SASL authentication.
 
-@version: $Revision: 1.7 $
+@version: $Revision: 1.8 $
 @author: Justin Warren
 """
-import logging
-import debug
-log = logging.getLogger('beepy')
+#import logging
+from debug import log
+#log = logging.getLogger('beepy')
 
 from beepy.core.session import Session, Listener, Initiator, SessionException
 
@@ -52,7 +52,7 @@ class SASLSession(Session):
 
     def authenticationSucceeded(self):
         log.info('Server authentication succeeded')
-        log.info('my credentials: authentid: %s, userid: %s' % (self.authentid, self.userid))
+        log.debug('my credentials: authentid: %s, userid: %s' % (self.authentid, self.userid))
 
     def authenticationFailed(self, errorCode, errorReason):
         log.error('Authentication failed: [%s] %s' % (errorCode, errorReason) )

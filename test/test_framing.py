@@ -1,5 +1,5 @@
-# $Id: test_framing.py,v 1.14 2004/08/02 09:46:08 jpwarren Exp $
-# $Revision: 1.14 $
+# $Id: test_framing.py,v 1.15 2004/08/22 04:15:58 jpwarren Exp $
+# $Revision: 1.15 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -22,18 +22,14 @@
 # with regard to basic framing
 
 import unittest
-
 import sys
 import time
 
-import logging
-
 sys.path.append('../')
-#from beepy.core import constants
-from beepy.core import debug
 
-log = logging.getLogger('test_framing')
-log.setLevel(logging.DEBUG)
+from beepy.core.debug import log
+#from logging import DEBUG
+#log.setLevel(DEBUG)
     
 import dummyclient
 

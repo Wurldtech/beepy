@@ -1,5 +1,5 @@
-# $Id: test_parser_creator.py,v 1.7 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: test_parser_creator.py,v 1.8 2004/08/22 04:15:58 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -24,13 +24,12 @@
 
 import unittest
 import sys, os.path
-import logging
 
 sys.path.append('../')
 from beepy.profiles import mgmtparser
 from beepy.profiles import mgmtcreator
 
-log = logging.getLogger('ParserCreatorTest')
+from beepy.core.debug import log
 
 class ParserCreatorTest(unittest.TestCase):
 

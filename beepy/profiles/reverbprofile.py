@@ -1,5 +1,5 @@
-# $Id: reverbprofile.py,v 1.6 2004/08/02 09:46:07 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: reverbprofile.py,v 1.7 2004/08/22 04:15:58 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -29,9 +29,9 @@ Each echo is sent as an ANS frame.
 MSG frames that are not in the above format and replied to with an
 ERR frame.
 """
-import logging
-from beepy.core import debug
-log = logging.getLogger('beepy')
+#import logging
+from beepy.core.debug import log
+#log = logging.getLogger('beepy')
 
 __profileClass__ = "ReverbProfile"
 uri = "http://www.eigenmagic.com/beep/REVERB"

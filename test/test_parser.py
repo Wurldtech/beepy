@@ -1,5 +1,5 @@
-# $Id: test_parser.py,v 1.5 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: test_parser.py,v 1.6 2004/08/22 04:15:58 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -28,11 +28,9 @@ import unittest
 import sys, os.path
 sys.path.append('../')
 
-from beepy.profiles import mgmtparser
+from beepy.core.debug import log
 
-import logging
-from beepy.core import debug
-log = logging.getLogger('ParserTest')
+from beepy.profiles import mgmtparser
 
 class ParserTest(unittest.TestCase):
 

@@ -1,5 +1,5 @@
-# $Id: test_initiator.py,v 1.12 2004/08/02 09:46:08 jpwarren Exp $
-# $Revision: 1.12 $
+# $Id: test_initiator.py,v 1.13 2004/08/22 04:15:58 jpwarren Exp $
+# $Revision: 1.13 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -25,9 +25,7 @@ import time
 
 sys.path.append('../')
 
-import logging
-from beepy.core import debug
-log = logging.getLogger('beepy')
+from beepy.core.debug import log
 
 from beepy.transports.tcp import BeepServerProtocol, BeepServerFactory
 from beepy.transports.tcp import BeepClientProtocol, BeepClientFactory
@@ -36,7 +34,6 @@ from beepy.transports.tcp import reactor
 class InitiatorTestProtocol(BeepClientProtocol):
 
     def greetingReceived(self):
-        log.info('Greeting received in client')
         self.shutdown()
 
     def connectionLost(self, reason):

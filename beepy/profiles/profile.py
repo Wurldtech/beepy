@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.14 2004/08/02 09:46:07 jpwarren Exp $
-# $Revision: 1.14 $
+# $Id: profile.py,v 1.15 2004/08/22 04:15:58 jpwarren Exp $
+# $Revision: 1.15 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -25,9 +25,9 @@ Profiles are used by BEEP to define the protocol used over
 a BEEP channel. You will need to implement or use profiles
 in your applications, which will need to inherit from this class.
 """
-import logging
-from beepy.core import debug
-log = logging.getLogger('beepy')
+#import logging
+from beepy.core.debug import log
+#log = logging.getLogger('beepy')
 
 from beepy.core import constants
 from beepy.core import errors

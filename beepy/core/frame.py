@@ -1,5 +1,5 @@
-# $Id: frame.py,v 1.9 2004/08/02 09:46:07 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: frame.py,v 1.10 2004/08/22 04:15:57 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -29,16 +29,16 @@ general and subclassed it to a DataFrame. This way, if other
 frames are used for some reason, they can also subclass from
 Frame. All the guts are in DataFrame, but that's what the RFC says.
 
-@version: $Revision: 1.9 $
+@version: $Revision: 1.10 $
 @author: Justin Warren
 
 """
 import string
 import traceback
 
-import logging
-import debug
-log = logging.getLogger('beepy')
+#import logging
+from debug import log
+#log = logging.getLogger('beepy')
 
 import errors
 import constants

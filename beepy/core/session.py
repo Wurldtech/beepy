@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.16 2004/08/02 09:46:07 jpwarren Exp $
-# $Revision: 1.16 $
+# $Id: session.py,v 1.17 2004/08/22 04:15:57 jpwarren Exp $
+# $Revision: 1.17 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -30,10 +30,10 @@ import socket
 import threading
 import Queue
 import traceback
-import logging
 
-import debug
-log = logging.getLogger('beepy')
+#import logging
+from debug import log
+#log = logging.getLogger('beepy')
 
 import constants
 import errors

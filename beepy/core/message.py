@@ -1,5 +1,5 @@
-# $Id: message.py,v 1.7 2004/08/02 09:46:07 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: message.py,v 1.8 2004/08/22 04:15:57 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -30,13 +30,13 @@ and transport layer.
 
 Profiles and applications deal with Messages, not directly with Frames.
 
-@version: $Revision: 1.7 $
+@version: $Revision: 1.8 $
 @author: Justin Warren
 
 """
-import logging
-import debug
-log = logging.getLogger('beepy')
+#import logging
+from debug import log
+#log = logging.getLogger('beepy')
 
 import errors
 import constants

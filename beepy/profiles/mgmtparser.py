@@ -1,5 +1,5 @@
-# $Id: mgmtparser.py,v 1.4 2004/08/02 09:46:07 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: mgmtparser.py,v 1.5 2004/08/22 04:15:58 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -33,9 +33,9 @@ minidom.
 If minidom ever gets fixed up to support CDATA, we can do away
 with this smoke and mirrors technique.
 """
-import logging
-from beepy.core import debug
-log = logging.getLogger('debug')
+#import logging
+from beepy.core.debug import log
+#log = logging.getLogger('debug')
 
 import types
 import xml.dom.minidom

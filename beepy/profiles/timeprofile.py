@@ -1,5 +1,5 @@
-# $Id: timeprofile.py,v 1.2 2004/09/28 01:19:20 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: timeprofile.py,v 1.3 2004/11/22 04:20:08 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -97,8 +97,8 @@ class TimeProfile(profile.Profile):
                     
                     try:
                         interval = int(command[1])
-                    except:
-                        log.debug('interval not an integer')
+                    except ValueError, e:
+                        log.debug('FIXME! interval not an integer')
                         self.channel.sendError(msg.msgno, 'Interval not an integer\n')
                         return
 

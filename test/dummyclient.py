@@ -1,5 +1,5 @@
-# $Id: dummyclient.py,v 1.11 2004/09/28 01:19:21 jpwarren Exp $
-# $Revision: 1.11 $
+# $Id: dummyclient.py,v 1.12 2004/11/22 04:20:09 jpwarren Exp $
+# $Revision: 1.12 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -60,13 +60,11 @@ class DummyClient:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         self.numDataFrames = 0
-        try:
-            self.sock.connect(self.server)
-            self.sock.setblocking(0)
-            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        except:
-            raise
 
+        self.sock.connect(self.server)
+        self.sock.setblocking(0)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        
     def sendmsg(self, msg):
         self.sock.send(msg)
 	pass

@@ -1,5 +1,5 @@
-# $Id: testall.py,v 1.10 2004/10/02 02:18:50 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: testall.py,v 1.11 2004/11/22 04:20:09 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -47,7 +47,7 @@ try:
 
     moduleNames.append('test_tlsprofile')
     
-except:
+except ImportError:
     print "TLS not available, skipping TLS tests..."
 
 def unitTest():

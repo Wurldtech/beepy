@@ -1,5 +1,5 @@
-# $Id: base.py,v 1.6 2004/09/28 01:19:21 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: base.py,v 1.7 2004/11/22 04:20:09 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -145,7 +145,9 @@ class SelectReactor:
                 sock.close()
                 del self.outsocks[sock]
                 pass
-            
+        ## FIXME
+        ## Need to remove this bare except at some point
+        ## Probably after fixing up the session startup/shutdown code
         except:
             traceback.print_exc()
 

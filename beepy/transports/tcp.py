@@ -1,5 +1,5 @@
-# $Id: tcp.py,v 1.7 2004/09/28 01:19:21 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: tcp.py,v 1.8 2004/11/22 04:20:09 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -23,19 +23,11 @@
 from beepy.core.debug import log
 #log = logging.getLogger('beepy')
 
-## If we have twisted, use this stuff
-try:
-    from twisted.internet import reactor
-    from twisted.internet.protocol import ClientFactory, ServerFactory
-    from twisted.internet.protocol import ReconnectingClientFactory
-    from twisted.internet.error import ConnectionDone, ConnectionLost
-    from twisted.protocols.basic import LineReceiver
-except:
-## otherwise, use our own classes
-    from base import reactor
-    from base import ClientFactory, ServerFactory
-    from base import ConnectionDone
-    from base import LineReceiver
+from twisted.internet import reactor
+from twisted.internet.protocol import ClientFactory, ServerFactory
+from twisted.internet.protocol import ReconnectingClientFactory
+from twisted.internet.error import ConnectionDone, ConnectionLost
+from twisted.protocols.basic import LineReceiver
 
 import re
 
@@ -464,12 +456,16 @@ class BeepProtocol(LineReceiver):
 #        log.debug('deleted SEQ Buffer for channel %s' % channelnum)
 
     def flushDatabuf(self, channelnum):
+        """
+        Flush any data left in the channel buffer before closing.
+        FIXME: This is really dodgy, and must be fixed in the refactor.
+        """
         try:
             while(1):
                 msg = self.channelbuf[channelnum].databuf.pop(0)
                 self.sendMessage(msg)
 
-        except:
+        except IndexError:
             pass
         
 class ProtocolError(errors.BEEPException):

@@ -1,5 +1,5 @@
-# $Id: tls.py,v 1.3 2004/07/24 06:33:48 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: tls.py,v 1.4 2004/08/02 09:46:08 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -59,7 +59,7 @@ class TLSProtocol(BeepProtocol):
         if self.factory.certificateFileName:
             certfile = self.factory.certificateFileName
         else:
-            log.info('Certificate filename not specified. Requesting it...')            
+            log.info('Certificate filename not specified. Requesting it...')
             certfile = self.factory.getCertificateFilename()
             
         log.debug('Starting server side TLS...')

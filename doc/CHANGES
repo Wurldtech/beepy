@@ -1,5 +1,5 @@
-# $Id: CHANGES,v 1.20 2004/07/24 06:33:48 jpwarren Exp $
-# $Revision: 1.20 $
+# $Id: CHANGES,v 1.21 2004/08/02 09:46:08 jpwarren Exp $
+# $Revision: 1.21 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -42,6 +42,9 @@
   to exit when the single client session disconnects.
 - Fixed bug in Channel where the msgno would be deallocated for message
   types other than ANS or RPY.
+- Fixed bug where SEQ frames would be sent during Tuning Reset that
+  interfere with the transport protocol setup for TLS.
+- Added channel close error callback triggering to beepmgmtprofile.
 
 0.3 -> 0.4
 ----------

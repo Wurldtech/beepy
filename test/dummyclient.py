@@ -1,5 +1,5 @@
-# $Id: dummyclient.py,v 1.9 2004/07/24 06:33:49 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: dummyclient.py,v 1.10 2004/08/02 09:46:08 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -88,6 +88,7 @@ class DummyClient:
                     self.framebuffer += data
                     theframe = self.findFrame()
                     if isinstance(theframe, frame.SEQFrame):
+#                        print "Found SEQ frame: %s" % theframe
                         ## Only return SEQ frames if told to
                         if ignoreSEQ:
                             pass
@@ -95,10 +96,13 @@ class DummyClient:
                             return theframe
 
                     else:
+#                        print "Non SEQ frame found: %s" % theframe
                         if theframe is None:
                             return ''
                         else:
-                            self.numDataFrames += 1
+#                            if theframe.dataFrameType == 'ERR':
+#                                print "Error from BEEP peer: %s" % theframe
+#                            self.numDataFrames += 1
 #                            log.debug('Data frame %d found: %s' % (self.numDataFrames, theframe))
                             return '%s' % theframe
                     

@@ -1,5 +1,5 @@
-# $Id: TODO,v 1.21 2004/07/24 06:33:48 jpwarren Exp $
-# $Revision: 1.21 $
+# $Id: TODO,v 1.22 2004/08/02 09:46:08 jpwarren Exp $
+# $Revision: 1.22 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -23,10 +23,21 @@
 # me while doing something else. It's easier to import into CVS than
 # yellow sticky notes. :)
 
+- Write the FAQ
+
+- Check over the session shutdown code to streamline it. It's too
+  complex at the moment so that even I have trouble following it, and
+  I wrote the damn thing.
+
+- Add more callback hooks to the code for easy subclassing, a la
+  channelCloseError().
+
+- Increase error handling mechanisms.
+
 - Fix channel priority algorithm to provide a more intelligent window
   sizing mechanism. The priority level in the Channel should map to an
   intuitive real bandwidth priority at the transport layer. The current
-  method seem to exhibit no real difference between the levels. Need to
+  method seems to exhibit no real difference between the levels. Need to
   review what is provided for in the RFCs.
 
 - Add profile priorities for when a client might ask to start a channel

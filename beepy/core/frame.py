@@ -1,5 +1,5 @@
-# $Id: frame.py,v 1.8 2004/06/27 07:38:31 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: frame.py,v 1.9 2004/08/02 09:46:07 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -29,7 +29,7 @@ general and subclassed it to a DataFrame. This way, if other
 frames are used for some reason, they can also subclass from
 Frame. All the guts are in DataFrame, but that's what the RFC says.
 
-@version: $Revision: 1.8 $
+@version: $Revision: 1.9 $
 @author: Justin Warren
 
 """

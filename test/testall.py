@@ -1,5 +1,5 @@
-# $Id: testall.py,v 1.7 2004/07/24 06:33:49 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: testall.py,v 1.8 2004/08/02 09:46:08 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -37,6 +37,7 @@ moduleNames = [ 'test_creator',
                 'test_echoprofile',
                 'test_saslanonymousprofile',
                 'test_saslotpprofile',
+                'test_tlsprofile',
               ]
 
 ## Check to see if TLS/SSL is available.

@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.15 2004/06/27 07:38:31 jpwarren Exp $
-# $Revision: 1.15 $
+# $Id: session.py,v 1.16 2004/08/02 09:46:07 jpwarren Exp $
+# $Revision: 1.16 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -92,6 +92,8 @@ class Session:
         @param theframe: the frame to process
         @type theframe: a DataFrame object
         """
+#        log.debug('processing frame: %s' % theframe)
+
         if self.channels.has_key(theframe.channelnum):
             try:
                 self.channels[theframe.channelnum].processFrame(theframe)
@@ -187,8 +189,7 @@ class Session:
         Attempts to close all channels on this Session
         """
         try:
-            chanlist = self.channels.keys()
-            for channelnum in chanlist:
+            for channelnum in self.channels.keys():
                 if channelnum != 0:
                     doneEvent = threading.Event()
                     self.closeChannel(channelnum)
@@ -210,7 +211,21 @@ class Session:
         log.debug('shutdown() started...')
         self.state = CLOSING
         self.closeAllChannels()
-        self.state = CLOSED
+
+    def shutdownComplete(self):
+        """
+        Called when the Session has completed its shutdown
+        """
+        pass
+
+    def tuningBegin(self):
+        """
+        Called by a profile when a tuning reset process begins. This
+        is to notify the session that we're just waiting for confirmation
+        of the tuning reset from the remote end.
+        """
+#        log.debug('changing state to TUNING')
+        self.state = TUNING
 
     def tuningReset(self):
         """
@@ -220,12 +235,11 @@ class Session:
         
         This is used for turning on TLS.
         """
-        self.state = TUNING
         self.deleteAllChannels()
         self.startTLS()
-        self.state = PRE_GREETING
         self.setStartingChannelNum()
         self.createChannelZero()
+        self.state = PRE_GREETING
 
     def deleteChannel(self, channelnum):
         """
@@ -312,10 +326,17 @@ class Session:
                 del theframe
 
     def _handleGreeting(self):
-        if not self.state == PRE_GREETING:
-            raise TerminateException('Greeting already received')
+        """
+        A greeting may be received in two circumstances:
+        - When first connecting to a peer
+        - After a tuning reset
+        """
+        if not (self.state == PRE_GREETING):
+            raise TerminateException('Greeting already received in state %s' % self.state)
         else:
+#            log.debug('changing state to ACTIVE')
             self.state = ACTIVE
+#            log.debug('Greeting received')
             self.greetingReceived()
 
     def greetingReceived(self):
@@ -397,7 +418,6 @@ class Session:
         [ [saslotpprofile.uri, None, None], [saslanonymousprofile.uri, None, None] ]
 
         More complex scenarios are possible.
-        
         """
 
         ## We can only start channels if we're in the ACTIVE state
@@ -414,7 +434,7 @@ class Session:
             log.debug('startChannel received in state %s' % self.state)
             raise SessionException('Attempt to start channel when not ACTIVE')
 
-    def channelStarted(self, channelnum):
+    def channelStarted(self, channelnum, uri):
         """
         Action to take when a positive RPY to a channel
         start message is received.
@@ -422,6 +442,7 @@ class Session:
         if you want anything to happen at this event.
 
         @param channelnum: The channel number that was started.
+        @param uri: The URI of the profile that was started on the channel.
         """
         pass
 
@@ -444,21 +465,36 @@ class Session:
         """
         log.debug("Attempting to close channel %s..." % channelnum)
         if self.channels.has_key(channelnum):
-            self.channels[0].profile.closeChannel(channelnum, self.channelClosed, self.channelClosedError)
+            self.channels[0].profile.closeChannel(channelnum, self._channelClosedSuccess, self._channelClosedError)
         else:
             raise KeyError("Channel number invalid")
 
-    def channelClosed(self, channelnum):
-        """ This method gets called when a channel is closed successfully.
+    def _channelClosedSuccess(self, channelnum):
+        """
+        Internal channel closure method.
         """
         log.debug('Channel %d closed.' % channelnum)
         if len(self.channels) == 0:
             self.close()
+        self.channelClosedSuccess(channelnum)
 
-    def channelClosedError(self, channelnum):
+    def channelClosedSuccess(self, channelnum):
+        """
+        Override this method to receive notification of channel closure
+        """
+        pass
+
+    def _channelClosedError(self, channelnum, code, desc):
+        """
+        Internal channel closure error handling
+        """
+        ## does nothing but call api method at this stage
+        self.channelClosedError(channelnum, code, desc)
+
+    def channelClosedError(self, channelnum, code, desc):
         """ What to do if a channel close fails
         """
-        log.info('close of channel %d failed' % channelnum)
+        log.info('close of channel %d failed: %s: %s' % (channelnum, code, desc) )
         pass
 
     def getChannel(self, channelnum):

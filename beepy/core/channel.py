@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.10 2004/06/27 07:38:31 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: channel.py,v 1.11 2004/08/02 09:46:07 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -22,7 +22,7 @@
 """
 Channel related code
 
-@version: $Revision: 1.10 $
+@version: $Revision: 1.11 $
 @author: Justin Warren
 """
 import logging
@@ -180,13 +180,16 @@ class Channel:
             if theframe.msgno in self.receivedMsgnos:
                 raise ChannelMsgnoInvalid('msgno %i not valid for MSG' % theframe.msgno)
 
-
         # Otherwise, check the msgno is valid
         else:
+            
             # Allow first frame received for the greeting on management channel
             if not ( theframe.dataFrameType == constants.DataFrameTypes['RPY'] and theframe.msgno == 0 and self.channelnum == 0 ):
                 if theframe.msgno not in self.allocatedMsgnos:
-                    raise ChannelMsgnoInvalid('msgno %i not valid' % theframe.msgno)
+                    if self.channelnum == 0:
+                        raise ChannelMsgnoInvalid('msgno %i not valid for %s' % (theframe.msgno, theframe) )
+                    else:
+                        self.sendError(theframe.msgno, 'Invalid msgno')
 
     def processFrame(self, theframe):
         """
@@ -211,8 +214,8 @@ class Channel:
             ## Check to see if this is the last Frame for the message.
             ## If it is, pass it to the profile for processing.
             if theframe.more == constants.MoreTypes['.']:
-                    
                 self.profile.processMessage(self.ansbuf[theframe.ansno])
+                self.deallocateMsgno(theframe.ansno)
                 del self.ansbuf[theframe.ansno]
 
         ## If we've already got part of a message, append the payload
@@ -233,7 +236,10 @@ class Channel:
                     self.receivedMsgnos.append(theframe.msgno)
 
                 self.profile.processMessage(self.msgbuf[theframe.msgno])
-                self.deallocateMsgno(theframe.msgno)
+                if theframe.dataFrameType == constants.DataFrameTypes['RPY']:
+#                    log.debug('deallocating msgno after frame: %s' % theframe)
+                    self.deallocateMsgno(theframe.msgno)
+
                 del self.msgbuf[theframe.msgno]
         pass
 

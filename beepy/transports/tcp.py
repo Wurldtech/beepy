@@ -1,5 +1,5 @@
-# $Id: tcp.py,v 1.4 2004/07/24 06:33:48 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: tcp.py,v 1.5 2004/08/02 09:46:08 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -41,6 +41,7 @@ import re
 import traceback
 
 from beepy.core.session import Session, Listener, Initiator, SessionException
+from beepy.core.session import TUNING
 from beepy.profiles import profile
 from beepy.core import constants
 from beepy.core import frame
@@ -57,6 +58,7 @@ class SEQBuffer:
     data, if any.
     """
     STARTING_WINDOWSIZE = 4096
+#    STARTING_WINDOWSIZE = 32
     MAX_WINDOWSIZE = 10 * STARTING_WINDOWSIZE
     MIN_WINDOWSIZE = 1
 
@@ -67,8 +69,14 @@ class SEQBuffer:
     
     def __init__(self, channelnum):
         self.channelnum = channelnum
+
+        ## The amount of space still available for this channel
+        ## at the remote end.
+        self.availspace = self.STARTING_WINDOWSIZE
+
+        ## My window size for this channel
         self.windowsize = self.STARTING_WINDOWSIZE
-        self.availspace = self.windowsize
+
         self.databuf = []
         self.cb = None
 
@@ -142,11 +150,20 @@ class BeepProtocol(LineReceiver):
                         self.processSEQFrame(theframe)
                         
                     elif isinstance(theframe, frame.DataFrame):
-                        self.processFrame(theframe)
+
+                        ## Process the inbound frame
+                        self.processFrame(theframe)                        
 
                         ## Respond with a SEQ frame to the received frame
-                        self.sendSEQFrame(theframe.channelnum)
                         
+                        ## Don't send SEQ frames if we're doing a tuning
+                        ## reset, as that can stuff the protocol setup.
+                        if self.state != TUNING:
+#                            log.debug('Not tuning. sending SEQ frame...')
+                            self.sendSEQFrame(theframe.channelnum)
+#                        else:
+#                            log.debug('Currently tuning. No SEQ frames.')
+
                     else:
                         log.error('Unknown frame type. Ignoring.')
 
@@ -243,10 +260,10 @@ class BeepProtocol(LineReceiver):
 
             self.channelbuf[channelnum].databuf.append(msg)
 
-            log.error('No remote space available on channel %d' % channelnum)
+            log.warning('No remote space available on channel %d' % channelnum)
 #            raise ValueError('No space left on channel %d' % channelnum)
 
-            ## Check to see if the Message has to be fragmented.
+        ## Check to see if the Message has to be fragmented.
         elif self.channelbuf[channelnum].availspace < len(msg):
 #            log.debug('Fragmenting message (%d availspace)...' % self.channelbuf[channelnum].availspace)
             ## Split the message into 2 pieces.
@@ -270,6 +287,7 @@ class BeepProtocol(LineReceiver):
         Send a message fragment by setting the continuation indicator
         for the frame.
         """
+#        log.debug('sending message fragment: %s' % msg)
         size = len(msg.payload)
         seqno = self.channels[channelnum].allocateLocalSeqno(size)
         theframe = frame.DataFrame(channelnum, msg.msgno, seqno, size, msg.msgType, constants.MoreTypes['*'])
@@ -298,7 +316,7 @@ class BeepProtocol(LineReceiver):
         self.channelbuf[channelnum].availspace -= size
         ## call the callback for complete message send
         if msg.cb is not None:
-            log.debug("Message args: %s" % msg.args)
+#            log.debug("Message args: %s" % msg.args)
             msg.cb(msg.args[0])
         pass
 
@@ -345,7 +363,6 @@ class BeepProtocol(LineReceiver):
 
         ## Reset the window size
         if self.channelbuf.has_key(theframe.channelnum):
-            self.channelbuf[theframe.channelnum].windowsize = theframe.window
             self.channelbuf[theframe.channelnum].availspace = theframe.window
 #            log.debug('Reset channel %d windowsize to %d' % (theframe.channelnum, theframe.window))
         ## send pending data
@@ -394,20 +411,17 @@ class BeepProtocol(LineReceiver):
         try:
             ## Make sure the channel is still open
             if self.channels.has_key(channelnum):
+
+                ## FIXME? The sequence number of the channel isn't
+                ## changed because allocateLocalSeqno() will only
+                ## increase the seqno if the payload length is
+                ## non-zero. SEQ frames have no length, so the seqno
+                ## stays the same. This is a bit weird, but that seems
+                ## to be the way it should be.
                 ackno = self.channels[channelnum].localSeqno
 
-                ## Work out the correct window size value based
-                ## on the channel priority.
-                ## priority 0 = 1024, -10 = 3, +10 = 2044
-                ## !!FIXME!!
-                ## This is super-dodgy at the moment, though it may work
-                if channelnum != 0:
-                    newwindow = 1024 + (self.channels[channelnum].priority * 102)
-                else:
-                    newwindow = 2048
-
-#                log.debug('Setting new windowsize: %d' % newwindow)
-                seqf = frame.SEQFrame(channelnum, ackno, newwindow)
+                seqf = frame.SEQFrame(channelnum, ackno, self.channelbuf[channelnum].windowsize)
+#                log.debug('Sending SEQ frame: %s' % seqf)
                 self.sendFrame(seqf)
 
         except KeyError:
@@ -513,7 +527,7 @@ class BeepClientFactory(BeepFactory, ClientFactory):
         if not why:
             log.error('connection lost: %s' % reason.getErrorMessage() )
             self.lostReason = reason
-            self.reason = reason
+            self.reason = None
 
         log.debug('Client finished. Stopping reactor.')
         pass

@@ -1,5 +1,5 @@
-# $Id: reverbclient.py,v 1.1 2004/07/24 06:33:49 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: reverbclient.py,v 1.2 2004/08/02 09:46:08 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>

@@ -1,5 +1,5 @@
-# $Id: saslsession.py,v 1.6 2004/06/27 07:38:31 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: saslsession.py,v 1.7 2004/08/02 09:46:07 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -28,7 +28,7 @@ as some methods to query these variables by applications.
 You would use these classes when you're writing something that
 makes use of SASL authentication.
 
-@version: $Revision: 1.6 $
+@version: $Revision: 1.7 $
 @author: Justin Warren
 """
 import logging

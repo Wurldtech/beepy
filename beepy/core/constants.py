@@ -1,5 +1,5 @@
-# $Id: constants.py,v 1.6 2004/06/27 07:38:31 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: constants.py,v 1.7 2004/08/02 09:46:07 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -24,7 +24,7 @@ Constant definitions for BEEPy.
 Invariant data is defined here as a single reference point
 for common data used throughout BEEPy.
 
-@version: $Revision: 1.6 $
+@version: $Revision: 1.7 $
 @author: Justin Warren
 """
 

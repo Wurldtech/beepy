@@ -1,5 +1,5 @@
-# $Id: tlsprofile.py,v 1.10 2004/07/24 06:33:48 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: tlsprofile.py,v 1.11 2004/08/02 09:46:07 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -64,6 +64,7 @@ class TLSProfile(profile.Profile):
             if ready:
                 ## If I receive a <ready> message then I'm the peer
                 ## acting in server mode and should start TLS
+                self.session.tuningBegin()
                 log.debug('Ready to start TLS')
                 data = '<proceed />'
                 self.channel.sendReply(msg.msgno, data)
@@ -124,6 +125,7 @@ class TLSProfile(profile.Profile):
     def sendReady(self):
         """ send a ready message to the remote end
         """
+        self.session.tuningBegin()
         data = '<ready version="1" />'
         self.channel.sendMessage(data)
 

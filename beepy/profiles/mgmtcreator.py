@@ -1,5 +1,5 @@
-# $Id: mgmtcreator.py,v 1.3 2004/07/24 06:33:48 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: mgmtcreator.py,v 1.4 2004/08/02 09:46:07 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -26,7 +26,7 @@ for channel management of BEEP.
 
 This implementation uses DOM via xml.dom.minidom.
 
-@version: $Revision: 1.3 $
+@version: $Revision: 1.4 $
 @author: Justin Warren
 """
 import logging
@@ -37,6 +37,7 @@ import types
 import xml.dom.minidom
 
 from beepy.core import errors
+from beepy.core.constants import ReplyCodes
 
 class Creator:
     """
@@ -306,6 +307,12 @@ class Creator:
         element.setAttribute('code', code)
         if xmlLang:
             element.setAttribute('xml:lang', xmlLang)
+
+        ## Try to add default error text
+        if text is None:
+            if ReplyCodes.has_key(code):
+                text = ReplyCodes[code]
+
         if text:
             textNode = self.doc.createTextNode(text)
             element.appendChild(textNode)

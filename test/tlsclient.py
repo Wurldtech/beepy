@@ -1,5 +1,5 @@
-# $Id: tlsclient.py,v 1.3 2004/07/24 06:33:49 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: tlsclient.py,v 1.4 2004/08/02 09:46:08 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -77,6 +77,9 @@ class TLSEchoClientFactory(TLSClientFactory):
     """
     protocol = TLSEchoClientProtocol
 
+    def clientConnectionLost(self, connection, reason):
+        TLSClientFactory.clientConnectionLost(self, connection, reason)
+        reactor.stop()
 
 if __name__ == '__main__':
     factory = TLSEchoClientFactory()

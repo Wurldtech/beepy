@@ -1,5 +1,5 @@
-# $Id: test_saslotpprofile.py,v 1.13 2004/07/24 06:33:49 jpwarren Exp $
-# $Revision: 1.13 $
+# $Id: test_saslotpprofile.py,v 1.14 2004/08/02 09:46:08 jpwarren Exp $
+# $Revision: 1.14 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -126,7 +126,6 @@ class SASLOTPProfileTest(unittest.TestCase):
         if factory.reason:
             log.error("Error occurred in factory: %s" % factory.reason)
             raise Exception(factory.reason.getErrorMessage())
-
 
 if __name__ == '__main__':
 

@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.12 2004/07/24 06:33:47 jpwarren Exp $
-# $Revision: 1.12 $
+# $Id: beepmgmtprofile.py,v 1.13 2004/08/02 09:46:07 jpwarren Exp $
+# $Revision: 1.13 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -23,7 +23,7 @@ This module implements the BEEP Management profile.
 
 This profile is used to manage BEEP sessions and channels.
 
-@version: $Revision: 1.12 $
+@version: $Revision: 1.13 $
 @author: Justin Warren
 """
 import logging
@@ -155,7 +155,7 @@ class BEEPManagementProfile(profile.Profile):
             else:
                 # Should never get here, but...
                 log.error("Unknown frame type" )
-                errmsg = self.mgmtCreator.createErrorMessage('500', constants.ReplyCodes['500'])
+                errmsg = self.mgmtCreator.createErrorMessage('500')
                 errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
                 self.channel.sendError(msg.msgno, errmsg)
 
@@ -166,7 +166,7 @@ class BEEPManagementProfile(profile.Profile):
             # reply with an error message.
             log.error("Malformed Message: %s" % e)
             if msg.isMSG():
-                errmsg = self.mgmtCreator.createErrorMessage('500', constants.ReplyCodes['500'])
+                errmsg = self.mgmtCreator.createErrorMessage('500')
                 errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
                 self.channel.sendError(msg.msgno, errmsg)
                 return
@@ -211,8 +211,8 @@ class BEEPManagementProfile(profile.Profile):
             # We now have to request the other end close down the Channel
             log.error("%s" % e)
             log.error("Remote end started channel with profile unsupported at this end.")
-            self.closeChannel(channelnum)
-
+            raise
+        
         except Exception, e:
             log.error("Unhandled exception: %s" % e)
             traceback.print_exc()
@@ -230,7 +230,7 @@ class BEEPManagementProfile(profile.Profile):
             # If I'm a listener, channel number requested must be odd
             if (reqChannel % 2) != 1:
                 log.warning("Requested channel number of %d is even, and should be odd" % reqChannel)
-                errmsg = self.mgmtCreator.createErrorMessage('501', constants.ReplyCodes['501'])
+                errmsg = self.mgmtCreator.createErrorMessage('501')
                 errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
                 self.channel.sendError(msg.msgno, errmsg)
             else:
@@ -251,7 +251,7 @@ class BEEPManagementProfile(profile.Profile):
 
         except beepy.core.session.SessionException, e:
             log.warning("Cannot start channel: %s" % e)
-            errmsg = self.mgmtCreator.createErrorMessage('504', constants.ReplyCodes['504'])
+            errmsg = self.mgmtCreator.createErrorMessage('504')
             errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
             self.channel.sendError(msg.msgno, errmsg)
 
@@ -264,7 +264,7 @@ class BEEPManagementProfile(profile.Profile):
         except Exception, e:
             log.error("Unhandled exception in _handleStart: %s, %s" % (e.__class__, e) )
             traceback.print_exc()
-            errmsg = self.mgmtCreator.createErrorMessage('504', constants.ReplyCodes['504'])
+            errmsg = self.mgmtCreator.createErrorMessage('550', 'Unexpected exception: %s' % e)
             errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
             self.channel.sendError(msg.msgno, errmsg)
 
@@ -278,17 +278,33 @@ class BEEPManagementProfile(profile.Profile):
             ## check we're not already closing the channel
             if channelnum in self.closingChannel.values():
                 log.warning('Close already in progress for channel %d' % channelnum)
-                errmsg = self.mgmtCreator.createErrorMessage('550', constants.ReplyCodes['550'])
+                errmsg = self.mgmtCreator.createErrorMessage('553')
                 errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
                 self.channel.sendError(msg.msgno, errmsg)
                 
             else:
-                log.debug('handling closure of channel %d' % channelnum)
-                self.session.channels[channelnum].close()
-                data = self.mgmtCreator.createOKMessage()
-                data = self.mimeEncode(data, self.CONTENT_TYPE)
-                msgno = self.channel.sendReply(msg.msgno, data, self.session.deleteChannel, None, channelnum )
-                
+                ## If the channel number is 0, we can't close it
+                ## unless all the other channels are closed first.
+                if channelnum == 0 and len(self.session.channels) != 1:
+                    ## Tell the remote end we can't do it yet.
+                    errmsg = self.mgmtCreator.createErrorMessage('550')
+                    errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
+                    self.channel.sendError(msg.msgno, errmsg)
+                else:
+                    
+                    log.debug('handling closure of channel %d' % channelnum)
+                    self.session.channels[channelnum].close()
+                    data = self.mgmtCreator.createOKMessage()
+                    data = self.mimeEncode(data, self.CONTENT_TYPE)
+                    msgno = self.channel.sendReply(msg.msgno, data, self.session.deleteChannel, None, channelnum )
+
+        except beepy.core.channel.ChannelMessagesOutstanding:
+            ## Can't close the channel yet because the peer
+            ## hasn't replied to all MSGs. Send an error.
+            errmsg = self.mgmtCreator.createErrorMessage('550')
+            errmsg = self.mimeEncode(errmsg, self.CONTENT_TYPE)
+            self.channel.sendError(msg.msgno, errmsg)
+            
         except Exception, e:
             log.error('Exception in management profile: %s' % e)
             raise
@@ -318,18 +334,31 @@ class BEEPManagementProfile(profile.Profile):
             self.channelEvent[channelnum][0](channelnum)
 
     def _handleError(self, msg, mgmtMsg):
-        log.debug('Got remote error message')
+        """
+        called from doProcessing() to handle ERR frames
+        """
         code = mgmtMsg.getErrorCode()
         desc = mgmtMsg.getErrorDescription()
-        # Errors during channel creation
 
+        log.warning('Remote error: %s: %s' % ( code, desc ))
+
+        ## Error during channel start
         if self.startingChannel.has_key(msg.msgno):
             channelnum = self.startingChannel[msg.msgno]
 
             del self.startingChannel[msg.msgno]
             self.channelState[channelnum] = [ self.CHANNEL_ERROR, code, desc ]
             if self.channelEvent[channelnum]:
-                self.channelEvent[channelnum][1](channelnum)
+                self.channelEvent[channelnum][1](channelnum, code, desc)
+
+        ## Error during channel close
+        elif self.closingChannel.has_key(msg.msgno):
+            channelnum = self.closingChannel[msg.msgno]
+
+            del self.closingChannel[msg.msgno]
+            self.channelState[channelnum] = [ self.CHANNEL_ERROR, code, desc ]
+            if self.channelEvent[channelnum]:
+                self.channelEvent[channelnum][1](channelnum, code, desc)
 
     def getChannelState(self, channelnum):
         if self.channelState.has_key(channelnum):

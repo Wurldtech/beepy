@@ -1,5 +1,5 @@
-# $Id: README,v 1.7 2004/07/24 06:33:47 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: README,v 1.8 2004/08/02 09:46:01 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -33,11 +33,8 @@ This helps make BEEPy portable to any platform with the standard Python
 interpreter installed.
 
 BEEPy is written using the twisted framework (http://www.twisted-matrix.com)
-to implement asynchronous network communications. It is possible to use
-BEEPy without twisted, but this is not recommended. The non-twisted
-components of BEEPy are provided for demonstration purposes and are not
-actively maintained. If you wish to do any serious work with BEEPy, please
-consider installing twisted.
+to implement asynchronous network communications. You will need to have
+twisted installed to make use of BEEPy.
 
 BEEPy is very much a work in progress. Suggestions, feature requests,
 bug reports, etc. are all welcome. Chances are you received this copy
@@ -50,7 +47,7 @@ http://www.sourceforge.net/projects/beepy/
 
 Copyright and Licensing
 -----------------------
-BEEPy is licensed under the Lesser Gnu Public License, or LGPL. The
+BEEPy is licensed under the Lesser GNU Public License, or LGPL. The
 full licensing information can be found in the LICENSE file. Copyright
 information is found in the COPYRIGHT file.
 

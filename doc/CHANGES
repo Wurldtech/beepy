@@ -1,5 +1,5 @@
-# $Id: CHANGES,v 1.21 2004/08/02 09:46:08 jpwarren Exp $
-# $Revision: 1.21 $
+# $Id: CHANGES,v 1.22 2004/08/22 04:27:17 jpwarren Exp $
+# $Revision: 1.22 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -45,6 +45,7 @@
 - Fixed bug where SEQ frames would be sent during Tuning Reset that
   interfere with the transport protocol setup for TLS.
 - Added channel close error callback triggering to beepmgmtprofile.
+- Fixed up the logging import method in test/test_*.py.
 
 0.3 -> 0.4
 ----------

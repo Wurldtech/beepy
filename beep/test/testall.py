@@ -1,5 +1,5 @@
-# $Id: testall.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: testall.py,v 1.3 2002/08/04 10:07:07 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -29,7 +29,6 @@ sys.path.append('../')
 
 def unitTest():
 	path = os.path.abspath(os.path.split(sys.argv[0])[0])
-	print "path:", path
 	testfiles = os.listdir(path)
 	test = re.compile("test_.*.py$", re.IGNORECASE)
 	files = filter(test.search, testfiles)

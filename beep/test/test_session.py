@@ -1,5 +1,5 @@
-# $Id: test_session.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: test_session.py,v 1.3 2002/08/04 10:07:07 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -69,7 +69,7 @@ class SessionTest(unittest.TestCase):
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
-		self.assertEqual(sess.state, constants.SESSION_STATE_INITIALIZED)
+		self.assertEqual(sess.state, constants.SESSION_INITIALIZED)
 
 #		# create and connect a client
 		client = dummyclient.DummyClient()
@@ -86,7 +86,7 @@ class SessionTest(unittest.TestCase):
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
-		self.assertEqual(sess.state, constants.SESSION_STATE_INITIALIZED)
+		self.assertEqual(sess.state, constants.SESSION_INITIALIZED)
 #
 		# create and connect a client
 		client = dummyclient.DummyClient()
@@ -103,7 +103,7 @@ class SessionTest(unittest.TestCase):
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
-		self.assertEqual(sess.state, constants.SESSION_STATE_INITIALIZED)
+		self.assertEqual(sess.state, constants.SESSION_INITIALIZED)
 #
 		# create and connect a client
 		client = dummyclient.DummyClient()
@@ -120,7 +120,7 @@ class SessionTest(unittest.TestCase):
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
-		self.assertEqual(sess.state, constants.SESSION_STATE_INITIALIZED)
+		self.assertEqual(sess.state, constants.SESSION_INITIALIZED)
 #
 		# create and connect a client
 		client = dummyclient.DummyClient()
@@ -138,7 +138,7 @@ class SessionTest(unittest.TestCase):
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
-		self.assertEqual(sess.state, constants.SESSION_STATE_INITIALIZED)
+		self.assertEqual(sess.state, constants.SESSION_INITIALIZED)
 #
 		# create and connect a client
 		client = dummyclient.DummyClient()

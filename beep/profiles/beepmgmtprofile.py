@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: beepmgmtprofile.py,v 1.3 2002/08/04 10:07:07 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -140,7 +140,7 @@ class BEEPManagementProfile(profile.Profile):
 
 		# create it at this end
 		try:
-			self.session.createChannelFromURIList(msg.getProfileURIList())
+			self.session.createChannelFromURIList(channelnum, msg.getProfileURIList())
 		except beep.core.session.SessionException, e:
 			# If we get here, something very wrong happened.
 			# Being here means we requested a channel be started

@@ -1,5 +1,5 @@
-# $Id: test_listener.py,v 1.9 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: test_listener.py,v 1.10 2004/04/17 07:28:12 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -84,6 +84,8 @@ class ServerTest(unittest.TestCase):
         """Test start channel with unsupported profile"""
 
         self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
+        reactor.iterate()
+        
         data = self.client.getmsg(1)
         self.client.sendmsg('MSG 0 0 . 51 118\r\nContent-Type: application/beep+xml\r\n\r\n<start number="1">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
         reactor.iterate()

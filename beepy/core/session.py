@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.13 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.13 $
+# $Id: session.py,v 1.14 2004/04/17 07:28:11 jpwarren Exp $
+# $Revision: 1.14 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -65,6 +65,8 @@ class Session:
         """
         self.state = PRE_GREETING
         self.channels = {}
+        self.localSeqno = {}
+        self.remoteSeqno = {}
         self.ID = 0
 
         self.profileDict = profile.ProfileDict()
@@ -106,22 +108,11 @@ class Session:
                 self.close()
                 
             except Exception, e:
+                traceback.print_exc()
                 raise
         else:
             log.info('Attempt to send to non-existant channel: %d' % theframe.channelnum)
             raise SessionException('Invalid Channel Number')
-
-    def addProfile(self, profileModule):
-        """
-        This method adds a given profile to the Session so that
-        it is known to be a supported profile. It will then get
-        advertised in greeting messages and be able to be bound
-        to a channel, and suchlike.
-
-        @param profileModule: the profile to add
-        @type profileModule: an imported module reference
-        """
-        self.profileDict.addProfile(profileModule)
 
     def createChannel(self, channelnum, profile):
         """
@@ -134,8 +125,21 @@ class Session:
         @param profile: the profile to bind to the channel
         @type profile: a Profile object
         """
+        self.createTransportChannel(channelnum)        
         newchan = channel.Channel(channelnum, profile, self)
         self.channels[channelnum] = newchan
+
+        if channelnum == 0:
+            self.channels[channelnum].profile.sendGreeting()
+
+    def createTransportChannel(self, channelnum):
+        """
+        This method should be overridden at the transport
+        layer if there is any special work that needs to
+        be done at channel create time.
+        """
+        log.debug('session creating transport channel')
+        pass
 
     def createChannelFromURIList(self, channelnum, uriList, profileInit=None):
         """
@@ -241,18 +245,10 @@ class Session:
         @param channelnum: the channel number to delete
         @type channelnum: integer
         """
-        log.debug("sessID %d: Deleting channel %d..." % (self.ID, channelnum) )
-        if self.channels.has_key(channelnum):
-            try:
-                self.channels[channelnum].close()
-                del self.channels[channelnum]
-                log.debug("sessID %d: Channel %d deleted." % (self.ID, channelnum) )
-            except channel.ChannelMessagesOutstanding, e:
-                log.debug("sessID %d: Exception deleting channel %d: %s..." % (self.ID, channelnum, e) )
-                raise SessionException(e)
-
-        else:
-            raise SessionException('No such channel')
+        log.debug("Deleting channel %d..." % channelnum )
+        self.deleteTransportChannel(channelnum)
+        del self.channels[channelnum]
+        log.debug("Channel %d deleted." % channelnum )
 
     def deleteAllChannels(self):
         """
@@ -260,7 +256,7 @@ class Session:
         """
         chanlist = self.channels.keys()
         for channelnum in chanlist:
-            del self.channels[channelnum]
+            self.deleteChannel(channelnum)
 
     def createChannelZero(self):
         """
@@ -457,7 +453,7 @@ class Session:
 
     def closeChannel(self, channelnum):
         """
-        closeChannel() attempts to close a channel.
+        requestCloseChannel() attempts to close a channel.
         @param channelnum: the number of the channel to close
         """
         log.debug("Attempting to close channel %s..." % channelnum)
@@ -492,6 +488,23 @@ class Session:
         log.debug("Current internal state of %s" % self)
         for var in self.__dict__.keys():
             log.debug("%s: %s" % (var, self.__dict__[var]))
+
+    ##
+    ## Callback hooks for application programs
+    ##
+    def receivedMessage(self, frame):
+        """
+        Use this callback from your profiles to communicate
+        with your apps when a MSG frame is received.
+        """
+        pass
+    
+    def receivedAnswer(self, frame):
+        """
+        Use this callback from your profiles to communicate
+        with your apps when an ANS frame is received.
+        """
+        pass
 
 class Listener(Session):
     """

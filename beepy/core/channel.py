@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.8 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: channel.py,v 1.9 2004/04/17 07:28:11 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -22,7 +22,7 @@
 """
 Channel related code
 
-@version: $Revision: 1.8 $
+@version: $Revision: 1.9 $
 @author: Justin Warren
 """
 
@@ -32,7 +32,9 @@ import logging
 import frame
 import traceback
 
-import Queue
+from message import Message
+
+#import Queue
 
 log = logging.getLogger('Channel')
 
@@ -41,10 +43,10 @@ class Channel:
     A Channel object is an abstraction of a BEEP channel running over some
     form of transport.
     """
-    channelnum = -1            # Channel number
+    channelnum = -1         # Channel number
     localSeqno = -1L        # My current Sequence number
-    remoteSeqno = -1L        # Remote Sequence number
-    profile = None            # channel Profile
+    remoteSeqno = -1L       # Remote Sequence number
+    profile = None          # channel Profile
 #    state = 0
 
     # Create a new channel object
@@ -61,6 +63,7 @@ class Channel:
 
         @raise ChannelException: when the channel number is out of bounds.
         """
+
         try:
             assert( constants.MIN_CHANNEL <= channelnum <= constants.MAX_CHANNEL)
             self.state = constants.CHANNEL_STARTING
@@ -74,11 +77,13 @@ class Channel:
             self.localSeqno = 0
             self.remoteSeqno = 0
             self.ansno = 0
-            self.inbound = Queue.Queue(constants.MAX_INPUT_QUEUE_SIZE)
             self.profile = profile
             self.session = session
             self.moreFrameType = None
             self.moreFrameMsgno = 0
+
+            self.msgbuf = {}             # Buffer for messages
+            self.ansbuf = {}             # buffer for answer messages
 
             # records the last status for each message number used.
             self.msgStatus = {}
@@ -89,17 +94,25 @@ class Channel:
         except AssertionError:
             raise ChannelException('Channel number %s out of bounds' % channelnum)
 
-    def send(self, frame):
+    def send(self, msg):
         """
         Used to send a frame over this channel. Predominantly used by
-        the Profile bound to this channel to send frames.
-        send() passes the frame to the Session and its associated
+        the Profile bound to this channel to send messages.
+        send() passes the Message to the Session and its associated
         transport layer.
 
-        @type frame: a DataFrame object
-        @param frame: the DataFrame to send
+        If messages are sent asynchronously (such as with fragmentation)
+        then you should use the callback as a way to signify that the
+        call finished.
+
+        @type msg: a DataFrame object
+        @param msg: the DataFrame to send
+
+        @type cb: a method callback
+        @param cb: a callback to call when the message is completely sent
         """
-        self.session.sendFrame(frame)
+        log.debug('sending message...')
+        self.session.sendMessage(msg, self.channelnum)
 
     def _recv(self):
         """
@@ -111,13 +124,13 @@ class Channel:
         Deprecated.
         
         """
-        if self.state is constants.CHANNEL_ACTIVE:
-            try:
-                return self.inbound.get(0)
-            except Queue.Empty:
-                pass
-        else:
-            raise ChannelStateException('Channel not started')
+#        if self.state is constants.CHANNEL_ACTIVE:
+#            try:
+#                return self.inbound.get(0)
+#            except Queue.Empty:
+#                pass
+#        else:
+#            raise ChannelStateException('Channel not started')
 
     # interface to Session
     def validateFrame(self, theframe):
@@ -164,8 +177,7 @@ class Channel:
         if theframe.dataFrameType == constants.DataFrameTypes['MSG']:
             if theframe.msgno in self.receivedMsgnos:
                 raise ChannelMsgnoInvalid('msgno %i not valid for MSG' % theframe.msgno)
-            else:
-                self.receivedMsgnos.append(theframe.msgno)
+
 
         # Otherwise, check the msgno is valid
         else:
@@ -183,30 +195,46 @@ class Channel:
         @param theframe: the DataFrame to process
 	"""
 	self.validateFrame(theframe)
-	## Once validated, the frame can be processed by the profile
-	self.profile.processFrame(theframe)
+
+        ## Special rules apply to ANS Frames
+        if theframe.isANS():
+
+            ## If we're partway through an ANS message, append to it
+            if self.ansbuf.has_key(theframe.ansno):
+                self.ansbuf[theframe.ansno].append(theframe.payload)
+
+            else:
+                self.ansbuf[theframe.ansno] = Message(dataframe=theframe)
+                
+            ## Check to see if this is the last Frame for the message.
+            ## If it is, pass it to the profile for processing.
+            if theframe.more == constants.MoreTypes['.']:
+                    
+                self.profile.processMessage(self.ansbuf[theframe.ansno])
+                self.deallocateMsgno(theframe.msgno)
+                del self.ansbuf[theframe.ansno]
+
+        ## If we've already got part of a message, append the payload
+        ## to the existing message.
+        else:
+            if self.msgbuf.has_key(theframe.msgno):
+                self.msgbuf[theframe.msgno].append(theframe.payload)
+
+            else:
+                self.msgbuf[theframe.msgno] = Message(dataframe=theframe)
+                
+            ## Check to see if this is the last Frame for the message.
+            ## If it is, pass it to the profile for processing.
+            if theframe.more == constants.MoreTypes['.']:
+                log.debug('Message complete. Processing...')
+                if theframe.dataFrameType == constants.DataFrameTypes['MSG']:
+                    log.debug('Message received. Appending to receivedMsgnos')
+                    self.receivedMsgnos.append(theframe.msgno)
+
+                self.profile.processMessage(self.msgbuf[theframe.msgno])
+                self.deallocateMsgno(theframe.msgno)
+                del self.msgbuf[theframe.msgno]
         pass
-
-    # seqno = last_seqno + size and wraps around constants.MAX_SEQNO
-
-    def allocateRemoteSeqno(self, msgsize):
-        """
-        Allocate the next sequence number for the remote side of
-        a channel connection.
-
-        Wraps to zero at MAX_SEQNO.
-
-        @type msgsize: integer
-        @param msgsize: the size of the message this seqno is for
-
-        @return: an integer sequence number for the message
-        """
-        
-        new_seqno = self.remoteSeqno
-        self.remoteSeqno += msgsize
-        if self.remoteSeqno > constants.MAX_SEQNO:
-            self.remoteSeqno -= constants.MAX_SEQNO
-        return new_seqno
 
     def allocateLocalSeqno(self, msgsize):
         """
@@ -226,6 +254,24 @@ class Channel:
             self.localSeqno -= constants.MAX_SEQNO
         return new_seqno
 
+    def allocateRemoteSeqno(self, msgsize):
+        """
+        Allocate the next sequence number for the remote side of
+        a channel connection.
+
+        Wraps to zero at MAX_SEQNO.
+
+        @type msgsize: integer
+        @param msgsize: the size of the message this seqno is for
+
+        @return: an integer sequence number for the message
+        """
+        
+        new_seqno = self.remoteSeqno
+        self.remoteSeqno += msgsize
+        if self.remoteSeqno > constants.MAX_SEQNO:
+            self.remoteSeqno -= constants.MAX_SEQNO
+        return new_seqno
 
     # This method allocates a unique msgno for a message by
     # checking a list of allocated msgno's. Allocated msgno's
@@ -284,6 +330,7 @@ class Channel:
         if msgno in self.allocatedMsgnos:
             self.allocatedMsgnos.remove(msgno)
             log.debug("Channel %d: Deallocated msgno: %s" % (self.channelnum, msgno) )
+
     def allocateLocalAnsno(self, msgno):
         """
         Similar to allocateMsgno(), allocates a local ansno for a
@@ -322,34 +369,23 @@ class Channel:
             return 1
         return 0
 
-
-    # Send a frame of type MSG
-    def sendMessage(self, data, more=constants.MoreTypes['.']):
+    # Send a Message of type MSG
+    def sendMessage(self, data, cb=None, errback=None):
         """
-        sendMessage() is used for sending a frame of type MSG
+        sendMessage() is used for sending a Message of type MSG
 
         @param data: the payload of the message
-        @param more: a constants.MoreType designating if this is the
-        last message
 
         @return: integer, the msgno of the message that was sent
         """
-
-        size = len(data)
-        seqno = self.allocateLocalSeqno(size)
         msgno = self.allocateMsgno()
-        try:
-            msg = frame.DataFrame(self.channelnum, msgno, more, seqno, size, constants.DataFrameTypes['MSG'])
-            msg.setPayload(data)
-            self.send(msg)
-            return msgno
+        msg = Message(None, constants.MessageType['MSG'], msgno, data)
 
-        except frame.DataFrameException, e:
-            log.info("Data Encapsulation Failed: %s" % e)
-            log.debug("%s" % traceback.print_exc() )
+        self.send(msg)
+        return msgno
 
     # msgno here is the msgno to which this a reply
-    def sendReply(self, msgno, data, more=constants.MoreTypes['.']):
+    def sendReply(self, msgno, data, cb=None, errback=None, *args ):
         """
         sendReply() is used for sending a frame of type RPY
         
@@ -359,22 +395,14 @@ class Channel:
         @type msgno: integer
         
         @param data: The RPY payload
-        @param more: a continuation indicator
         
         """
         # First check we are responding to a MSG frame we received
         if msgno not in self.receivedMsgnos:
             raise ChannelMsgnoInvalid('Attempt to reply to msgno not received')
-        size = len(data)
-        seqno = self.allocateLocalSeqno(size)
-        try:
-            msg = frame.DataFrame(self.channelnum, msgno, more, seqno, size, constants.DataFrameTypes['RPY'])
-            msg.setPayload(data)
-            self.send(msg)
 
-        except frame.DataFrameException, e:
-            log.info("Data Encapsulation Failed: %s" % e)
-            log.debug("%s" % traceback.print_exc() )
+        msg = Message(None, constants.MessageType['RPY'], msgno, data, cb=cb, args=args)
+        self.send(msg)
 
     def sendGreetingReply(self, data):
         """
@@ -387,16 +415,8 @@ class Channel:
         @param data: the greeting frame payload
         
         """
-        size = len(data)
-        seqno = self.allocateLocalSeqno(size)
-        try:
-            msg = frame.DataFrame(self.channelnum, 0, constants.MoreTypes['.'], seqno, size, constants.DataFrameTypes['RPY'])
-            msg.setPayload(data)
-            self.send(msg)
-
-        except frame.DataFrameException, e:
-            log.info("Data Encapsulation Failed: %s" % e)
-            log.debug("%s" % traceback.print_exc() )
+        msg = Message(None, constants.MessageType['RPY'], 0, data)
+        self.send(msg)
 
     # seqno and more are not required for ERR frames
     # msgno is the MSG to which this error is a reply
@@ -408,39 +428,20 @@ class Channel:
         @param data: the payload of the ERR frame
         
         """
-        size = len(data)
-        seqno = self.allocateLocalSeqno(size)
-        try:
-            msg = frame.DataFrame(self.channelnum, msgno, constants.MoreTypes['.'], seqno, size, constants.DataFrameTypes['ERR'])
-            msg.setPayload(data)
-            self.send(msg)
-
-        except frame.DataFrameException, e:
-            log.info("Data Encapsulation Failed: %s" % e)
-            log.debug("%s" % traceback.print_exc() )
+        msg = Message(None, constants.MessageType['ERR'], msgno, data)
+        self.send(msg)
 
     # msgno here is the msgno to which this an answer
-    def sendAnswer(self, msgno, data, more=constants.MoreTypes['.']):
+    def sendAnswer(self, msgno, data):
         """
         sendAnswer() is used for sending a frame of type ANS
 
         @param msgno: the msgno this ANS is in reply to
         @param data: the payload of the ANS frame
-        @param more: a continuation indicator for if there are more ANS
-        frames to follow.
         """
-        size = len(data)
-        seqno = self.allocateLocalSeqno(size)
         ansno = self.allocateLocalAnsno(msgno)
-
-        try:
-            msg = frame.DataFrame(self.channelnum, msgno, more, seqno, size, constants.DataFrameTypes['ANS'], ansno)
-            msg.setPayload(data)
-            self.send(msg)
-
-        except frame.DataFrameException, e:
-            log.info("Data Encapsulation Failed: %s" % e)
-            log.debug("%s" % traceback.print_exc() )
+        msg = Message(None, constants.MessageType['ANS'], msgno, data, ansno)
+        self.send(msg)
 
     def sendNul(self, msgno):
         """
@@ -453,24 +454,19 @@ class Channel:
         @param msgno: the msgno all previous ANS frames have been in
         response to, and to which this is the final response frame.
         """
-        try:
-            seqno = self.allocateLocalSeqno(0)
-            msg = frame.DataFrame(self.channelnum, msgno, constants.MoreTypes['.'], seqno, 0, constants.DataFrameTypes['NUL'])
-            self.send(msg)
-            # Once we've sent a NUL, we don't need to maintain a list of
-            # ansno's for this msgno any more.
-            del self.localAnsno[msgno]
-
-        except frame.DataFrameException, e:
-            log.info("Data Encapsulation Failed: %s" % e)
-            log.debug("%s" % traceback.print_exc() )
+        msg = Message(None, constants.MessageType['ANS'], msgno)
+        self.send(msg)
+        # Once we've sent a NUL, we don't need to maintain a list of
+        # ansno's for this msgno any more.
+        del self.localAnsno[msgno]
 
     def close(self):
         """
         close() attempts to close the Channel.
         
         A Channel is not supposed to close unless all messages
-        sent on the channel have been acknowledged.
+        sent on the channel have been acknowledged and any
+        messages inbound have been completely received.
 
         @raise ChannelMessagesOutstanding: if not all sent messages
                 have been acknowledged.
@@ -478,7 +474,7 @@ class Channel:
         if len(self.allocatedMsgnos) > 0:
             raise ChannelMessagesOutstanding("Channel %d: %s allocatedMsgno(s) unanswered: %s" % (self.channelnum, len(self.allocatedMsgnos), self.allocatedMsgnos) )
 
-        del self.inbound
+#        del self.inbound
         del self.profile
 
 # Exception classes

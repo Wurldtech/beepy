@@ -1,5 +1,5 @@
-# $Id: frame.py,v 1.6 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: frame.py,v 1.7 2004/04/17 07:28:11 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -29,7 +29,7 @@ general and subclassed it to a DataFrame. This way, if other
 frames are used for some reason, they can also subclass from
 Frame. All the guts are in DataFrame, but that's what the RFC says.
 
-@version: $Revision: 1.6 $
+@version: $Revision: 1.7 $
 @author: Justin Warren
 
 """
@@ -37,6 +37,10 @@ Frame. All the guts are in DataFrame, but that's what the RFC says.
 import errors
 import constants
 import string
+
+import logging
+from beepy.core import debug
+log = logging.getLogger('Frame')
 
 class Frame:
     """
@@ -69,15 +73,15 @@ class DataFrame( Frame ):
 
     # Class constants
     frameType = 'data'
-    TRAILER = str('END\r\n')        # Trailer
+    TRAILER = 'END\r\n'        # Trailer
 
     channelnum = -1
     msgno = -1
     seqno = -1L
     size = -1L
-    anso = -1
+    ansno = -1
 
-    def __init__(self, channelnum=None, msgno=None, more=None, seqno=None, size=None, dataFrameType='MSG', ansno=None, databuffer=None):
+    def __init__(self, channelnum=None, msgno=None, seqno=None, size=None, dataFrameType='MSG', more=constants.MoreTypes['.'], ansno=None, databuffer=None):
         """
         When a frame is created, various checks on the data are performed
         to ensure that it is a correctly formed frame. This is most useful
@@ -113,7 +117,6 @@ class DataFrame( Frame ):
         # to create a frame object
         if databuffer:
             self._bufferToFrame(databuffer)
-            self.payload = ''
         else:
             self._checkValues(channelnum, msgno, more, seqno, size, dataFrameType, ansno)
             self.dataFrameType = dataFrameType
@@ -195,9 +198,12 @@ class DataFrame( Frame ):
         @type data: string
         @param data: a bytestring containing a single frame as a bytestring
         """
+        # Split buffer into header and payload
+        header, rest = data.split('\r\n', 1)
+        payload, trailer = rest.split(self.TRAILER, 1)
 
         # Split the header into bits
-        headerbits = string.split(data)
+        headerbits = header.split()
 
         # Check for valid header format
         if len(headerbits) != 6 and len(headerbits) != 7:
@@ -214,6 +220,7 @@ class DataFrame( Frame ):
                 self.ansno = string.atol(headerbits[6])
             else:
                 self.ansno = None
+            self.setPayload(payload)
 
         except ValueError, e:
             raise DataFrameException("Non-numeric value in frame header")
@@ -329,6 +336,7 @@ class SEQFrame(Frame):
 
         @raise SEQFrameException: if format of frame is invalid
         """
+        log.debug('creating SEQ frame: %s' % data)
         # Now split the frame into bits
         headerbits = string.split(data)
 
@@ -363,7 +371,7 @@ class SEQFrame(Frame):
         # We use this handy function to return a string representation
 
         framestring = "SEQ "
-        framestring = "%i %i %i" % (self.channelnum, self.ackno, self.window)
+        framestring += "%i %i %i" % (self.channelnum, self.ackno, self.window)
         framestring += self.TRAILER
         return framestring
 

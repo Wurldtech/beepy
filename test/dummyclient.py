@@ -1,5 +1,5 @@
-# $Id: dummyclient.py,v 1.6 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: dummyclient.py,v 1.7 2004/04/17 07:28:12 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -24,6 +24,9 @@
 import sys
 import socket, select
 
+import logging
+log = logging.getLogger('dummyclient')
+
 class DummyClient:
 
     sock = None
@@ -46,6 +49,13 @@ class DummyClient:
 	pass
 
     def getmsg(self, blocking=0):
+        """
+        This method needs to be smarter now that we're using SEQ frames.
+        It needs to differentiate between the two frame types and only
+        return data for non-SEQ frames.
+
+        Simple pattern matching should do the trick.
+        """
         if blocking:
             self.sock.setblocking(1)
             data = None

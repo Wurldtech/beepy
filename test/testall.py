@@ -1,5 +1,5 @@
-# $Id: testall.py,v 1.4 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: testall.py,v 1.5 2004/04/17 07:28:12 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -25,6 +25,8 @@
 # in the code for py-beep
 
 import sys, os, re, unittest
+
+sys.path.append('..')
 
 moduleNames = [ 'test_creator',
                 'test_parser',

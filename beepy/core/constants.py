@@ -1,5 +1,5 @@
-# $Id: constants.py,v 1.4 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: constants.py,v 1.5 2004/04/17 07:28:11 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -24,7 +24,7 @@ Constant definitions for BEEPy.
 Invariant data is defined here as a single reference point
 for common data used throughout BEEPy.
 
-@version: $Revision: 1.4 $
+@version: $Revision: 1.5 $
 @author: Justin Warren
 """
 
@@ -32,6 +32,12 @@ FrameTypes = [ 'data', 'seq' ]	# possible frame types
 
 #Frame Header Keywords
 DataFrameTypes = { 'MSG': 'MSG',
+		'RPY': 'RPY',
+		'ANS': 'ANS',
+		'ERR': 'ERR',
+		'NUL': 'NUL' }
+
+MessageType = { 'MSG': 'MSG',
 		'RPY': 'RPY',
 		'ANS': 'ANS',
 		'ERR': 'ERR',
@@ -59,6 +65,7 @@ MIN_WINDOWSIZE = 1
 MAX_WINDOWSIZE = 2147483647
 START_WINDOWSIZE = 4096
 
+MIN_CHANNEL_WINDOW = 1
 # These sizing values should be tuned to something reasonable.
 
 MAX_INBUF = 1024			# Maximum input bytes at a time

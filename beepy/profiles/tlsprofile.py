@@ -1,5 +1,5 @@
-# $Id: tlsprofile.py,v 1.7 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: tlsprofile.py,v 1.8 2004/04/17 07:28:12 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -49,25 +49,26 @@ class TLSProfile(profile.Profile):
 
         profile.Profile.__init__(self, session, profileInit, init_callback)
 
-    def processFrame(self, theframe):
-        """All processFrame should do is move the session from
-            insecure to secured.
+    def processMessage(self, msg):
+        """
+        All processMessage should do is move the session from
+        insecure to secured.
         """
         try:
-            error = self.parseError(theframe)
+            error = self.parseError(msg)
             if error:
                 log.debug('Error in payload: %s' % error)
 
-            ready = self.parseReady(theframe)
+            ready = self.parseReady(msg)
             if ready:
                 ## If I receive a <ready> message then I'm the peer
                 ## acting in server mode and should start TLS
                 log.debug('Ready to start TLS')
                 data = '<proceed />'
-                self.channel.sendReply(theframe.msgno, data)
+                self.channel.sendReply(msg.msgno, data)
                 self.session.tuningReset()
 
-            proceed = self.parseProceed(theframe)
+            proceed = self.parseProceed(msg)
             if proceed:
                 ## If I receive a <proceed /> message then I'm the peer
                 ## acting in the client mode.
@@ -79,13 +80,13 @@ class TLSProfile(profile.Profile):
             traceback.print_exc()
             raise
 
-    def parseReady(self, theframe):
+    def parseReady(self, msg):
         """ Check data to see if it matches a 'ready' element
         """
         readyPattern = '<ready\s(.*)/>'
         readyRE = re.compile(readyPattern, re.IGNORECASE)
 
-        match = re.search(readyRE, theframe.payload)
+        match = re.search(readyRE, msg.payload)
         if match:
 
             ## Need to add a version indicator
@@ -95,23 +96,23 @@ class TLSProfile(profile.Profile):
         else:
             return None
 
-    def parseProceed(self, theframe):
+    def parseProceed(self, msg):
         proceedPattern = '<proceed\s*/>'
         proceedRE = re.compile(proceedPattern, re.IGNORECASE)
 
-        match = re.search(proceedRE, theframe.payload)
+        match = re.search(proceedRE, msg.payload)
         if match:
             return True
         else:
             return None
 
-    def parseError(self, theframe):
+    def parseError(self, msg):
         """parseError() extracts the error code from the <error> block
         """
         errorPattern = '<error\scode=[\'"](.*)[\'"]\s*>(.*)</error>'
         errorRE = re.compile(errorPattern, re.IGNORECASE)
 
-        match = re.search(errorRE, theframe.payload)
+        match = re.search(errorRE, msg.payload)
         if match:
             code = match.group(1)
             errormsg = match.group(2)

@@ -1,5 +1,5 @@
-# $Id: echoprofile.py,v 1.4 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: echoprofile.py,v 1.5 2004/04/17 07:28:12 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -41,9 +41,9 @@ class EchoProfile(profile.Profile):
         profile.Profile.__init__(self, session)
         self.numReplies = 0
 
-    def processFrame(self, theframe):
+    def processMessage(self, msg):
         """
-        An EchoProfile simply sends a RPY frame to each MSG frame
+        An EchoProfile simply sends a RPY to each MSG
         it receives containing the same payload as what was received.
 
         For demonstration purposes, this EchoProfile also asks the
@@ -53,14 +53,14 @@ class EchoProfile(profile.Profile):
         @raise profile.TerminalProfileException: if any exception occurs
         during processing.
         """
-        log.debug("EchoProfile: processing frame: %s" % theframe)
+        log.debug("EchoProfile: processing message: %s" % msg)
         try:
-            if theframe.isMSG():
+            if msg.isMSG():
                 log.debug("EchoProfile: sending RPY")
-                self.channel.sendReply(theframe.msgno, theframe.payload)
+                self.channel.sendReply(msg.msgno, msg.payload)
                 
-            if theframe.isRPY():
-                self.channel.deallocateMsgno(theframe.msgno)
+            if msg.isRPY():
+                self.channel.deallocateMsgno(msg.msgno)
                 self.numReplies += 1
                 log.debug('numReplies == %s' % self.numReplies)
                 if self.numReplies > 5:

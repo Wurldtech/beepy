@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.10 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: profile.py,v 1.11 2004/04/17 07:28:12 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -83,15 +83,15 @@ class Profile:
         """
         self.channel = channel
 
-    def processFrame(self, theframe):
+    def processMessage(self, msg):
         """
-        processFrame() is called by the Channel to which this profile
+        processMessage() is called by the Channel to which this profile
         is bound. This forms the main processing method of a profile.
 
         This method should be overridden by subclasses.
 
-        @param theframe: the frame to process
-        @type theframe: a DataFrame object
+        @param msg: the Message to process
+        @type msg: a Message object
         """
         raise NotImplementedError
 

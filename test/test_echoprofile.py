@@ -1,5 +1,5 @@
-# $Id: test_echoprofile.py,v 1.10 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: test_echoprofile.py,v 1.11 2004/04/17 07:28:12 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -55,7 +55,7 @@ class EchoProfileTest(unittest.TestCase):
         self.client.terminate()
         reactor.iterate()
         reactor.stop()
-        reactor.iterate()
+        reactor.run()
 
     def test_createEchoChannel(self):
         """Test creation of a channel with the Echo profile"""
@@ -79,6 +79,12 @@ class EchoProfileTest(unittest.TestCase):
         reactor.iterate()
         data = self.client.getmsg(1)
         self.assertEqual(data, 'RPY 1 1 . 8 8\r\nHello!\r\nEND\r\n')
+
+        self.client.sendmsg('MSG 0 1 . 171 70\r\nContent-type: application/beep+xml\r\n\r\n<close code="200" number="1"/>\r\nEND\r\n')
+        reactor.iterate()
+        data = self.client.getmsg(1)
+        self.assertEqual(data, 'RPY 0 1 . 207 43\r\nContent-Type: application/beep+xml\n\n<ok/>\r\nEND\r\n')
+        print data
 
 if __name__ == '__main__':
 

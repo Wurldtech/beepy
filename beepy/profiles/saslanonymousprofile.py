@@ -1,5 +1,5 @@
-# $Id: saslanonymousprofile.py,v 1.7 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: saslanonymousprofile.py,v 1.8 2004/04/17 07:28:12 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -23,7 +23,7 @@
 This module implements the SASL ANONYMOUS mechanism as a
 BEEPy profile.
 
-@version: $Revision: 1.7 $
+@version: $Revision: 1.8 $
 @author: Justin Warren
 """
 
@@ -48,19 +48,18 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
         saslprofile.SASLProfile.__init__(self, session)
         log.debug("initstring: %s" % profileInit)
 
-    def processFrame(self, theframe):
+    def processMessage(self, msg):
         """
         All processFrame should do is move the session from
         non-authenticated to authenticated.
         """
-        self.channel.deallocateMsgno(theframe.msgno)
 	try:
-            error = self.parseError(theframe.payload)
+            error = self.parseError(msg.payload)
             if error:
                 log.error("Error while authenticating: %s: %s" % (error[1], error[2]))
                 return
 
-            status = self.parseStatus(theframe.payload)
+            status = self.parseStatus(msg.payload)
             if status:
                 # do status code processing
                 log.debug("status: %s" % status)
@@ -78,16 +77,16 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
                     log.debug("continue during authentication")
 
             else:
-                authentid = self.decodeBlob(theframe.payload)
+                authentid = self.decodeBlob(msg.payload)
                 if authentid:
                     log.debug("authentid: %s" % authentid)
                     self.authentid = authentid
                     # I've now dealt with the message sufficiently for it to
                     # be marked as such, so we deallocate the msgno
-                    self.channel.deallocateMsgno(theframe.msgno)
+                    self.channel.deallocateMsgno(msg.msgno)
 
                     data = '<blob status="complete"/>'
-                    self.channel.sendReply(theframe.msgno, data)
+                    self.channel.sendReply(msg.msgno, data)
                     log.debug("Queued success message")
 
 #                    self.session.authenticationComplete()

@@ -1,5 +1,5 @@
-# $Id: saslotpprofile.py,v 1.7 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: saslotpprofile.py,v 1.8 2004/04/17 07:28:12 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -57,19 +57,19 @@ class SASLOTPProfile(saslprofile.SASLProfile):
         self.generator = OTPGenerator()
         self.passphrase = ''
 
-    def processFrame(self, theframe):
+    def processMessage(self, msg):
         """
-        All processFrame should do is move the session from
+        All processMessage should do is move the session from
         non-authenticated to authenticated.
         """
-        self.channel.deallocateMsgno(theframe.msgno)
+        self.channel.deallocateMsgno(msg.msgno)
         try:
-            error = self.parseError(theframe.payload)
+            error = self.parseError(msg.payload)
             if error:
 
                 self.session.authenticationFailed(error[0], error[1])
 
-            status = self.parseStatus(theframe.payload)
+            status = self.parseStatus(msg.payload)
             if status:
                 # do status code processing
                 log.debug("status: %s" % status)
@@ -88,7 +88,7 @@ class SASLOTPProfile(saslprofile.SASLProfile):
                     log.debug("continue during authentication")
 
             else:
-                blob = self.decodeBlob(theframe.payload)
+                blob = self.decodeBlob(msg.payload)
                 if blob:
                     log.debug("blob: %s" % blob)
 
@@ -111,7 +111,7 @@ class SASLOTPProfile(saslprofile.SASLProfile):
                             if self.authenticate(blob):
 
                                 data = '<blob status="complete"/>'
-                                self.channel.sendReply(theframe.msgno, data)
+                                self.channel.sendReply(msg.msgno, data)
                                 log.debug("Queued success message.")
                                 self.session.authenticationSucceeded()
 
@@ -119,10 +119,10 @@ class SASLOTPProfile(saslprofile.SASLProfile):
                                 # Authentication failed, respond appropriately.
                                 log.info("OTP authentication failed.")
                                 data = '<error code="535">Authentication Failed</error>'
-                                self.channel.sendError(theframe.msgno, data)
+                                self.channel.sendError(msg.msgno, data)
                         else:
                             log.debug("sending OTP challenge...")
-                            self.sendChallenge(theframe.msgno)
+                            self.sendChallenge(msg.msgno)
 
                     else:
                         # Do initiator stuff
@@ -130,7 +130,7 @@ class SASLOTPProfile(saslprofile.SASLProfile):
                         # If I'm an initiator, this blob should be a challenge, so
                         # I need to send my corresponding authentication.
 #                        try:
-                        self.respondToChallenge(blob, theframe)
+                        self.respondToChallenge(blob, msg)
 #                        except:
 #                            self.log.logmsg(logging.LOG_DEBUG, "raise worked")
 #                            raise NotImplementedError('test')
@@ -142,7 +142,7 @@ class SASLOTPProfile(saslprofile.SASLProfile):
             raise TerminalProfileException("Exception: %s" % e)
             
 
-    def respondToChallenge(self, challenge, theframe):
+    def respondToChallenge(self, challenge, msg):
         log.debug("Responding to challenge...")
         # The challenge string should be 4 tokens
         parts = string.split(challenge, ' ')

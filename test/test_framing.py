@@ -1,5 +1,5 @@
-# $Id: test_framing.py,v 1.10 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: test_framing.py,v 1.11 2004/04/17 07:28:12 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -318,7 +318,8 @@ class FramingTest(unittest.TestCase):
 
         self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
         reactor.iterate()
-        reactor.iterate()        
+        reactor.iterate()
+        data = self.client.getmsg()
         self.client.sendmsg("RPY 0 71 . 51 8\r\nHello!\r\nEND\r\n")
         reactor.iterate()
         reactor.iterate()        
@@ -326,8 +327,6 @@ class FramingTest(unittest.TestCase):
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
-
-        
 
 if __name__ == '__main__':
 

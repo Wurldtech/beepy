@@ -1,5 +1,5 @@
-# $Id: echoclient.py,v 1.3 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: echoclient.py,v 1.4 2004/04/17 07:28:12 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -50,10 +50,11 @@ class EchoClientProtocol(BeepClientProtocol):
         msgno = channel.sendMessage('Hello World!')
         log.debug('Sent message with id: %s' % msgno)
         msgno = channel.sendMessage('Hello World 1!')
-        msgno = channel.sendMessage('Hello World 2!')
-        msgno = channel.sendMessage('Hello World 3!')
-        msgno = channel.sendMessage('Hello World 4!')
-        msgno = channel.sendMessage('Hello World 5!')
+#        msgno = channel.sendMessage('Hello World 2!')
+#        msgno = channel.sendMessage('Hello World 3!')
+#        msgno = channel.sendMessage('Hello World 4!')
+#        msgno = channel.sendMessage('Hello World 5!')
+        self.shutdown()
 
 class EchoClientFactory(BeepClientFactory):
     """ This is a short factory for echo clients

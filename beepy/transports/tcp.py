@@ -1,5 +1,5 @@
-# $Id: tcp.py,v 1.1 2004/01/15 05:41:13 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: tcp.py,v 1.2 2004/04/17 07:28:12 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
@@ -42,9 +42,32 @@ from beepy.core import constants
 from beepy.core import frame
 from beepy.core import errors
 from beepy.core import debug
+from beepy.core.message import Message
 
 log = logging.getLogger('tcp')
 log.setLevel(logging.DEBUG)
+
+class SEQBuffer:
+    """
+    A SEQ buffer is a data object that holds the current
+    state of a channel buffer. It is used by SEQ frame
+    processing to tune window sizes and queue pending
+    data, if any.
+    """
+    MAX_BUFLEN = 1024    # Maximum size of input channel buffer
+    
+    def __init__(self, channelnum):
+        self.channelnum = channelnum
+        self.windowsize = 2048 ## supposed to be 2048. testing value.
+        self.availspace = self.windowsize
+        self.databuf = []
+        self.cb = None
+
+        log.debug('created SEQBuffer for channel %d' % channelnum)
+
+    def __str__(self):
+        return 'SEQBuffer: %d %d %d (%s) %s' % (self.channelnum, self.windowsize, self.availspace, self.cb, self.databuf) 
+        
 
 # The BEEPy protocol as a twisted thingy
 class BeepProtocol(LineReceiver):
@@ -55,14 +78,21 @@ class BeepProtocol(LineReceiver):
 
         self.framebuffer = ''
         self.newframe = None
-        self.windowsize = {}
+        self.channelbuf = {}
+        self.msgComplete = {}    # callback to call when a message
+                                 # has been completely sent
 
         self.frameHeaderPattern = re.compile('.*\r\n')
         self.dataFrameTrailer = re.compile(frame.DataFrame.TRAILER)
-        SEQFrameRE = frame.SEQFrame.dataFrameType
+        SEQFrameRE = '^' + frame.SEQFrame.dataFrameType
         SEQFrameRE += '.*'
         SEQFrameRE += frame.SEQFrame.TRAILER
+
+        DataFrameRE = '.*'
+        DataFrameRE += frame.DataFrame.TRAILER
+
         self.SEQFramePattern = re.compile(SEQFrameRE)
+        self.DataFramePattern = re.compile(DataFrameRE)
 
         self.setRawMode()
 
@@ -92,86 +122,262 @@ class BeepProtocol(LineReceiver):
                 pass
 
             while 1:
-                self.startFrame()
-                theframe = self.finishFrame()
+                log.debug('fb: %s' % self.framebuffer)
+                theframe = self.findFrame()
                 if theframe:
-                    log.debug('processFrame(): %s' % theframe)
-                    self.processFrame(theframe)
-                    ## Manually zero out the now processed frame
-                    self.newframe = None
+                    ## We have received a frame, so process it
+                    log.debug('processFrame(): %s' % repr(theframe) )
+
+                    if isinstance(theframe, frame.SEQFrame):
+                        log.debug('processing SEQ frame')
+                        self.processSEQFrame(theframe)
+                        
+                    elif isinstance(theframe, frame.DataFrame):
+                        self.processFrame(theframe)
+
+                        ## Respond with a SEQ frame to the received frame
+                        self.sendSEQFrame(theframe.channelnum)
+                        
+                    else:
+                        log.error('Unknown frame type. Ignoring.')
+
                 else:
+                    log.debug('no more frames')
                     break
             
         except Exception, e:
-            log.error(e)
+            log.error('Erk: %s', e)
+            traceback.print_exc()
             log.info('Dropping connection...')
             self.transport.loseConnection()
 
-    def startFrame(self):
-        """ This method attempts to start a new frame, if
-            one hasn't already been received.
+    def findFrame(self):
         """
-        ##
-        ## Firstly, we look for the frame header, provided
-        ## we're not in the middle of a frame
-        ##
-        if not self.newframe:
-            match = re.search(self.frameHeaderPattern, self.framebuffer)
-            if match:
-                headerdata = self.framebuffer[:match.end()]
-                self.framebuffer = self.framebuffer[match.end():]
+        Search for a frame in the databuffer. Return a frame
+        object for the first frame found.
+        """
+        ## Look for a SEQ frame
+        match = self.SEQFramePattern.search(self.framebuffer)
+        if match:
+            ## Found a SEQ frame
+            data = self.framebuffer[:match.end()]
+            self.framebuffer = self.framebuffer[match.end():]
+            return frame.SEQFrame(databuffer=data)
 
-                # If this is a SEQ frame, create it and process it
-                if re.search(self.SEQFramePattern, headerdata):
-                    seqframe = frame.SEQFrame(databuffer=headerdata)
-                    self.processSEQFrame(seqframe)
-                else:
-                    # start a new dataframe
-                    self.newframe = frame.DataFrame(databuffer=headerdata)
-                    pass
-                pass
+        ## Look for a Data frame
+        match = self.DataFramePattern.search(self.framebuffer)
+        if match:
+            data = self.framebuffer[:match.end()]
+            self.framebuffer = self.framebuffer[match.end():]
+            return frame.DataFrame(databuffer=data)
+
+    def sendMessage(self, msg, channelnum):
+        """
+        sendMessage is used to send a Message as one or more
+        Frames over the transport.
+        """
+        ## Decide what to do with the message.
+        ## If there's stuff pending, send that first,
+        ## adding the new message to the end of the queue
+        ## Otherwise, attempt to just send the message
+        
+        log.debug('current queue: %s' % self.channelbuf[channelnum])
+        ## If there are pending messages, send them first
+        if len( self.channelbuf[channelnum].databuf ) > 0:
+            pendingMsg = self.channelbuf[channelnum].databuf.pop(0)
+            log.debug('Pending data to be sent: %s' % pendingMsg)
+            ## Save the new message to be sent later
+            self.channelbuf[channelnum].databuf.append(msg)
+            ## Swap with 'msg' so below code stays the same
+            msg = pendingMsg
+
+            log.debug('Channel %d availspace: %d' % (channelnum, self.channelbuf[channelnum].availspace) )
+#        log.debug('sending message: %s' % msg)
+        ## If there's no space to send the Message, do something
+        if self.channelbuf[channelnum].availspace < constants.MIN_CHANNEL_WINDOW:
+            ## Window too small, do something with the frame.
+            ## Should be able to choose an action. For now we'll just
+            ## queue the Message
+
+            self.channelbuf[channelnum].databuf.append(msg)
+
+            log.error('No remote space available on channel %d' % channelnum)
+#            raise ValueError('No space left on channel %d' % channelnum)
+
+            ## Check to see if the Message has to be fragmented.
+        elif self.channelbuf[channelnum].availspace < len(msg):
+            log.debug('Fragmenting message...')
+            ## Split the message into 2 pieces.
+            msgFragment = Message(None, msg.msgType, msg.msgno, msg.payload[:self.channelbuf[channelnum].availspace], msg.ansno)
+#            msgFragment.payload[:self.channelbuf[channelnum].availspace]
+            msg.payload = msg.payload[self.channelbuf[channelnum].availspace:]
+
+            ## Send the first piece as a fragment
+            self.sendMsgFragment(channelnum, msgFragment)
+
+            ## Put the rest into a buffer to be sent later
+            self.channelbuf[channelnum].databuf.append(msg)
             pass
-        pass
-                    
-    def finishFrame(self):
-        """ We attempt to finish a previously started frame
+
+        else:
+            self.sendMsgComplete(channelnum, msg)
+
+    def sendMsgFragment(self, channelnum, msg):
         """
-        ## We're already somewhere in the middle of a frame
-        ## after getting a valid header, so we add payload
-        ## data to the frame until we hit the trailer
+        Send a message fragment by setting the continuation indicator
+        for the frame.
+        """
+        size = len(msg.payload)
+        seqno = self.channels[channelnum].allocateLocalSeqno(size)
+        theframe = frame.DataFrame(channelnum, msg.msgno, seqno, size, msg.msgType, constants.MoreTypes['*'])
+        if msg.isANS():
+            theframe.ansno = msg.ansno
+        theframe.setPayload(msg.payload)
+        self.sendFrame(theframe)
+        self.channelbuf[channelnum].availspace -= size
+        pass
 
-        if self.newframe:
-            match = re.search(self.dataFrameTrailer, self.framebuffer)
-            if match:
-                framedata = self.framebuffer[:match.start()]
-                self.framebuffer = self.framebuffer[match.end():]
-
-                ## We check to make sure the payload isn't too long
-                if len(self.newframe.payload) + len(framedata) > self.newframe.size:
-                    log.debug("size: %s, expected: %s" % ( len(self.newframe.payload) + len(framedata), self.newframe.size ) )
-                    log.debug("payload: %s, buffer: %s" % ( self.newframe.payload, framedata ) )
-                    raise ProtocolError('Payload larger than expected size')
-                else:
-                    self.newframe.payload += framedata
-                    return self.newframe
-
-            else:
-                ## The frame isn't complete yet, so we just add
-                ## data to the payload. Hopefully the trailer will
-                ## be in the next chunk off the transport layer
-                if len(self.newframe.payload) + len(self.framebuffer) > self.newframe.size:
-                    log.debug("size: %s, expected: %s" % ( len(self.newframe.payload) + len(self.framebuffer), self.newframe.size ) )
-                    log.debug("payload: %s, buffer: %s" % ( self.newframe.payload, self.framebuffer ) ) 
-                    raise ProtocolError("Payload larger than expected size")
-
-                else:
-                    self.newframe.payload += self.framebuffer
-                    self.framebuffer = ''
+    def sendMsgComplete(self, channelnum, msg):
+        """
+        Send the final frame in a sequence of fragments.
+        A sequence of fragments may only be one frame long,
+        with that single frame containing the whole message.
+        """
+        log.debug('Sending without fragmenting...')
+        ## Plenty of space, send the whole message
+        size = len(msg.payload)
+        seqno = self.channels[channelnum].allocateLocalSeqno(size)
+        theframe = frame.DataFrame(channelnum, msg.msgno, seqno, size, msg.msgType)
+        if msg.isANS():
+            theframe.ansno = msg.ansno
+        theframe.setPayload(msg.payload)
+        self.sendFrame(theframe)
+        self.channelbuf[channelnum].availspace -= size
+        ## call the callback for complete message send
+        if msg.cb is not None:
+            log.debug("Message args: %s" % msg.args)
+            msg.cb(msg.args[0])
+        pass
 
     def sendFrame(self, theframe):
-        data = str(theframe)
-        self.transport.write(data)
+        """
+        sendFrame is used to push frames over the transport.
 
+        With the addition of SEQ frames, this becomes a little
+        more complex. We need to check that the amount of data
+        we're about to send isn't larger than the allocated
+        window size. If it is, then we fragment the data and
+        only send bytes up to the window size. We then have to
+        wait for a SEQ frame from the remote peer saying that
+        it has room for more data before sending the rest.
+
+        The sending of pending data happens asynchronously
+        via the processQueuedData() method.
+        """
+        try:
+            data = str(theframe)
+            log.debug('sending frame: %s' % data)
+            self.transport.write(data)
+        except:
+            traceback.print_exc()
+            raise
+
+    def doSEQFrame(self):
+        """
+        """
+        # If this is a SEQ frame, create it and process it
+        match = re.search(self.SEQFramePattern, self.framebuffer)
+        if match:
+            seqframe = frame.SEQFrame(databuffer=self.framebuffer[:match.end()])
+            self.framebuffer = self.framebuffer[match.end():]
+            self.processSEQFrame(seqframe)
+
+    def processSEQFrame(self, theframe):
+        """
+        Perform window size management for SEQ frames.
+        """
+        log.debug('Received SEQ frame: %s' % theframe)
+
+        ## Validate the sequence number
+
+        ## Reset the window size
+        if self.channelbuf.has_key(theframe.channelnum):
+            self.channelbuf[theframe.channelnum].windowsize = theframe.window
+            self.channelbuf[theframe.channelnum].availspace = theframe.window        
+        ## send pending data
+        try:
+            if self.channelbuf.has_key(theframe.channelnum):
+                msg = self.channelbuf[theframe.channelnum].databuf.pop(0)
+                self.sendMessage(msg, theframe.channelnum)
+
+        except IndexError:
+            log.debug('No pending data.')
+            pass
+        
+        except Exception, e:
+            log.debug('exception %s' % e)
+            traceback.print_exc()
+
+    def sendSEQFrame(self, channelnum):
+        """
+        This is the simplest tuning. We simply reset the
+        window to max, allowing the remote peer to send
+        more data on this channel.
+        """
+        try:
+            ## Make sure the channel is still open
+            if self.channels.has_key(channelnum):
+                ackno = self.channels[channelnum].localSeqno
+                seqf = frame.SEQFrame(channelnum, ackno, self.channelbuf[channelnum].windowsize)
+                self.sendFrame(seqf)
+
+        except KeyError:
+            ## A KeyError will occur if the channel was deleted
+            ## as part of the received message processing,
+            ## so we don't need to send a SEQ frame for the channel
+            ## any more. Only really occurs for channel 0
+            pass
+
+    def processQueuedData(self):
+        """
+        This method examines the local data queues to see
+        if there is pending data that didn't fit within a
+        window for a given channel. If data is available
+        and there is available space at the remote peer
+        then more data is sent, up to the amount of available
+        space. If no space is available yet (because we haven't
+        received another SEQ frame yet) then we don't send the
+        data for that channel.
+        """
+        pass
+
+    def createTransportChannel(self, channelnum):
+        """
+        Performs transport specific channel creation
+        """
+        self.channelbuf[channelnum] = SEQBuffer(channelnum)
+        log.debug('created transport for channel %d' % channelnum)
+
+    def deleteTransportChannel(self, channelnum):
+        """
+        Performs transport specific channel deletion
+        """
+        log.debug('Trying to delete channel buffer for %s: %s' % (channelnum, self.channelbuf))
+        ## Ensure we've sent all pending data
+        self.flushDatabuf(channelnum)
+
+        del self.channelbuf[channelnum]
+        log.debug('deleted SEQ Buffer for channel %s' % channelnum)
+
+    def flushDatabuf(self, channelnum):
+        try:
+            while(1):
+                msg = self.channelbuf[channelnum].databuf.pop(0)
+                self.sendMessage(msg)
+
+        except:
+            pass
+        
 class ProtocolError(errors.BEEPException):
     def __init__(self, args=None):
         self.args = args
@@ -189,9 +395,7 @@ class BeepClientProtocol(BeepProtocol, Initiator):
         log.debug('Client has received a greeting from the server')
         raise NotImplementedError('Override greetingReceived in your client protocol')
 
-class BeepServerFactory(ServerFactory):
-    protocol = BeepServerProtocol
-
+class BeepFactory:
     def __init__(self):
         self.profileDict = profile.ProfileDict()
         pass
@@ -199,10 +403,13 @@ class BeepServerFactory(ServerFactory):
     def getProfileDict(self):
         return self.profileDict
 
-    def addProfile(self, profileModule):
-        self.profileDict.addProfile(profileModule)
+    def addProfile(self, profileModule, init_callback=None):
+        self.profileDict.addProfile(profileModule, init_callback)
 
-class BeepClientFactory(ClientFactory):
+class BeepServerFactory(BeepFactory, ServerFactory):
+    protocol = BeepServerProtocol
+
+class BeepClientFactory(BeepFactory, ClientFactory):
     """ This class is the base class for all application
     clients. You would subclass from this class to
     build your application
@@ -212,20 +419,6 @@ class BeepClientFactory(ClientFactory):
     reason = None
     lostReason = None
     
-    def __init__(self):
-        """ startAction is a method defined by the application
-        for what to do once a connection is made to the remote
-        server.
-        """
-        self.profileDict = profile.ProfileDict()
-        pass
-
-    def getProfileDict(self):
-        return self.profileDict
-
-    def addProfile(self, profileModule):
-        self.profileDict.addProfile(profileModule)
-
     def clientConnectionFailed(self, connector, reason):
         self.reason = reason
         log.error('connection failed: %s' % reason.getErrorMessage() )

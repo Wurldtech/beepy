@@ -1,5 +1,5 @@
-# $Id: test_tlsprofile.py,v 1.10 2004/01/06 04:29:22 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: test_tlsprofile.py,v 1.11 2004/01/06 04:42:41 jpwarren Exp $
+# $Revision: 1.11 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -91,6 +91,9 @@ def serverLostConnection(self, reason):
 class TLSProfileTest(unittest.TestCase):
 
     def setUp(self):
+        ## We first have to create our test keys        
+        import os
+        os.system('python ./createTLSTestKeyCerts.py')
 
         factory = TLSServerFactory()
         factory.addProfile(echoprofile)
@@ -123,10 +126,6 @@ class TLSProfileTest(unittest.TestCase):
             raise Exception(factory.lostReason.getErrorMessage())
         
 if __name__ == '__main__':
-
-    import os
-    ## We first have to create our test keys
-    os.system('python ./createTLSTestKeyCerts.py')
 
     unittest.main()
 

@@ -1,5 +1,5 @@
-# $Id: test_conversation.py,v 1.4 2002/08/08 02:38:59 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: test_conversation.py,v 1.5 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -36,18 +36,17 @@ import dummyclient
 # It tests the responses given to the client under a
 # variety of situations. Check the server logs to
 # see what the server was up to at the time.
-# It pauses for a second before shutting down the client
-# to make sure the server doesn't just dump pending messages
-# on an unexpected disconnect.
 class ConversationTest(unittest.TestCase):
 	log = logging.Log()
-#	log.debuglevel = logging.LOG_DEBUG
 
 	def test_clientMultiGreeting(self):
 		"""Test connect from client with multiple greetings"""
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
+		# wait for it to become active
+		while sess.currentState != 'ACTIVE':
+			pass
 
 		# create and connect a client
 		client = dummyclient.DummyClient()
@@ -56,15 +55,18 @@ class ConversationTest(unittest.TestCase):
 		data = client.getmsg()
 		client.sendmsg("RPY 0 0 . 51 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
 		client.terminate()
-
 		sess.close()
-		time.sleep(1)
+		while sess.isAlive():
+			pass
 
 	def test_clientStartChannel(self):
 		"""Test greeting and start msg"""
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
+		# wait for it to become active
+		while sess.currentState != 'ACTIVE':
+			pass
 		# create and connect a client
 		client = dummyclient.DummyClient()
 		# send a greeting msg
@@ -74,15 +76,18 @@ class ConversationTest(unittest.TestCase):
 
 		data = client.getmsg()
 		client.terminate()
-
 		sess.close()
-		time.sleep(1)
+		while sess.isAlive():
+			pass
 
 	def test_clientStartEvenChannel(self):
 		"""Test create channel with incorrectly even number"""
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
+		# wait for it to become active
+		while sess.currentState != 'ACTIVE':
+			pass
 		# create and connect a client
 		client = dummyclient.DummyClient()
 
@@ -93,7 +98,8 @@ class ConversationTest(unittest.TestCase):
 		data = client.getmsg()
 		client.terminate()
 		sess.close()
-		time.sleep(1)
+		while sess.isAlive():
+			pass
 		self.assertEqual(data, 'ERR 0 0 . 117 96\r\nContent-Type: application/beep+xml\n\n<error code="501">\r\n  Syntax Error In Parameters\r\n</error>\r\nEND\r\n')
 
 

@@ -1,5 +1,5 @@
-# $Id: message.py,v 1.4 2002/08/13 13:03:28 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: message.py,v 1.5 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -29,8 +29,6 @@ import re
 MessageTypes = ('greeting', 'start', 'close', 'ok', 'error', 'profile')
 
 class Message:
-	type = None		# The message type
-	doc = None		# The DOM document of this message
 
 	def __init__(self, type, doc):
 		if type not in MessageTypes:

@@ -1,5 +1,5 @@
-# $Id: mgmtcreator.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: mgmtcreator.py,v 1.3 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -31,11 +31,10 @@ import types
 import xml.dom.minidom
 
 class Creator:
-	doc = None
-	log = None
 
 	def __init__(self, log):
 		self.log = log
+		self.doc = None
 
 	# Ensure we free up memory used by self.doc since Python
 	# may not garbage collect it due to circular references

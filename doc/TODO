@@ -1,5 +1,5 @@
-# $Id: TODO,v 1.6 2002/08/13 06:29:21 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: TODO,v 1.7 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -63,6 +63,7 @@
   and give a list of profiles. The server will then pick the one that it
   knows about that has the highest priority. This allows the server to
   prefer SASL/OTP over SASL/ANONYMOUS, for example.
-- Need to fix state machine and synchronisations so that on a tuning
-  reset the new session doesn't become active until after the old one
-  has exitted. Probably need some form of thread synchro via join().
+- Should probably moving Threading back up into Session or as a Mixin.
+  Now using an Event to signal shutdown of a Session thread. I like this
+  more, as it seems a little more structured.. and probably should be done
+  similarly, since we're talking about inter-Thread comms.

@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.3 2002/08/13 06:29:21 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: channel.py,v 1.4 2002/08/22 05:03:34 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -32,7 +32,7 @@ import frame
 import Queue
 
 class Channel:
-	log = None
+	log = None			# logging object
 	number = -1			# Channel number
 	localSeqno = -1L		# My current Sequence number
 	remoteSeqno = -1L		# Remote Sequence number

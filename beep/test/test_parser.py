@@ -1,5 +1,5 @@
-# $Id: test_parser.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: test_parser.py,v 1.3 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -31,7 +31,6 @@ from beep.core import logging
 class ParserTest(unittest.TestCase):
 
 	log = logging.Log()
-#	log.debuglevel = 0
 
 	def test_parseMalformedCdataBeforeFirstTag(self):
 		"""Parse Malformed XML Document: cdata before first tag"""

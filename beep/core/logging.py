@@ -1,5 +1,5 @@
-# $Id: logging.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: logging.py,v 1.3 2002/08/22 05:03:34 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -45,10 +45,6 @@ LOG_DEBUG = 5		# Loads of stuff about how the internal processing
 			# is done.
 
 class Log:
-	log = None			# File for logfile
-	logfile = ''			# String for path to logfile
-#	debuglevel = LOG_ERR		# Default log level is 1
-	debuglevel = LOG_DEBUG		
 
 	def __init__(self, logfile=None):
 		# Attempt to open the logfile for writing
@@ -62,6 +58,9 @@ class Log:
 		else:
 			self.log = sys.stderr
 			self.logfile = 'STDERR'
+
+		self.debuglevel = LOG_ERR
+#		self.debuglevel = LOG_DEBUG
 
 	def logmsg(self, msglevel, *msgs):
 		if msglevel <= self.debuglevel:

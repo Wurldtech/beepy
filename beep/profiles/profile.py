@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.5 2002/08/13 14:37:35 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: profile.py,v 1.6 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -60,7 +60,6 @@ class Profile:
 		processMessages()
 		"""
 		self.channel = channel
-		print "channel state:", self.channel.state
 		self.channel.transition(constants.CHANNEL_ACTIVE)
 
 	def doProcessing(self):

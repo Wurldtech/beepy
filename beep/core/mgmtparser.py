@@ -1,5 +1,5 @@
-# $Id: mgmtparser.py,v 1.3 2002/08/13 06:29:21 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: mgmtparser.py,v 1.4 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -41,14 +41,15 @@ import xml.parsers.expat
 import re
 
 class Parser:
-	log = None
-	parser = None
-	doc = None
-	elementStack = None
-	withinCdataSection = 0
+#	log = None
+#	parser = None
+#	doc = None
+#	elementStack = None
+#	withinCdataSection = 0
 
 	def __init__(self, log, data=None):
 		self.log = log
+		self.doc = None
 		self.parser = xml.parsers.expat.ParserCreate()
 		self.parser.StartElementHandler = self.startElementHandler
 		self.parser.EndElementHandler = self.endElementHandler

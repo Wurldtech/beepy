@@ -1,5 +1,5 @@
-# $Id: test_saslanonymousprofile.py,v 1.1 2002/08/13 14:39:33 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: test_saslanonymousprofile.py,v 1.2 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -41,13 +41,15 @@ import dummyclient
 # on an unexpected disconnect.
 class SASLAnonymousProfileTest(unittest.TestCase):
 	log = logging.Log()
-	log.debuglevel = logging.LOG_DEBUG
 
 	def test_createSASLAnonymousSession(self):
 		"""Test SASL Anonymous with no CDATA init"""
 		pdict = profile.ProfileDict()
 		pdict['http://iana.org/beep/SASL/ANONYMOUS'] = saslanonymousprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
+
+		while sess.currentState != 'ACTIVE':
+			pass
 
 		# create and connect a client
 		client = dummyclient.DummyClient()

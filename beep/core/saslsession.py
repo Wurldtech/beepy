@@ -1,5 +1,5 @@
-# $Id: saslsession.py,v 1.1 2002/08/13 14:39:33 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: saslsession.py,v 1.2 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -22,8 +22,8 @@
 import session
 
 class SASLSession(session.Session):
-	authentid = ''
-	userid = ''
+#	authentid = ''
+#	userid = ''
 
 	def __init__(self, log, profileDict, authentid, userid=None):
 		self.authentid = authentid

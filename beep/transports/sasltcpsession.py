@@ -1,5 +1,5 @@
-# $Id: sasltcpsession.py,v 1.2 2002/08/14 03:51:57 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: sasltcpsession.py,v 1.3 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -32,10 +32,10 @@ import threading
 
 class SASLTCPListenerSession(tcpsession.TCPListenerSession, saslsession.SASLListenerSession):
 
-	oldsessionThread = None
-
 	def __init__(self, conn, client_address, server, oldsessionThread, authentid, userid=None):
 		threading.Thread.__init__(self)
+		self.shutdown = threading.Event()
+
 		self.request = conn
 		self.connection = conn
 		self.client_address = client_address
@@ -49,8 +49,6 @@ class SASLTCPListenerSession(tcpsession.TCPListenerSession, saslsession.SASLList
 		session.ListenerSession.__init__(self, self.server.log, self.server.profileDict)
 		saslsession.SASLListenerSession.__init__(self, self.log, self.profileDict, authentid, userid)
 
-		self.state = constants.SESSION_INITIALIZED
-
 		self.log.logmsg(logging.LOG_INFO, "%s: initialized" % self )
 		self.start()
 
@@ -63,7 +61,7 @@ class SASLTCPListenerSession(tcpsession.TCPListenerSession, saslsession.SASLList
 #		self.oldsessionThread.join(['30'])
 		self.log.logmsg(logging.LOG_INFO, "Tuning reset: reconnected to %s[%s]." % self.client_address )
 		tcpsession.TCPListenerSession._stateINIT(self)
-		return('ACTIVE')
+		self.transition('ok')
 
 class SASLTCPInitiatorSession(tcpsession.TCPInitiatorSession, saslsession.SASLInitiatorSession):
 	def __init__(self, log, profileDict, host, port, sock, authentid, userid=None):
@@ -75,6 +73,3 @@ class SASLTCPInitiatorSession(tcpsession.TCPInitiatorSession, saslsession.SASLIn
 		self.server_address = (host, port)
 		self.connection = sock
 
-class SASLTCPSessionException(tcpsession.TCPSessionException):
-	def __init__(self, args=None):
-		self.args = args

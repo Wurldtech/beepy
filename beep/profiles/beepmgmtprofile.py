@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.6 2002/08/13 06:29:21 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: beepmgmtprofile.py,v 1.7 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -32,12 +32,12 @@ import beep.core.session		# Have to do it this way, as beep.core.session imports
 
 
 class BEEPManagementProfile(profile.Profile):
-	mgmtParser = None		# The parser for BEEP channel management messages
-	mgmtCreator = None		# The creator for BEEP Channel management messages
-	receivedGreeting = -1		# Have I received a greeting from the other end yet?
-	session = None			# Session I'm associated with
-	startingChannel = {}		# Dictionary of channels I'm trying to start
-	closingChannel = {}		# Dictionary of channels I'm trying to close
+#	mgmtParser = None		# The parser for BEEP channel management messages
+#	mgmtCreator = None		# The creator for BEEP Channel management messages
+#	receivedGreeting = -1		# Have I received a greeting from the other end yet?
+#	session = None			# Session I'm associated with
+#	startingChannel = {}		# Dictionary of channels I'm trying to start
+#	closingChannel = {}		# Dictionary of channels I'm trying to close
 	CONTENT_TYPE = "application/beep+xml"
 
 	def __init__(self, log, session):

@@ -1,5 +1,5 @@
-# $Id: test_client.py,v 1.4 2002/08/08 02:38:59 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: test_client.py,v 1.5 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -35,7 +35,6 @@ class ClientTest(unittest.TestCase):
 # and creating another one to prevent "address already in use" errors
 # This is a feature, not a bug
 	log = logging.Log()
-#	log.debuglevel = logging.LOG_DEBUG
 
 	def test_connectClient(self):
 		"""Test connect from client"""
@@ -44,6 +43,8 @@ class ClientTest(unittest.TestCase):
 		pdict1 = profile.ProfileDict()
 		pdict1['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		listener = tcpsession.TCPSessionListener(self.log, pdict1, 'localhost', 1976)
+		while listener.currentState != 'ACTIVE':
+			pass
 
 		# create and connect a client
 		pdict2 = profile.ProfileDict()
@@ -58,7 +59,8 @@ class ClientTest(unittest.TestCase):
 		time.sleep(1)
 		client.close()
 		listener.close()
-		time.sleep(1)
+		while listener.isAlive():
+			pass
 
 if __name__ == '__main__':
 

@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.6 2002/08/14 03:51:57 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: session.py,v 1.7 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -42,15 +42,15 @@ class Session(statemachine.StateMachine):
 	and should be implemented in a class that inherits from Session
 	"""
 
-	log = None		# Logger
-	sentGreeting = 0	# have I sent a greeting yet?
-	receivedGreeting = 0	# have I received a greeting yet?
-	channels = {}		# dictionary of channels, indexed by channel number
-	channelState = {}	# a dictionary of channel states, indexed by channel number
-	nextChannelNum = -1	# The next channel number to be allocated
-	profileDict = {}	# dictionary of known profiles.
-	inbound = None		# session queue for inbound packets off the wire
-	outbound = None		# session queue for outbound packets destined for the wire
+#	log = None		# Logger
+#	sentGreeting = 0	# have I sent a greeting yet?
+#	receivedGreeting = 0	# have I received a greeting yet?
+#	channels = {}		# dictionary of channels, indexed by channel number
+#	channelState = {}	# a dictionary of channel states, indexed by channel number
+#	nextChannelNum = -1	# The next channel number to be allocated
+#	profileDict = {}	# dictionary of known profiles.
+#	inbound = None		# session queue for inbound packets off the wire
+#	outbound = None		# session queue for outbound packets destined for the wire
 
 	# We do some transport independant stuff here, so ensure that when you 
 	# subclass from Session, you also call session.Session.__init__(self) 
@@ -71,13 +71,19 @@ class Session(statemachine.StateMachine):
 
 		# define the transitions
 		self.addTransition('INIT', 'ok', 'ACTIVE')
+		self.addTransition('INIT', 'error', 'EXITED')
+		self.addTransition('INIT', 'close', 'EXITED')
 		self.addTransition('ACTIVE', 'close', 'CLOSING')
 		self.addTransition('ACTIVE', 'error', 'TERMINATE')
 		self.addTransition('ACTIVE', 'reset', 'TUNING')
 		self.addTransition('CLOSING', 'error', 'ACTIVE')
 		self.addTransition('CLOSING', 'ok', 'TERMINATE')
+		self.addTransition('CLOSING', 'close', 'CLOSING')
 		self.addTransition('TUNING', 'ok', 'EXITED')
+		self.addTransition('TUNING', 'close', 'TUNING')
 		self.addTransition('TERMINATE', 'ok', 'EXITED')
+		self.addTransition('TERMINATE', 'close', 'TERMINATE')
+		self.addTransition('EXITED', 'close', 'EXITED')
 
 		self.log = log
 		self.sentGreeting = 0
@@ -90,12 +96,7 @@ class Session(statemachine.StateMachine):
 		self.outbound = Queue.Queue(constants.MAX_INPUT_QUEUE_SIZE)
 
 	def _stateINIT(self):
-		# Create channel 0 for this session
-		self.createChannelZero()
-
-		# go active when channelzero is online
-		self.transition('ok')
-		pass
+		raise NotImplementedError
 
 	def _stateACTIVE(self):
 		""" overload _stateACTIVE in your subclass to implement the
@@ -340,12 +341,11 @@ class Session(statemachine.StateMachine):
 	def getProfileDict(self):
 		return self.profileDict
 
-
 	def reset(self):
 		"""reset() does a tuning reset which closes all channels and
 		   terminates the session.
 		"""
-		pass
+		self.transition('reset')
 
 	def startChannel(self, profileList):
 		"""startChannel() attempts to start a new channel for communication.
@@ -361,7 +361,15 @@ class Session(statemachine.StateMachine):
 		else:
 			raise SessionException("Greeting not yet received")
 
-class SessionManager:
+	def close(self):
+		raise NotImplementedError
+
+	def _showInternalState(self):
+		self.log.logmsg(logging.LOG_DEBUG, "Current internal state of %s" % self)
+		for var in self.__dict__.keys():
+			self.log.logmsg(logging.LOG_DEBUG, "%s: %s" % (var, self.__dict__[var]))
+
+class SessionManager(statemachine.StateMachine):
 	"""A SessionManager is used to create and destroy sessions that
 	   handle BEEP connections
 	"""
@@ -372,6 +380,42 @@ class SessionManager:
 	def __init__(self, log, profileDict):
 		self.log = log
 		self.profileDict = profileDict
+		self.sessionList = []
+
+		statemachine.StateMachine.__init__(self)
+
+		self.addState('INIT', self._stateINIT)
+		self.addState('ACTIVE', self._stateACTIVE)
+		self.addState('CLOSING', self._stateCLOSING)
+		self.addState('TERMINATE', self._stateTERMINATE)
+		self.addState('EXITED', self._stateEXITED, 1)
+		self.setStart('INIT')
+
+		self.addTransition('INIT', 'ok', 'ACTIVE')
+		self.addTransition('INIT', 'error', 'EXITED')
+		self.addTransition('INIT', 'close', 'EXITED')
+		self.addTransition('ACTIVE', 'close', 'CLOSING')
+		self.addTransition('ACTIVE', 'error', 'TERMINATE')
+		self.addTransition('CLOSING', 'ok', 'TERMINATE')
+		self.addTransition('CLOSING', 'close', 'TERMINATE')
+		self.addTransition('TERMINATE', 'ok', 'EXITED')
+		self.addTransition('TERMINATE', 'close', 'TERMINATE')
+		self.addTransition('EXITED', 'close', 'EXITED')
+
+	def _stateINIT(self):
+		raise NotImplementedError
+
+	def _stateACTIVE(self):
+		raise NotImplementedError
+
+	def _stateCLOSING(self):
+		raise NotImplementedError
+
+	def _stateTERMINATE(self):
+		raise NotImplementedError
+
+	def _stateEXITED(self):
+		raise NotImplementedError
 
 	# Add a Session instance to the sessionList
 	def addSession(self, sessionInst):
@@ -380,13 +424,19 @@ class SessionManager:
 	def removeSession(self, sessionInst):
 		if sessionInst in self.sessionList:
 			self.sessionList.remove(sessionInst)
+			self.log.logmsg(logging.LOG_DEBUG, "%s removed from sessionList." % sessionInst)
 
 	def deleteAllSessions(self):
 		for sess in self.sessionList:
 			self.removeSession(sess)
 
 	def close(self):
-		self.deleteAllSessions()
+		raise NotImplementedError
+
+	def _showInternalState(self):
+		self.log.logmsg(logging.LOG_DEBUG, "Current internal state of %s" % self)
+		for var in self.__dict__.keys():
+			self.log.logmsg(logging.LOG_DEBUG, "%s: %s" % (var, self.__dict__[var]))
 
 # A SessionListener is a special type of SessionManager that listens for
 # incoming connections and creates Sessions to handle them.

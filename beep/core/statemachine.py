@@ -1,5 +1,5 @@
-# $Id: statemachine.py,v 1.3 2002/08/14 03:51:57 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: statemachine.py,v 1.4 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -60,20 +60,36 @@ class StateMachine:
 		self.fsmMap[state][event] = nextState
 
 	def transition(self, event):
+
 		"""transition is used to change the state of the FSM from
 		   the current state to the next state by telling it an
 		   event has occurred. This is a sortof callback mechanism.
 		"""
+#		print "%s: transition: event %s in state %s" % (self, event, self.currentState)
+
+		if not self.fsmMap.has_key(self.currentState):
+			raise StateMachineException("StateMachine is in invalid state. Cannot transition.")
+
+		# transitioning is suspended if state is terminal
+#		print "DEBUG: self: %s" % self
+#		print "DEBUG: currentState: %s" % self.currentState
+#		print "DEBUG: nextState: %s" % self.nextState
+#		print "DEBUG: terminalStates: %s" % self.terminalStates
+#		print "DEBUG: event: %s" % event
+#		print self.__dict__
+
+		if self.currentState in self.terminalStates:
+			return
+
 		# A form of locking, first check that someone else hasn't
 		# already requested a state transition. If they have, we do
 		# nothing. First state transition takes precedence
 		if self.nextState != self.currentState:
-			print "nextState is different. transition has already been called"
-			pass
+			return
 
 		# make sure this event is valid for the current state
 		try:
-			if event not in self.fsmMap[self.currentState].keys():
+			if not self.fsmMap[self.currentState].has_key(event):
 				raise StateMachineException("No rule for event %s in state %s" % (event, self.currentState))
 			else:
 				self.nextState = self.fsmMap[self.currentState][event]
@@ -97,7 +113,7 @@ class StateMachine:
 			# If nextState is different from the currentState, transition()
 			# has been called to flag a state transition.
 			if self.nextState != self.currentState:
-				print "changing state from %s to %s" % (self.currentState, self.nextState)
+#				print "changing state from %s to %s" % (self.currentState, self.nextState)
 				handler = self.handlers[self.nextState]
 				self.currentState = self.nextState
 

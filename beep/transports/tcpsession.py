@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.8 2002/08/14 03:51:57 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: tcpsession.py,v 1.9 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -47,49 +47,64 @@ import SocketServer
 
 class TCPSessionListener(SocketServer.TCPServer, session.SessionListener, threading.Thread):
 
-	state = constants.SESSION_UNINITIALIZED
-	address = ()
-
-	def __init__(self, log, profileDict, host, port):
+	def __init__(self, log, profileDict, host, port, daemon=0):
 
 		session.SessionListener.__init__(self, log, profileDict)
-		self.log.logmsg(logging.LOG_INFO, "Starting listener on %s[%s]..." % (host, port) )
 
 		self.address = (host, port)
+
+		# and finally, do the thread bits
+		threading.Thread.__init__(self)
+		self.shutdown = threading.Event()
+
+		# I want to act like a daemon
+		if daemon:
+			self.setDaemon(1)
+		self.start()
+
+	def server_bind(self):
+		self.allow_reuse_address = 1
+		SocketServer.TCPServer.server_bind(self)
+
+	def _stateINIT(self):
+		self.log.logmsg(logging.LOG_INFO, "Starting listener on %s[%s]..." % self.address )
 		SocketServer.TCPServer.__init__(self, self.address, TCPListenerSession)
 
 		# Make socket non-blocking
 		self.socket.setblocking(0)
+		self.transition('ok')
 
-		# and finally, do the thread bits
-		threading.Thread.__init__(self)
+	def _stateACTIVE(self):
+		if self.shutdown.isSet():
+			self.transition('close')
 
-		self.state = constants.SESSION_INITIALIZED
-#		self.log.logmsg(logging.LOG_DEBUG, "%s -> SESSION_INITIALIZED" % self)
-		# I want to act like a daemon
-		self.setDaemon(1)
-		self.start()
+		self.handle_request()
 
-	def run(self):
+	def _stateCLOSING(self):
+#		self.log.logmsg(logging.LOG_DEBUG, "closing all ListenerSessions...")
+		while self.sessionList:
+			for sess in self.sessionList:
+				sess.close()
+				sess.join()
+				self.removeSession(sess)
 
-		self.state = constants.SESSION_ACTIVE
+		self.transition('ok')
 
-		while self.state != constants.SESSION_CLOSING:
-			self.handle_request()
+	def _stateTERMINATE(self):
+		self.socket.close()
 
-#		self.log.logmsg(logging.LOG_DEBUG, "%s -> SESSION_CLOSED" % self)
 		self.log.logmsg(logging.LOG_INFO, "Listener %s[%s] exitted." % self.address)
+		self.transition('ok')
 
 	def finish_request(self, request, client_address):
 		requestHandler = self.RequestHandlerClass(request, client_address, self)
 		self.addSession(requestHandler)
 
 	def close_request(self, request):
-		self.removeSession(request)
+		pass
 
 	def close(self):
-		session.SessionListener.close(self)
-		self.socket.close()
+		self.shutdown.set()
 
 class TCPCommsMixin:
 	"""This class is used to supply the common methods used
@@ -138,7 +153,7 @@ class TCPCommsMixin:
 					# constants.MAX_FRAME_SIZE + constants.MAX_INBUF then
 					# the frame is too large.
 					if len(self.framebuffer) > (constants.MAX_FRAME_SIZE + constants.MAX_INBUF):
-						raise TCPSessionException("Frame too large")
+						raise session.TerminateException("Frame too large")
 
 					# Detect a complete frame
 					# First, check for SEQ frames. These have a higher priority.
@@ -182,7 +197,7 @@ class TCPCommsMixin:
 				raise
 
 		except frame.DataFrameException, e:
-			raise TCPSessionException(e)
+			raise session.TerminateException(e)
 
 		# Drop packets if queue is full, log a warning.
 		except session.SessionInboundQueueFull:
@@ -193,7 +208,7 @@ class TCPCommsMixin:
 			raise
 
 		except Exception, e:
-			raise TCPSessionException("Unhandled Exception in getInputFrame(): %s: %s" % (e.__class__, e))
+			raise session.TerminateException("Unhandled Exception in getInputFrame(): %s: %s" % (e.__class__, e))
 
 	def sendPendingFrame(self):
 		try:
@@ -214,14 +229,11 @@ class TCPCommsMixin:
 # since the implementation of SocketServer RequestHandlers appears to be
 # badly broken
 class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSession, threading.Thread, TCPCommsMixin):
-	log = None
-
-	# This is here because BaseRequestHandler isn't implemented correctly
-	# and as a consequence, neither is StreamRequestHandler
-	request = None
-	connection = None
-	client_address = None
-	server = None
+#	log = None
+#	request = None
+#	connection = None
+#	client_address = None
+#	server = None
 
 	# The __init__ strategy of the StreamRequestHandler 
 	# (actually, the BaseRequestHandler) really breaks threading.
@@ -231,6 +243,7 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 	def __init__(self, request, client_address, server):
 
 		threading.Thread.__init__(self)
+		self.shutdown = threading.Event()
 
 		self.request = request
 		self.connection = request
@@ -246,6 +259,10 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 		self.log.logmsg(logging.LOG_INFO, "Connection from %s[%s]." % self.client_address)
 		self.start()
 
+	def __del__(self):
+		self.server = None
+		self.log = None
+
 	def _stateINIT(self):
 		# configure as a SocketServer
 		SocketServer.StreamRequestHandler.setup(self)
@@ -253,12 +270,14 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 		# Now, configure the socket as non-blocking
 		self.connection.setblocking(0)
 #		self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+#		self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 		self.createChannelZero()
 		self.transition('ok')
-		pass
 
 	def _stateACTIVE(self):
+		if self.shutdown.isSet():
+			self.transition('close')
 		self._mainLoop()
 
 	def _mainLoop(self):
@@ -275,17 +294,10 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 		except session.TuningReset, e:
 			self.log.logmsg( logging.LOG_INFO, "Tuning reset: %s" % e )
 			self.transition('reset')
-			pass
-
-		except TCPSessionException, e:
-			self.log.logmsg( logging.LOG_INFO, "Closing Session: %s" % e)
-			self.transition('close')
-			pass
 
 		except session.TerminateException, e:
 			self.log.logmsg( logging.LOG_ERR, "Terminating Session: %s" % e)
 			self.transition('error')
-			pass
 
 	def _stateCLOSING(self):
 		# first, attempt to close the session channels
@@ -293,12 +305,10 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 			self.closeAllChannels()
 
 		except Exception, e:
-			self.log.logmsg(logging.LOG_DEBUG, "exception closing channels: %s" % e)
+			self.log.logmsg(logging.LOG_DEBUG, "Exception closing channels: %s" % e)
 			self.transition('error')
-			pass
 
 		self.transition('ok')
-		pass
 
 	def _stateTUNING(self):
 		self.log.logmsg(logging.LOG_INFO, "state->TUNING")
@@ -314,7 +324,6 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 		self.deleteAllChannels()
 
 		self.transition('ok')
-		pass
 
 	def _stateTERMINATE(self):
 		"""TERMINATE state is reached from the ACTIVE state if an error
@@ -329,6 +338,9 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 		self.log.logmsg(logging.LOG_INFO, "Session from %s[%s] finished." % self.client_address)
 		self.transition('ok')
 
+	def close(self):
+		self.shutdown.set()
+
 class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMixin):
 
 	server_address = ()		# Address of remote end
@@ -337,6 +349,7 @@ class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMi
 
 	def __init__(self, log, profileDict, host, port):
 		threading.Thread.__init__(self)
+		self.shutdown = threading.Event()
 
 		session.InitiatorSession.__init__(self, log, profileDict)
 		self.server_address = (host, port)
@@ -352,17 +365,16 @@ class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMi
 			self.wfile = self.connection.makefile('wb', constants.MAX_OUTBUF)
 
 		except Exception, e:
-			self.log.logmsg(logging.LOG_DEBUG, "Exception occurred connecting to remote host")
-			return('EXITED')
+			self.log.logmsg(logging.LOG_DEBUG, "Exception occurred connecting to remote host: %s" % e)
+			self.transition('error')
 
 		self.createChannelZero()
-		return('ACTIVE')
+		self.transition('ok')
 
 	def _stateACTIVE(self):
-		while 1:
-			result = self._mainLoop()
-			if result:
-				return result
+		if self.shutdown.isSet():
+			self.transition('close')
+		self._mainLoop()
 
 	def _mainLoop(self):
 		try:
@@ -377,31 +389,26 @@ class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMi
 
 		except session.TuningReset, e:
 			self.log.logmsg( logging.LOG_INFO, "Tuning reset: %s" % e )
-			return('TUNING')
-
-		except TCPSessionException, e:
-			self.log.logmsg( logging.LOG_INFO, "Closing Session: %s" % e)
-			return('CLOSING')
+			self.transition('reset')
 
 		except session.TerminateException, e:
 			self.log.logmsg( logging.LOG_ERR, "Terminating Session: %s" % e)
-			return('TERMINATE')
+			self.transition('error')
 
 	def _stateCLOSING(self):
 		try:
 			self.closeAllChannels()
 		except Exception, e:
 			self.log.logmsg(logging.LOG_DEBUG, "exception closing channels: %s" % e)
-			return('ACTIVE')
+			self.transition('error')
 
-		return('TERMINATE')
+		self.transition('ok')
 
 	def _stateTERMINATE(self):
-		session.InitiatorSession.close(self)
 		self.wfile.flush()
 		self.wfile.close()
 		self.connection.close()
+		self.transition('ok')
 
-class TCPSessionException(session.SessionException):
-	def __init__(self, args=None):
-		self.args = args
+	def close(self):
+		self.shutdown.set()

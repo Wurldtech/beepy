@@ -1,5 +1,5 @@
-# $Id: frame.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: frame.py,v 1.3 2002/08/22 05:03:34 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -35,9 +35,6 @@ import string
 # Frame. All the guts are in DataFrame, but that's what the RFC says.
 
 class Frame:
-	log = None
-	frameType = None				# default type
-
 	def __init__(self, log, frameType):
 		self.log = log
 		if( frameType not in constants.FrameTypes ):	# bad FrameType
@@ -50,17 +47,19 @@ class FrameException(errors.BEEPException):
 		self.args = args
 
 class DataFrame( Frame ):
+
+	# Class constants
 	frameType = 'data'
-	payload = None				# Payload object
 	TRAILER = str('END\r\n')		# Trailer
 
-	type = ''
-	channelnum = -1
-	msgno = -1
-	more = ''
-	seqno = -1L
-	size = -1
-	ansno = None
+#	payload = None				# Payload object
+#	type = ''
+#	channelnum = -1
+#	msgno = -1
+#	more = ''
+#	seqno = -1L
+#	size = -1
+#	ansno = None
 
 	def __init__(self, log, channelnum=None, msgno=None, more=None, seqno=None, size=None, payload=None, type='MSG', ansno=None, databuffer=None):
 		Frame.__init__(self, log, self.frameType)
@@ -80,6 +79,8 @@ class DataFrame( Frame ):
 			self.size = size
 			if ansno:
 				self.ansno = ansno
+			else:
+				self.ansno = None
 
 	def __str__(self):
 
@@ -198,14 +199,18 @@ class DataFrameException(FrameException):
 	def __init__(self, args=None):
 		self.args = args
 
+#	def __len__(self):
+#		print "DEBUG: DFE.args: %s" % self.args
+
 class SEQFrame(Frame):
+	# class constants
 	frameType = 'seq'
 	TRAILER = str('\r\n')		# Trailer
 	type = 'SEQ'
 
-	channelnum = -1
-	ackno = -1L
-	window = -1
+#	channelnum = -1
+#	ackno = -1L
+#	window = -1
 
 	def __init__(self, log, channelnum=None, ackno=None, window=None, databuffer=None):
 		Frame.__init__(self, log, self.frameType)

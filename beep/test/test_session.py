@@ -1,5 +1,5 @@
-# $Id: test_session.py,v 1.4 2002/08/08 02:38:59 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: test_session.py,v 1.5 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -33,113 +33,101 @@ from beep.profiles import echoprofile
 import dummyclient
 
 class SessionTest(unittest.TestCase):
-# A sleeptime is required between shutting down one session listener
-# and creating another one to prevent "address already in use" errors
-# This is a feature, not a bug
+
 	log = logging.Log()
 #	log.debuglevel = logging.LOG_DEBUG
 
-	def test_1_createSession(self):
-		"""Test create listener"""
-		pdict = profile.ProfileDict()
-		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
-		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
-
-		sess.close()
-		time.sleep(1)
-
-	def test_2_connectClient(self):
-		"""Test connect from client"""
-		# create the server
-		pdict = profile.ProfileDict()
-		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
-		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
-		# create and connect a client
-		client = dummyclient.DummyClient()
-		data = client.getmsg()
-		client.terminate()
-		sess.close()
-		time.sleep(1)
-
-		self.assertEqual(data, 'RPY 0 0 . 0 117\r\nContent-Type: application/beep+xml\n\n<greeting>\r\n  <profile uri="http://www.eigenmagic.com/beep/ECHO"/>\r\n</greeting>\r\nEND\r\n')
-
-	def test_invalidHeaderFormat(self):
+	def test_3_invalidHeaderFormat(self):
 		"""Test invalid frame header format"""
-		# create the server
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
-		self.assertEqual(sess.state, constants.SESSION_INITIALIZED)
+		# wait for it to become active
+		while sess.currentState != 'ACTIVE':
+			pass
 
-#		# create and connect a client
+		# create and connect a client
 		client = dummyclient.DummyClient()
 		data = client.getmsg()
 		client.sendmsg("test\r\nEND\r\n")
 
 		client.terminate()
 		sess.close()
-		time.sleep(1)
+		while sess.isAlive():
+			pass
 
-	def test_invalidFrameType(self):
+	def test_4_invalidFrameType(self):
 		"""Test invalid frame type"""
-#		# create the server
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
-		self.assertEqual(sess.state, constants.SESSION_INITIALIZED)
-#
+		# wait for it to become active
+		while sess.currentState != 'ACTIVE':
+			pass
+
 		# create and connect a client
 		client = dummyclient.DummyClient()
-		data = client.getmsg()
+#		data = client.getmsg()
 		client.sendmsg("WIZ 0 0 . 0 0\r\nEND\r\n")
+		data = client.getmsg()
+		print data
 
 		client.terminate()
 		sess.close()
-		time.sleep(1)
+		while sess.isAlive():
+			pass
 
-	def test_invalidFrameSize(self):
+	def test_5_invalidFrameSize(self):
 		"""Test invalid frame size"""
-#		# create the server
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
-		self.assertEqual(sess.state, constants.SESSION_INITIALIZED)
-#
+		# wait for it to become active
+		while sess.currentState != 'ACTIVE':
+			pass
 		# create and connect a client
 		client = dummyclient.DummyClient()
 		data = client.getmsg()
 		client.sendmsg("MSG 0 0 . 0 5\r\nhere's some stuff\r\nEND\r\n")
+		data = client.getmsg()
+		print data
 
 		client.terminate()
 		sess.close()
-		time.sleep(1)
+		while sess.isAlive():
+			pass
 
-	def test_invalidSeqno(self):
+	def test_6_invalidSeqno(self):
 		"""Test invalid frame size"""
-#		# create the server
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
-		self.assertEqual(sess.state, constants.SESSION_INITIALIZED)
-#
+		# wait for it to become active
+		while sess.currentState != 'ACTIVE':
+			pass
+
 		# create and connect a client
 		client = dummyclient.DummyClient()
 		data = client.getmsg()
 		client.sendmsg("MSG 0 0 . 0 13\r\n<greeting/>\r\nEND\r\n")
 		client.sendmsg("MSG 0 0 . 0 13\r\nh<greeintg/>\r\nEND\r\n")
+		data = client.getmsg()
+		print data
 
 		client.terminate()
 		sess.close()
-		time.sleep(1)
+		while sess.isAlive():
+			pass
 
-	def test_validGreeting(self):
+	def test_7_validGreeting(self):
 		"""Test invalid frame size"""
-#		# create the server
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
-		self.assertEqual(sess.state, constants.SESSION_INITIALIZED)
-#
+		# wait for it to become active
+		while sess.currentState != 'ACTIVE':
+			pass
+
 		# create and connect a client
 		client = dummyclient.DummyClient()
 		data = client.getmsg()
@@ -147,11 +135,11 @@ class SessionTest(unittest.TestCase):
 
 		client.terminate()
 		sess.close()
-		time.sleep(1)
-
-#	def test_malformedXML(self):
+		while sess.isAlive():
+			pass
 
 if __name__ == '__main__':
 
 	unittest.main()
 
+	sess.close()

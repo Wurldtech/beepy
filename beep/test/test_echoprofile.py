@@ -1,5 +1,5 @@
-# $Id: test_echoprofile.py,v 1.3 2002/08/08 02:38:59 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: test_echoprofile.py,v 1.4 2002/08/22 05:03:35 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -41,13 +41,14 @@ import dummyclient
 # on an unexpected disconnect.
 class EchoProfileTest(unittest.TestCase):
 	log = logging.Log()
-	log.debuglevel = logging.LOG_DEBUG
 
 	def test_createEchoChannel(self):
 		"""Test creation of a channel with the Echo profile"""
 		pdict = profile.ProfileDict()
 		pdict['http://www.eigenmagic.com/beep/ECHO'] = echoprofile
 		sess = tcpsession.TCPSessionListener(self.log, pdict, 'localhost', 1976)
+		while sess.currentState != 'ACTIVE':
+			pass
 
 		# create and connect a client
 		client = dummyclient.DummyClient()
@@ -66,7 +67,8 @@ class EchoProfileTest(unittest.TestCase):
 		self.assertEqual(data, 'RPY 1 0 . 8 8\r\nHello!\r\nEND\r\n')
 		client.terminate()
 		sess.close()
-		time.sleep(1)
+		while sess.isAlive():
+			pass
 
 if __name__ == '__main__':
 

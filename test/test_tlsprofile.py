@@ -1,5 +1,5 @@
-# $Id: test_tlsprofile.py,v 1.9 2004/01/06 04:18:08 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: test_tlsprofile.py,v 1.10 2004/01/06 04:29:22 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -124,4 +124,10 @@ class TLSProfileTest(unittest.TestCase):
         
 if __name__ == '__main__':
 
+    import os
+    ## We first have to create our test keys
+    os.system('python ./createTLSTestKeyCerts.py')
+
     unittest.main()
+
+

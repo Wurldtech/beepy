@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.9 2002/09/18 06:03:00 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: session.py,v 1.10 2002/09/18 07:06:58 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -70,7 +70,7 @@ class Session(statemachine.StateMachine):
 
 		# define the transitions
 		self.addTransition('INIT', 'ok', 'ACTIVE')
-		self.addTransition('INIT', 'error', 'EXITED')
+		self.addTransition('INIT', 'error', 'TERMINATE')
 		self.addTransition('INIT', 'close', 'EXITED')
 		self.addTransition('ACTIVE', 'close', 'CLOSING')
 		self.addTransition('ACTIVE', 'error', 'TERMINATE')

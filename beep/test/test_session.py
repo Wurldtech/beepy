@@ -1,5 +1,5 @@
-# $Id: test_session.py,v 1.5 2002/08/22 05:03:35 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: test_session.py,v 1.6 2002/09/18 07:07:02 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -110,7 +110,7 @@ class SessionTest(unittest.TestCase):
 		client = dummyclient.DummyClient()
 		data = client.getmsg()
 		client.sendmsg("MSG 0 0 . 0 13\r\n<greeting/>\r\nEND\r\n")
-		client.sendmsg("MSG 0 0 . 0 13\r\nh<greeintg/>\r\nEND\r\n")
+		client.sendmsg("MSG 0 0 . 0 13\r\n<greeting/>\r\nEND\r\n")
 		data = client.getmsg()
 		print data
 

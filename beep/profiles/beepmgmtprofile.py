@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.9 2002/09/18 06:03:01 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: beepmgmtprofile.py,v 1.10 2002/09/18 07:07:00 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -152,9 +152,11 @@ class BEEPManagementProfile(profile.Profile):
 			# a profile was received for a channel that we weren't
 			# starting, which is bad, so kill session.
 			self.log.logmsg( logging.LOG_ERR, "Attempt to confirm start of channel we didn't ask for.")
+			self.channel.deallocateMsgno(theframe.msgno)
 			raise BEEPManagementProfileException("Invalid Profile RPY Message")
 
 		del self.startingChannel[theframe.msgno]
+		self.channel.deallocateMsgno(theframe.msgno)
 
 		# create it at this end
 		try:
@@ -240,6 +242,7 @@ class BEEPManagementProfile(profile.Profile):
 			# yep, we're closing, and it's ok to delete this end
 			self.session.deleteChannel(self.closingChannel[theframe.msgno])
 			del self.closingChannel[theframe.msgno]
+		self.channel.deallocateMsgno(theframe.msgno)
 
 	def startChannel(self, channelnum, profileList, serverName=None):
 		"""startChannel() attempts to start a new Channel by sending a

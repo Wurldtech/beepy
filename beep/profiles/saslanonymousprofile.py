@@ -1,5 +1,5 @@
-# $Id: saslanonymousprofile.py,v 1.5 2002/08/13 14:37:35 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: saslanonymousprofile.py,v 1.6 2002/09/18 07:07:01 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -56,6 +56,9 @@ class SASLAnonymousProfile(saslprofile.SASLProfile):
 				authentid = self.decodeBlob(theframe.payload)
 				if authentid:
 					self.log.logmsg(logging.LOG_DEBUG, "authentid: %s" % authentid)
+					# I've now dealt with the message sufficiently for it to
+					# be marked as such, so we deallocate the msgno
+					self.channel.deallocateMsgno(theframe.msgno)
 
 					# Ok, start setting up for a tuning reset
 					# copy connection to new session object

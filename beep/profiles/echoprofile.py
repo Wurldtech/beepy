@@ -1,5 +1,5 @@
-# $Id: echoprofile.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: echoprofile.py,v 1.3 2002/09/18 07:07:01 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -38,5 +38,9 @@ class EchoProfile(profile.Profile):
 			try:
 				if theframe.isMSG():
 					self.channel.sendReply(theframe.msgno, theframe.payload)
+
+				if theframe.isRPY():
+					self.channel.deallocateMsgno(theframe.msgno)
+
 			except Exception, e:
 				raise ProfileException("Exception echoing: %s" % e)

@@ -1,5 +1,5 @@
-# $Id: test_conversation.py,v 1.5 2002/08/22 05:03:35 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: test_conversation.py,v 1.6 2002/09/18 07:07:02 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -72,9 +72,11 @@ class ConversationTest(unittest.TestCase):
 		# send a greeting msg
 		client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
 		data = client.getmsg()
+		print "--recv--\n", data
 		client.sendmsg('MSG 0 0 . 51 118\r\nContent-Type: application/beep+xml\r\n\r\n<start number="1">\r\n  <profile uri="http://iana.org/beep/SASL/OTP"/>\r\n</start>\r\nEND\r\n')
 
 		data = client.getmsg()
+		print "--recv--\n", data
 		client.terminate()
 		sess.close()
 		while sess.isAlive():

@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.6 2002/09/18 06:03:00 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: channel.py,v 1.7 2002/09/18 07:06:57 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -140,12 +140,6 @@ class Channel:
 		if theframe.type is constants.DataFrameTypes['RPY']:
 			if theframe.msgno not in self.allocatedMsgnos:
 				raise ChannelRPYMsgnoInvalid('msgno %i not valid for RPY' % theframe.msgno)
-			else:
-				# Not sure this should be here. Methinks that the
-				# actual deallocation of the msgno should occur once
-				# the profile has dealt with the message.
-				self.deallocateMsgno(theframe.msgno)
-
 		# Finally, allow the frame to be put on our inbound queue.
 		if not self.inbound.full():
 			self.inbound.put(theframe)
@@ -221,7 +215,9 @@ class Channel:
 	def deallocateMsgno(self, msgno):
 		"""deallocateMsgno() deallocates a previously allocated
 		msgno. This should be called when a complete reply to a
-		message is received.
+		message is received and processed. This is most likely
+		to be used from within a profile to signify that the
+		message has been completely dealt with.
 		inputs: msgno
 		outputs: None
 		raises: None

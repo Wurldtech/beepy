@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.11 2002/09/18 06:03:01 jpwarren Exp $
-# $Revision: 1.11 $
+# $Id: tcpsession.py,v 1.12 2002/09/18 07:07:03 jpwarren Exp $
+# $Revision: 1.12 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -148,8 +148,8 @@ class TCPCommsMixin:
 #				self.log.logmsg(logging.LOG_DEBUG, "socket: %s" % self.connection)
 				data = self.connection.recv(constants.MAX_INBUF)
 				if data:
-					self.log.logmsg(logging.LOG_DEBUG, "gotdata: %s" % data)
 					self.framebuffer += data
+#					self.log.logmsg(logging.LOG_DEBUG, "gotdata: %s" % data)
 					# Check for oversized frames. If framebuffer goes over
 					# constants.MAX_FRAME_SIZE + constants.MAX_INBUF then
 					# the frame is too large.
@@ -159,7 +159,7 @@ class TCPCommsMixin:
 					# Detect a complete frame
 					# First, check for SEQ frames. These have a higher priority.
 					match = re.search(self.SEQFramePattern, self.framebuffer)
-					if match:
+					while match:
 						framedata = self.framebuffer[:match.end()]
 						newframe = frame.SEQFrame(self.log, databuffer=framedata)
 
@@ -169,12 +169,12 @@ class TCPCommsMixin:
 						# slice the framebuffer to only include the trailing
 						# non frame data what probably belongs to the next frame
 						self.framebuffer = self.framebuffer[match.end():]
+						match = re.search(self.SEQFramePattern, self.framebuffer)
 
 					# Look for the frame trailer
 					match = re.search(self.dataFrameTrailer, self.framebuffer)
-
 					# If found, create a Frame object
-					if match:
+					while match:
 						framedata = self.framebuffer[:match.end()]
 						newframe = frame.DataFrame(self.log, databuffer=framedata)
 						self.pushFrame(newframe)
@@ -183,6 +183,7 @@ class TCPCommsMixin:
 						# slice the framebuffer to only include the trailing
 						# non frame data what probably belongs to the next frame
 						self.framebuffer = self.framebuffer[match.end():]
+						match = re.search(self.dataFrameTrailer, self.framebuffer)
 				else:
 					raise session.TerminateException("Connection closed by remote host")
 
@@ -281,12 +282,19 @@ class TCPListenerSession(SocketServer.StreamRequestHandler, session.ListenerSess
 			try:
 				self.getInputFrame()
 				self.processFrames()
+
+			except session.TerminateException, e:
+				self.log.logmsg( logging.LOG_ERR, "Terminating Session: %s" % e)
+				self.transition('error')
+				return
+
 			except Exception, e:
 				self.log.logmsg(logging.LOG_DEBUG, "Error occurred setting up connection: %s" % e)
 				self.transition('error')
 				return
 
 		self.transition('ok')
+		return
 
 	def _stateACTIVE(self):
 		if self.shutdown.isSet():

@@ -1,5 +1,5 @@
-# $Id: beepmgmtprofile.py,v 1.3 2002/08/04 10:07:07 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: beepmgmtprofile.py,v 1.4 2002/08/05 07:07:16 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -170,16 +170,15 @@ class BEEPManagementProfile(profile.Profile):
 
 			try:
 				uri = self.session.createChannelFromURIList(reqChannel, msg.getProfileURIList())
+				# Finally, inform client of success, and which profile was used.
+				self.log.logmsg(logging.LOG_DEBUG, "uri: %s" % uri)
+				msg = self.mgmtCreator.createStartReplyMessage(uri)
+				self.channel.sendReply(theframe.msgno, msg)
 
 			except beep.core.session.SessionException, e:
 				self.log.logmsg(logging.LOG_DEBUG, "Cannot start channel: %s" % e)
 				errmsg = self.mgmtCreator.createErrorMessage('504', constants.ReplyCodes['504'])
 				self.channel.sendError(theframe.msgno, errmsg)
-			# Finally, inform client of success, and which profile was used.
-			self.log.logmsg(logging.LOG_DEBUG, "uri: %s" % uri)
-			print "uri:", uri
-			msg = self.mgmtCreator.createStartReplyMessage(uri)
-			self.channel.sendReply(theframe.msgno, msg)
 
 	def _handleClose(self, theframe, msg):
 		"""handleClose() is an internal method used from within

@@ -1,5 +1,5 @@
-# $Id: tcpsession.py,v 1.2 2002/08/02 03:36:41 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: tcpsession.py,v 1.3 2002/08/05 07:07:16 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -174,7 +174,7 @@ class TCPCommsMixin:
 				raise TCPSessionException("Connection closed by remote host")
 
 			else:
-				self.log.logmsg(logging.log_DEBUG, "socket.error: %s" % e)
+				self.log.logmsg(logging.LOG_DEBUG, "socket.error: %s" % e)
 				raise
 
 		except frame.DataFrameException, e:
@@ -353,6 +353,13 @@ class TCPInitiatorSession(session.InitiatorSession, threading.Thread, TCPCommsMi
 	# Need to deal with SEQ frames
 	def processSEQFrame(self):
 		raise NotImplementedError
+
+	def close(self):
+		# First, shut down socket comms
+		session.InitiatorSession.close(self)
+		self.wfile.flush()
+		self.wfile.close()
+		self.connection.close()
 
 class TCPSessionException(session.SessionException):
 	def __init__(self, args=None):

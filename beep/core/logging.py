@@ -1,5 +1,5 @@
-# $Id: logging.py,v 1.5 2002/10/18 06:41:31 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: logging.py,v 1.6 2002/10/23 07:07:03 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -58,8 +58,8 @@ class Log:
 			self.log = sys.stderr
 			self.logfile = 'STDERR'
 
-		self.debuglevel = -1
-#		self.debuglevel = LOG_INFO
+#		self.debuglevel = -1
+		self.debuglevel = LOG_INFO
 #		self.debuglevel = LOG_DEBUG
 
 	def logmsg(self, msglevel, *msgs):

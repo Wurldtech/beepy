@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.11 2002/10/18 06:41:31 jpwarren Exp $
-# $Revision: 1.11 $
+# $Id: channel.py,v 1.12 2002/10/23 07:07:02 jpwarren Exp $
+# $Revision: 1.12 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -269,12 +269,14 @@ class Channel:
 		seqno = self.allocateLocalSeqno(size)
 		msgno = self.allocateMsgno()
 		try:
-			msg = frame.DataFrame(self.log, self.number, msgno, more, seqno, size, data, constants.DataFrameTypes['MSG'])
-		except frame.DataFrameException, e:
-			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed:", e)
+			msg = frame.DataFrame(self.log, self.number, msgno, more, seqno, size, constants.DataFrameTypes['MSG'])
+			msg.setPayload(data)
+			self.send(msg)
+			return msgno
 
-		self.send(msg)
-		return msgno
+		except frame.DataFrameException, e:
+			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed: %s" % e)
+
 
 	# msgno here is the msgno to which this a reply
 	def sendReply(self, msgno, data, more=constants.MoreTypes['.']):
@@ -288,12 +290,13 @@ class Channel:
 		size = len(data)
 		seqno = self.allocateLocalSeqno(size)
 		try:
-			msg = frame.DataFrame(self.log, self.number, msgno, more, seqno, size, data, constants.DataFrameTypes['RPY'])
+			msg = frame.DataFrame(self.log, self.number, msgno, more, seqno, size, constants.DataFrameTypes['RPY'])
+			msg.setPayload(data)
+			self.send(msg)
 
 		except frame.DataFrameException, e:
-			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed:", e)
+			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed: %s" % e)
 
-		self.send(msg)
 
 	def sendGreetingReply(self, data):
 		"""sendGreetingReply() is identical to sendReply except that
@@ -304,12 +307,13 @@ class Channel:
 		size = len(data)
 		seqno = self.allocateLocalSeqno(size)
 		try:
-			msg = frame.DataFrame(self.log, self.number, 0, constants.MoreTypes['.'], seqno, size, data, constants.DataFrameTypes['RPY'])
+			msg = frame.DataFrame(self.log, self.number, 0, constants.MoreTypes['.'], seqno, size, constants.DataFrameTypes['RPY'])
+			msg.setPayload(data)
+			self.send(msg)
 
 		except frame.DataFrameException, e:
-			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed:", e)
+			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed: %s" % e)
 
-		self.send(msg)
 
 	# seqno and more are not required for ERR frames
 	# msgno is the MSG to which this error is a reply
@@ -321,11 +325,12 @@ class Channel:
 		size = len(data)
 		seqno = self.allocateLocalSeqno(size)
 		try:
-			msg = frame.DataFrame(self.log, self.number, msgno, constants.MoreTypes['.'], seqno, size, data, constants.DataFrameTypes['ERR'])
-		except frame.DataFrameException, e:
-			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed:", e)
+			msg = frame.DataFrame(self.log, self.number, msgno, constants.MoreTypes['.'], seqno, size, constants.DataFrameTypes['ERR'])
+			msg.setPayload(data)
+			self.send(msg)
 
-		self.send(msg)
+		except frame.DataFrameException, e:
+			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed: %s" % e)
 
 	def sendNul():
 		raise NotImplementedError
@@ -339,11 +344,13 @@ class Channel:
 		seqno = self.allocateLocalSeqno(size)
 		size = len(data)
 		try:
-			msg = DataFrame(self.log, self.number, msgno, more, seqno, size, data, constants.DataFrameTypes['RPY'])
-		except DataFrameException, e:
-			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed:", e)
+			msg = DataFrame(self.log, self.number, msgno, more, seqno, size, constants.DataFrameTypes['RPY'])
+			msg.setPayload(data)
+			self.send(msg)
 
-		self.send(msg)
+		except DataFrameException, e:
+			self.log.logmsg(logging.LOG_INFO, "Data Encapsulation Failed: %s" % e)
+
 
 	def processFrames(self):
 		"""processFrames is called by a Session to get this

@@ -1,5 +1,5 @@
-# $Id: frame.py,v 1.4 2002/10/18 06:41:31 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: frame.py,v 1.5 2002/10/23 07:07:03 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -61,22 +61,24 @@ class DataFrame( Frame ):
 #	size = -1
 #	ansno = None
 
-	def __init__(self, log, channelnum=None, msgno=None, more=None, seqno=None, size=None, payload=None, type='MSG', ansno=None, databuffer=None):
+	def __init__(self, log, channelnum=None, msgno=None, more=None, seqno=None, size=None, type='MSG', ansno=None, databuffer=None):
 		Frame.__init__(self, log, self.frameType)
 
 		# This lets us pass in a string type databuffer
 		# to create a frame object
 		if databuffer:
 			self._bufferToFrame(databuffer)
+			self.payload = ''
 		else:
-			self._checkValues(channelnum, msgno, more, seqno, size, payload, type, ansno)
+			self._checkValues(channelnum, msgno, more, seqno, size, type, ansno)
 			self.type = type
 			self.channelnum = channelnum
 			self.msgno = msgno
 			self.more = more
 			self.seqno = seqno
-			self.payload = payload
 			self.size = size
+			self.payload = ''
+			self.complete = 0
 			if ansno:
 				self.ansno = ansno
 			else:
@@ -121,22 +123,9 @@ class DataFrame( Frame ):
 
 		# If there are any exceptions to this, it's either a
 		# bug in the code, or crap data being sent in
-		# First, check the data is terminated by the TRAILER
-		if data[-5:] != self.TRAILER:
-			raise DataFrameException("No Trailer")
 
-		# Strip off the trailer
-		data = data[:-5]
-
-		# split the header and the payload
-		framedata = string.split(data, '\r\n', 1)
-
-		# Check for a frame of just a TRAILER
-		if len(framedata) != 1 and len(framedata) != 2:
-			raise DataFrameException("Empty Frame")
-
-		# Now split the header into bits
-		headerbits = string.split(framedata[0])
+		# Split the header into bits
+		headerbits = string.split(data)
 
 		# Check for valid header format
 		if len(headerbits) != 6 and len(headerbits) != 7:
@@ -145,22 +134,23 @@ class DataFrame( Frame ):
 #		self.log.logmsg(logging.LOG_DEBUG, "frame.py: type is: %s" % self.type )
 
 		try:
-			self.channelnum = string.atoi(headerbits[1])
-			self.msgno = string.atoi(headerbits[2])
+			self.channelnum = string.atol(headerbits[1])
+			self.msgno = string.atol(headerbits[2])
 			self.more = headerbits[3]
 			self.seqno = string.atol(headerbits[4])
-			self.size = string.atoi(headerbits[5])
+			self.size = string.atol(headerbits[5])
 			if len(headerbits) == 7:
-				self.ansno = string.atoi(headerbits[6])
+				self.ansno = string.atol(headerbits[6])
 			else:
 				self.ansno = None
 
+		except ValueError, e:
+			raise DataFrameException("Non-numeric value in frame header")
+
 		except Exception, e:
-			raise DataFrameException("unknown error in _bufferToFrame")
+			raise DataFrameException("Unhandled exception in _bufferToFrame: %s: %s" % (e.__class__, e) )
 
-		self.payload = framedata[1]
-
-		self._checkValues(self.channelnum, self.msgno, self.more, self.seqno, self.size, self.payload, self.type, self.ansno)
+		self._checkValues(self.channelnum, self.msgno, self.more, self.seqno, self.size, self.type, self.ansno)
 
 	# Sanity checking of frame values
 	# We do heaps of bounds checking here, because I'm
@@ -168,7 +158,7 @@ class DataFrame( Frame ):
 	# It means DataFrames are only really bounds checked
 	# upon initial creation, but that makes a certain amount
 	# of sense
-	def _checkValues(self, channelnum, msgno, more, seqno, size, payload, type, ansno=None):
+	def _checkValues(self, channelnum, msgno, more, seqno, size, type, ansno=None):
 		if type not in constants.DataFrameTypes.keys():
 			raise DataFrameException("Invalid DataFrame Type")
 
@@ -176,21 +166,38 @@ class DataFrame( Frame ):
 			raise DataFrameException("Channel number (%s) out of bounds" % channelnum)
 
 		if not constants.MIN_MSGNO <= msgno <= constants.MAX_MSGNO:
-			raise DataFrameException("MSGNO out of bounds")
+			raise DataFrameException("MSGNO (%s) out of bounds" % msgno )
 
 		if not more in constants.MoreTypes.keys():
 			raise DataFrameException("Invalid More Type")
 
 		if not constants.MIN_SEQNO <= seqno <= constants.MAX_SEQNO:
-			raise DataFrameException("SEQNO: %i out of bounds" % seqno)
+			raise DataFrameException("SEQNO (%s) out of bounds" % seqno)
+
+		if type == constants.DataFrameTypes['ANS'] and not ansno:
+			raise DataFrameException("No ansno for ANS frame")
 
 		if ansno:
-			if not constants.MIN_ANSNO <= ansno <= constants.MAX_ANSNO:
-				raise DataFrameException("ANSNO out of bounds")
+			if not type == constants.DataFrameTypes['ANS']:
+				raise DataFrameException("ANSNO in non ANS frame" % ansno)
 
+			elif not constants.MIN_ANSNO <= ansno <= constants.MAX_ANSNO:
+				raise DataFrameException("ANSNO (%s) out of bounds" % ansno)
+
+		if type == constants.DataFrameTypes['NUL']:
+			if more == constants.MoreTypes['*']:
+				raise DataFrameException('NUL frame cannot be intermediate')
+			elif size != 0:
+				raise DataFrameException('NUL frame of non-zero size')
+
+		if not constants.MIN_SIZE <= size <= constants.MAX_SIZE:
+				raise DataFrameException("Frame size (%s) out of bounds" % size)
+
+	def setPayload(self, payload):
 		mysize = len(payload)
-		if mysize != size:
+		if mysize != self.size:
 			raise DataFrameException('Size mismatch %i != %i' % (mysize, size))
+		self.payload = payload
 
 	def __repr__(self):
 		return "<%s instance at %s>" % (self.__class__, hex(id(self)))
@@ -227,21 +234,8 @@ class SEQFrame(Frame):
 
 	def _bufferToFrame(self, data):
 
-		# If there are any exceptions to this, it's either a
-		# bug in the code, or crap data being sent in
-		# First, check the data is terminated by the TRAILER
-		if data[-2:] != self.TRAILER:
-			raise SEQFrameException('No Trailer')
-
-		# Strip off the trailer
-		data = data[:-2]
-
-		# Check for a frame of just a TRAILER
-		if len(data) != 1 and len(data) != 2:
-			raise SEQFrameException('Empty Frame')
-
 		# Now split the frame into bits
-		bits = string.split(data[0])
+		headerbits = string.split(data)
 
 		# Check for valid format
 		if len(headerbits) != 4:
@@ -264,10 +258,10 @@ class SEQFrame(Frame):
 			raise SEQFrameException('Channel number (%s) out of bounds' % channelnum)
 
 		if not constants.MIN_ACKNO <= ackno <= constants.MAX_ACKNO:
-			raise SEQFrameException('ACKNO: %i out of bounds' % seqno)
+			raise SEQFrameException('ACKNO (%s) out of bounds' % ackno)
 
 		if not constants.MIN_WINDOWSIZE <= window <= constants.MAX_WINDOWSIZE:
-			raise SEQFrameException('windowsize out of bounds')
+			raise SEQFrameException('windowsize (%s) out of bounds' % window )
 
 	def __str__(self):
 
@@ -281,3 +275,4 @@ class SEQFrame(Frame):
 class SEQFrameException(FrameException):
 	def __init__(self, args=None):
 		self.args = args
+

@@ -1,5 +1,5 @@
-# $Id: message.py,v 1.7 2002/10/18 06:41:31 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: message.py,v 1.8 2002/10/23 07:07:03 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -213,6 +213,7 @@ class Message:
 				raise MessageInvalid('close message must have code attribute')
 
 			code = currentNode.getAttribute('code')
+
 #			if numberRegex.search(code):
 #				raise MessageInvalid('code attribute has non-numeric value')
 

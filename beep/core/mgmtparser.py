@@ -1,5 +1,5 @@
-# $Id: mgmtparser.py,v 1.4 2002/08/22 05:03:35 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: mgmtparser.py,v 1.5 2002/10/23 07:07:03 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -216,6 +216,8 @@ class Parser:
 		if len(nodelist) >= 1:
 			raise ParserException("Too Many start Elements")
 
+	# A close message has 1 <close> element. It must have a number
+	# attrib as well as a code attrib.
 	def isCloseMessage(self, message=None):
 		if message:
 			self._parseData(message)

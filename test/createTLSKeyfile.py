@@ -1,5 +1,5 @@
-# $Id: createTLSKeyfile.py,v 1.1 2003/01/04 00:10:33 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: createTLSKeyfile.py,v 1.2 2003/01/30 09:24:30 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -18,7 +18,7 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-# This script creates a keyfile for use by the TLSProfile
+# This script creates keyfiles for use by the test of the TLSProfile
 
 import sys
 import POW
@@ -27,6 +27,8 @@ if __name__ != '__main__':
 	print "Do not import this module."
 
 # Default is to use rsa keys
+
+
 
 privateFile = open('TLSprivate.key', 'w')
 publicFile = open('TLSpublic.key', 'w')

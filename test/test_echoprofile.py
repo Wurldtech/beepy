@@ -1,5 +1,5 @@
-# $Id: test_echoprofile.py,v 1.6 2003/01/09 00:20:55 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: test_echoprofile.py,v 1.7 2003/01/30 09:24:30 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -48,6 +48,11 @@ import dummyclient
 # on an unexpected disconnect.
 class EchoProfileTest(unittest.TestCase):
 
+	def my_callback(self, profile):
+		""" This is a test of the profile callback functionality
+		"""
+		print "I am a callback from object: %s" % profile
+
 	def setUp(self):
 		# Set up logging
 		self.clientlog = logging.Log(prefix='client: ')
@@ -55,8 +60,8 @@ class EchoProfileTest(unittest.TestCase):
 
 		# create a listener
 		pdict = profile.ProfileDict()
-		pdict[echoprofile.uri] = echoprofile
-		self.listener = tcpsession.TCPListenerManager(self.serverlog, pdict, 'localhost', 1976)
+		pdict.addProfile(echoprofile, self.my_callback)
+		self.listener = tcpsession.TCPListenerManager(self.serverlog, pdict, ('localhost', 1976) )
 		# wait for it to become active
 		while not self.listener.isActive():
 			time.sleep(0.25)

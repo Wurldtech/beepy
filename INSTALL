@@ -1,5 +1,5 @@
-# $Id: INSTALL,v 1.4 2003/01/04 00:07:11 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: INSTALL,v 1.5 2003/01/30 09:24:26 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -43,7 +43,7 @@ was disable RC5 when installing POW, thusly:
 
 $ python setup.py build_ext -D NO_RC5_32_12_16 install
 
-Pretty simple, no? Note that this the POW setup.py, not BEEPy's.
+Pretty simple, no? Note that this is POW's setup.py, not BEEPy's.
 
 You won't need POW unless you use TLS in your clients or servers.
 

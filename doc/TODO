@@ -1,5 +1,5 @@
-# $Id: TODO,v 1.15 2003/01/08 07:14:02 jpwarren Exp $
-# $Revision: 1.15 $
+# $Id: TODO,v 1.16 2003/01/30 09:24:30 jpwarren Exp $
+# $Revision: 1.16 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -27,8 +27,6 @@
   message is an enabling class for the BEEPMgmtProfile class. mgmtcreator
   and mgmtparser can probably be moved too, since the mgmt thingo is
   structured in as a profile, not core anymore.
-- If we define the URI for a profile when we add it to a ProfileDict, 
-  why does the Profile have a uri attribute? Completeness?
 - Where does fragmentation get handled? Probably should be in the
   transport code somewhere, so we need to be careful with buffer overflows
   in the rest of the code. This is for sending of frames only as frame
@@ -61,3 +59,10 @@
   the library is a little bit more stable.
 - The max_concurrent processing section of TCPSession should be moved into
   core.session and apply to both InitiatorManagers and ListenerManagers.
+- Locate the cause of the intermittent Segment Violation when running
+  test_tlsprofile.
+- Preferable to use Python logging as a base for the logging module 
+  eventually.
+- Fix up the event interface into the library so applications can monitor
+  message status. Perhaps need to use callbacks instead, depending on which
+  is easier. Callbacks are probably easier.

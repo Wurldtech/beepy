@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.4 2003/01/07 07:39:58 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: channel.py,v 1.5 2003/01/30 09:24:29 jpwarren Exp $
+# $Revision: 1.5 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -33,18 +33,10 @@ import traceback
 import Queue
 
 class Channel:
-	log = None			# logging object
 	number = -1			# Channel number
 	localSeqno = -1L		# My current Sequence number
 	remoteSeqno = -1L		# Remote Sequence number
-	localAnsno = {}			# Local Answer numbers
-	remoteAnsno = {}		# Remote Answer numbers
 	profile = None			# channel Profile
-	allocatedMsgnos = []		# List of allocated msgno's
-	inbound = None			# queue of incoming frames
-	outbound = None			# queue of outgoing frames
-	moreFrameType = None		# Frame type we're expecting more of
-	moreFrameMsgno = 0		# Msgno of what we're expecting more of
 	state = 0
 
 	# Create a new channel object
@@ -57,6 +49,8 @@ class Channel:
 			self.allocatedMsgnos = []
 			self.receivedMsgnos = []
 			self.nextMsgno = constants.MIN_MSGNO + 1
+			self.localAnsno = {}
+			self.remoteAnsno = {}
 			self.started = 0
 			self.localSeqno = 0
 			self.remoteSeqno = 0
@@ -64,6 +58,11 @@ class Channel:
 			self.inbound = Queue.Queue(constants.MAX_INPUT_QUEUE_SIZE)
 			self.profile = profile
 			self.session = session
+			self.moreFrameType = None
+			self.moreFrameMsgno = 0
+
+			# records the last status for each message number used.
+			self.msgStatus = {}
 
 			# This binds the profile to this channel, readying it for operation.
 			self.profile.setChannel(self)
@@ -73,7 +72,7 @@ class Channel:
 
 	# Send frame over this channel
 	# Used by Profiles
-	def send(self, frame):
+	def send(self, frame ):
 		self.session.sendFrame(frame)
 
 	# Receive frame from this channel

@@ -1,5 +1,5 @@
-# $Id: profile.py,v 1.6 2003/01/09 00:20:54 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: profile.py,v 1.7 2003/01/30 09:24:29 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -49,7 +49,7 @@ class Profile:
 #	encoding = None		# track the current message's encoding
 
 	# Create a new Profile object
-	def __init__(self, log, session, profileInit=None):
+	def __init__(self, log, session, profileInit=None, init_callback=None):
 		"""Subclasses of Profile should call this method from their
 		__init__() methods.
 		"""
@@ -59,6 +59,8 @@ class Profile:
 		self.type = None
 		self.encoding = None
 		self.asyncflag = 0
+		if init_callback:
+			init_callback(self)
 
 	def setChannel(self, channel):
 		"""setChannel() binds this Profile to the Channel
@@ -104,8 +106,7 @@ class Profile:
 
 			except Exception, e:
 				self.log.logmsg(logging.LOG_DEBUG, 'Unmanaged exception: %s: %s' % (e.__class__, e))
-				self.log.logmsg(logging.LOG_DEBUG, 'Generating traceback...')
-				traceback.print_exc(file=self.log.logfile)
+				self.log.logmsg(logging.LOG_DEBUG, '%s' % traceback.print_exc() )
 				raise TerminalProfileException("Unmanaged exception in %s: %s: %s" % (self.__class__, e.__class__, e) )
 
 	def mimeDecode(self, payload):
@@ -184,13 +185,18 @@ class TuningReset(ProfileException):
 #
 # It ends up containing a whole swag of stuff that can be played
 # with dynamically. (Yay!)
+#
+# The structure of what is held is as follows:
+# Key: URI of the profile
+# profile: the actual module for the profile
+# init_callback: an optional initialisation callback that gets
+# called when the profile is instanciated.
+
 class ProfileDict:
 
-	def __init__(self, profileList=None):
+	def __init__(self):
 		self._profiles = {}
-		if profileList:
-			for profile in profileList:
-				self.profiles[profile.uri] = profile
+		self._callbacks = {}
 
 	# Convenience function to get profiles out
 	# 
@@ -202,6 +208,7 @@ class ProfileDict:
 	# module is the path to the module for dynamic loading
 	def __setitem__(self, uri, module):
 		self._profiles[uri] = module
+		self._callbacks[uri] = None
 
 	def __delitem__(self, uri):
 		del self._profiles[uri]
@@ -211,8 +218,16 @@ class ProfileDict:
 		if self._profiles:
 			return self._profiles.keys()
 
-	def addProfile(self, profileModule):
+	def addProfile(self, profileModule, init_callback=None):
 		self._profiles[profileModule.uri] = profileModule
+		self._callbacks[profileModule.uri] = init_callback
+
+	def removeProfile(self, uri):
+		del self._profiles[uri]
+		del self._callbacks[uri]
+
+	def getCallback(self, uri):
+		return self._callbacks[uri]
 
 class ProfileDictException(errors.BEEPException):
 	def __init__(self, args):

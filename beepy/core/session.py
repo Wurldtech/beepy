@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.6 2003/01/09 00:20:53 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: session.py,v 1.7 2003/01/30 09:24:29 jpwarren Exp $
+# $Revision: 1.7 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -22,6 +22,7 @@
 # Session object
 
 import socket
+import threading
 import Queue
 import traceback
 
@@ -230,7 +231,8 @@ class Session(statemachine.StateMachine):
 				# Attempt to instanciate the profile
 				profileClassName = self.profileDict[uri].__profileClass__
 				if profileClassName in self.profileDict[uri].__dict__.keys():
-					profile = self.profileDict[uri].__dict__[profileClassName](self.log, self, profileInit)
+					callback = self.profileDict.getCallback(uri)
+					profile = self.profileDict[uri].__dict__[profileClassName](self.log, self, profileInit, callback)
 				else:
 					self.log.logmsg(logging.LOG_ERR, "__profileClass__ doesn't contain the name of the Class to instanciate for uri: %s" % uri)
 					raise SessionException("__profileClass__ doesn't contain correct Class name")
@@ -257,8 +259,9 @@ class Session(statemachine.StateMachine):
 			self.log.logmsg(logging.LOG_DEBUG, "Channels to close: %s" % chanlist)
 			for channelnum in chanlist:
 				if channelnum != 0:
+					doneEvent = threading.Event()
 					self.log.logmsg(logging.LOG_DEBUG, "Attempting to close channel %i..." % channelnum)
-					self.channels[0].profile.closeChannel(channelnum)
+					self.closeChannel(channelnum, doneEvent)
 					self.log.logmsg(logging.LOG_DEBUG, "Finished queueing closure." % channelnum)
 
 		except Exception, e:
@@ -313,6 +316,9 @@ class Session(statemachine.StateMachine):
 		if self.isChannelActive(channelnum):
 			return self.channels[channelnum]
 		return None
+
+	def isChannelError(self, channelnum):
+		return self.channels[0].profile.isChannelError(channelnum)
 
 	def flushChannelOutbound(self):
 		"""This method gets all pending messages from all channels
@@ -396,16 +402,16 @@ class Session(statemachine.StateMachine):
 		"""
 		self.transition('reset')
 
-	def startChannel(self, profileList):
+	def startChannel(self, profileList, doneEvent=None):
 		"""startChannel() attempts to start a new channel for communication.
-		inputs: profileURIList, a list of URIs for profiles that are acceptable
-		outputs: none
-		raises: none
+		   doneEvent is an optional Event() used to signal completion,
+		   either successfully or unsuccessfully. You can use this instead of
+		   polling.
 		"""
 		if self.receivedGreeting:
 			# Attempt to get the remote end to start the Channel
 			channelnum = self.nextChannelNum
-			self.channels[0].profile.startChannel( channelnum, profileList)
+			self.channels[0].profile.startChannel( channelnum, profileList, doneEvent )
 			# Increment nextChannelNum appropriately.
 			self.nextChannelNum += 2
 			# Return channelnum created
@@ -413,7 +419,7 @@ class Session(statemachine.StateMachine):
 		else:
 			raise SessionException("Greeting not yet received")
 
-	def closeChannel(self, channelnum):
+	def closeChannel(self, channelnum, doneEvent):
 		"""closeChannel() attempts to close a channel.
 		inputs: channelnum, the number of the channel to close
 		outputs: none
@@ -421,7 +427,7 @@ class Session(statemachine.StateMachine):
 		"""
 		self.log.logmsg(logging.LOG_DEBUG, "Attempting to close channel %s..." % channelnum)
 		if self.channels.has_key(channelnum):
-			self.channels[0].profile.closeChannel(channelnum)
+			self.channels[0].profile.closeChannel(channelnum, doneEvent)
 		else:
 			raise KeyError("Channel number invalid")
 
@@ -443,6 +449,8 @@ class SessionManager(statemachine.StateMachine):
 		self.profileDict = profileDict
 		self.sessionList = {}
 		self.sessionIds = []
+
+		self.sessionError = {}
 
 		statemachine.StateMachine.__init__(self)
 
@@ -531,6 +539,16 @@ class SessionManager(statemachine.StateMachine):
 		"""
 		for sessionId in self.sessionIds:
 			self.closeSession(sessionId)
+
+	def setSessionError(self, sessionId, errorstr):
+		""" Sets a session error in case a Session exits
+		    for some unexpected reason. This will get called
+		    from the Session itself.
+		"""
+		self.sessionError[sessionId] = errorstr
+
+	def getSessionError(self, sessionId):
+		return self.sessionError[sessionId]
 
 	def close(self):
 		raise NotImplementedError

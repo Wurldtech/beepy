@@ -1,5 +1,5 @@
-# $Id: test_saslanonymousprofile.py,v 1.5 2003/01/09 00:20:55 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: test_saslanonymousprofile.py,v 1.6 2003/01/30 09:24:30 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -22,6 +22,7 @@
 import unittest
 import sys
 import time
+import threading
 
 try:
 	from beepy.core import constants
@@ -61,7 +62,7 @@ class SASLAnonymousProfileTest(unittest.TestCase):
 		pdict1 = profile.ProfileDict()
 		pdict1.addProfile(saslanonymousprofile)
 		pdict1.addProfile(echoprofile)
-		sess = tcpsession.TCPListenerManager(self.serverlog, pdict1, 'localhost', 1976, name="servermgr: localhost[1976]")
+		sess = tcpsession.TCPListenerManager(self.serverlog, pdict1, ('localhost', 1976), name="servermgr: localhost[1976]")
 		while not sess.isActive():
 			time.sleep(0.25)
 
@@ -83,45 +84,55 @@ class SASLAnonymousProfileTest(unittest.TestCase):
 
 		# Start a channel using SASL/ANONYMOUS authentication
 		profileList = [[saslanonymousprofile.uri,None,None]]
-		channelnum = client.startChannel(profileList)
-		while not client.isChannelActive(channelnum):
-			time.sleep(0.25)
+		event = threading.Event()
+		channelnum = client.startChannel(profileList, event)
+		event.wait(30)
+
 		channel = client.getActiveChannel(channelnum)
 
-		# Send our authentication information
-		msgno = channel.profile.sendAuth('justin')
-		while client.isAlive():
-			time.sleep(0.25)
+		if not channel:
+			if client.isChannelError(channelnum):
+				error = client.getChannelError(channelnum)
 
-		# old client will have exited, so get the new client
-		# for the same connection, as it has the same id
-		self.clientlog.logmsg(logging.LOG_DEBUG, "Getting new client...")
-		client = clientmgr.getSessionById(clientid)
-		self.clientlog.logmsg(logging.LOG_DEBUG, "New client: %s" % client)
+		else:
+			# Send our authentication information
+			msgno = channel.profile.sendAuth('justin')
+			while client.isAlive():
+				time.sleep(0.25)
 
-		while not client.isActive():
-			time.sleep(0.25)
-		self.clientlog.logmsg(logging.LOG_DEBUG, "Got new client...")
+			# old client will have exited, so get the new client
+			# for the same connection, as it has the same id
+			self.clientlog.logmsg(logging.LOG_DEBUG, "Getting new client...")
+			client = clientmgr.getSessionById(clientid)
+			self.clientlog.logmsg(logging.LOG_DEBUG, "New client: %s" % client)
 
-		# Create a channel on the new, authenticated, session
-		# using the echo profile
-		profileList = [[echoprofile.uri,None,None]]
-		channelnum = client.startChannel(profileList)
-		while not client.isChannelActive(channelnum):
-			time.sleep(0.25)
-		channel = client.getActiveChannel(channelnum)
-		self.clientlog.logmsg(logging.LOG_DEBUG, "Got active channel...")
+			while not client.isActive():
+				time.sleep(0.25)
+			self.clientlog.logmsg(logging.LOG_DEBUG, "Got new client...")
 
-		# send a message
-		msgno = channel.sendMessage('Hello!')
-		self.clientlog.logmsg(logging.LOG_DEBUG, "Sent Hello (msgno: %d)" % msgno)
+			# Create a channel on the new, authenticated, session
+			# using the echo profile
+			profileList = [[echoprofile.uri,None,None]]
+			event = threading.Event()
+			channelnum = client.startChannel(profileList, event)
+			event.wait(30)
+			channel = client.getActiveChannel(channelnum)
 
-		while channel.isMessageOutstanding():
-			time.sleep(0.25)
-		self.clientlog.logmsg(logging.LOG_DEBUG, "Got reply to Hello.")
+			if not channel:
+				if client.isChannelError(channelnum):
+					error = client.getChannelError(channelnum)
 
-		self.clientlog.logmsg(logging.LOG_DEBUG, "Stopping client...")
+			else:
 
+				self.clientlog.logmsg(logging.LOG_DEBUG, "Got active channel...")
+
+				# send a message
+				msgno = channel.sendMessage('Hello!')
+				self.clientlog.logmsg(logging.LOG_DEBUG, "Sent Hello (msgno: %d)" % msgno)
+	
+				while channel.isMessageOutstanding():
+					time.sleep(0.25)
+	
 		client.stop()
 		while not client.isExited():
 			time.sleep(0.25)

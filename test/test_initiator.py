@@ -1,5 +1,5 @@
-# $Id: test_initiator.py,v 1.5 2003/01/09 00:20:55 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: test_initiator.py,v 1.6 2003/01/30 09:24:30 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -22,6 +22,8 @@
 import unittest
 import sys
 import time
+
+import threading
 
 try:
 	from beepy.core import constants
@@ -51,7 +53,7 @@ class TCPInitatorSessionTest(unittest.TestCase):
 		# create and start a listenermgr
 		pdict1 = profile.ProfileDict()
 		pdict1[echoprofile.uri] = echoprofile
-		self.listenermgr = tcpsession.TCPListenerManager(self.serverlog, pdict1, 'localhost', 1976)
+		self.listenermgr = tcpsession.TCPListenerManager(self.serverlog, pdict1, ('localhost', 1976) )
 		while not self.listenermgr.isActive():
 			time.sleep(0.25)
 
@@ -102,11 +104,12 @@ class TCPInitatorSessionTest(unittest.TestCase):
 			time.sleep(0.25)
 
 		profileList = [[echoprofile.uri,None,None]]
-		channelnum = client.startChannel(profileList)
+		event = threading.Event()
+		channelnum = client.startChannel(profileList, event)
 		while not client.isChannelActive(channelnum):
 			time.sleep(0.25)
 
-		client.closeChannel(channelnum)
+		client.closeChannel(channelnum, event)
 		while client.isChannelActive(channelnum):
 			time.sleep(0.25)
 

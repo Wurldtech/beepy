@@ -1,5 +1,5 @@
-# $Id: message.py,v 1.1 2003/01/01 23:36:50 jpwarren Exp $
-# $Revision: 1.1 $
+# $Id: message.py,v 1.2 2003/01/30 09:24:29 jpwarren Exp $
+# $Revision: 1.2 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -86,6 +86,20 @@ class Message:
 				raise MessageInvalid('number attribute has non-numeric value')
 
 			return string.atoi(channelnum)
+
+	def getErrorCode(self):
+		if self.isError():
+			errorCode = self.doc.childNodes[0].getAttribute('code')
+			if numberRegex.search(errorCode):
+				raise MessageInvalid('code attribute has non-numeric value')
+
+			return string.atoi(code)
+
+	def getErrorDescription(self):
+		if self.isError():
+			nodelist = self.doc.childNodes[0].getElementsByTagName('*')
+			if nodelist[0].hasChildNodes():
+				return nodelist[0].childNodes[0].nodeValue
 
 # FIXME: getProfileURI and getProfileURIList may be broken
 # It depends on how getElementsByTagName processes the DOM structure I've

@@ -1,5 +1,5 @@
-# $Id: test_saslotpprofile.py,v 1.9 2003/12/09 02:37:31 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: test_saslotpprofile.py,v 1.10 2004/01/06 04:18:08 jpwarren Exp $
+# $Revision: 1.10 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -25,12 +25,11 @@ import time
 
 sys.path.append('..')
 
-# Import the client stuff we need
-
+from beepy.transports.twistedsession import SASLServerFactory
 from beepy.transports.twistedsession import SASLClientProtocol
 from beepy.transports.twistedsession import SASLClientFactory
 
-from twisted.internet import reactor
+from twisted.internet import reactor, error
 
 from beepy.profiles import saslotpprofile
 from beepy.profiles import echoprofile
@@ -82,11 +81,16 @@ class SASLOTPClientFactory(SASLClientFactory):
     """ This is a short factory for echo clients
     """
     protocol = SASLOTPClientProtocol
-        
 
 class SASLOTPProfileTest(unittest.TestCase):
 
     def setUp(self):
+        factory = SASLServerFactory()
+        factory.addProfile(echoprofile)
+        factory.addProfile(saslotpprofile)        
+        reactor.listenTCP(1976, factory, interface='127.0.0.1')
+        reactor.iterate()
+        
         ## We create a new testing OTP database for
         ## testing the library. This assumes the server
         ## is running in the same directory as this tester
@@ -99,7 +103,9 @@ class SASLOTPProfileTest(unittest.TestCase):
         sequence = 99
 
         passhash = generator.createOTP(username, algo, seed, passphrase, sequence)
-        
+    def tearDown(self):
+        reactor.stop()
+        reactor.iterate()
 
     def test_createSASLOTPSession(self):
         """Test SASL OTP with no CDATA init"""
@@ -110,6 +116,9 @@ class SASLOTPProfileTest(unittest.TestCase):
 
         reactor.connectTCP('localhost', 1976, factory)
         reactor.run()
+
+        if factory.reason:
+            raise Exception(factory.reason.getErrorMessage())
 
 if __name__ == '__main__':
 

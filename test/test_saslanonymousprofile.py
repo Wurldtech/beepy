@@ -1,5 +1,5 @@
-# $Id: test_saslanonymousprofile.py,v 1.8 2003/12/09 02:37:31 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: test_saslanonymousprofile.py,v 1.9 2004/01/06 04:18:08 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -27,10 +27,11 @@ import logging
 
 sys.path.append('../')
 
+from beepy.transports.twistedsession import BeepServerFactory
 from beepy.transports.twistedsession import SASLClientProtocol
 from beepy.transports.twistedsession import SASLClientFactory
 
-from twisted.internet import reactor
+from twisted.internet import reactor, error
 
 from beepy.profiles import saslanonymousprofile
 from beepy.profiles import echoprofile
@@ -80,6 +81,17 @@ class SASLAnonClientFactory(SASLClientFactory):
 
 class SASLAnonymousProfileTest(unittest.TestCase):
 
+    def setUp(self):
+        factory = BeepServerFactory()
+        factory.addProfile(echoprofile)
+        factory.addProfile(saslanonymousprofile)        
+        reactor.listenTCP(1976, factory, interface='127.0.0.1')
+        reactor.iterate()
+
+    def tearDown(self):
+        reactor.stop()
+        reactor.iterate()
+
     def test_SASLClient(self):
         """Test SASL Anonymous with Initiator"""
 
@@ -90,6 +102,8 @@ class SASLAnonymousProfileTest(unittest.TestCase):
         reactor.connectTCP('localhost', 1976, factory)
         reactor.run()
 
+        if factory.reason:
+            raise Exception(factory.reason.getErrorMessage())
 
 if __name__ == '__main__':
 

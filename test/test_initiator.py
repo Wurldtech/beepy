@@ -1,5 +1,5 @@
-# $Id: test_initiator.py,v 1.7 2003/12/08 03:25:30 jpwarren Exp $
-# $Revision: 1.7 $
+# $Id: test_initiator.py,v 1.8 2004/01/06 04:18:08 jpwarren Exp $
+# $Revision: 1.8 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -27,6 +27,7 @@ import threading
 
 sys.path.append('../')
 
+from beepy.transports.twistedsession import BeepServerFactory
 from beepy.transports.twistedsession import BeepClientProtocol, BeepClientFactory
 from twisted.internet import reactor
 
@@ -44,11 +45,17 @@ class InitiatorTestProtocol(BeepClientProtocol):
 class InitiatorTestFactory(BeepClientFactory):
     protocol = InitiatorTestProtocol
 
-# This class assumes a server is available.
-# It tests the responses given to the client under a
-# variety of situations. Check the server logs to
-# see what the server was up to at the time.
 class TCPInitatorSessionTest(unittest.TestCase):
+
+    def setUp(self):
+        factory = BeepServerFactory()
+#        factory.addProfile(echoprofile)
+        reactor.listenTCP(1976, factory, interface='127.0.0.1')
+        reactor.iterate()
+
+    def tearDown(self):
+        reactor.stop()
+        reactor.iterate()
 
     def test_connect(self):
         """ Test a simple connection to a listening BEEP server

@@ -1,5 +1,5 @@
-# $Id: test_framing.py,v 1.8 2003/12/09 02:37:31 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: test_framing.py,v 1.9 2004/01/06 04:18:08 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -37,23 +37,36 @@ log.setLevel(logging.DEBUG)
     
 import dummyclient
 
+from beepy.profiles import echoprofile
+from beepy.transports.twistedsession import BeepServerFactory
+from twisted.internet import reactor
+
 class FramingTest(unittest.TestCase):
 
     def setUp(self):
 
+        factory = BeepServerFactory()
+        factory.addProfile(echoprofile)
+        reactor.listenTCP(1976, factory, interface='127.0.0.1')
         self.client = dummyclient.DummyClient()
+        reactor.iterate()
+
         # get greeting message
         data = self.client.getmsg(1)
-#	log.debug(data)
 
     def tearDown(self):
         self.client.terminate()
+        reactor.iterate()
+        reactor.stop()
+        reactor.iterate()
 
     def test_FR001(self):
         """Test frame with invalid header format"""
 
         self.client.sendmsg("test\r\nEND\r\n")
-        data = self.client.getmsg()
+        reactor.iterate()
+        reactor.iterate()        
+        data = self.client.getmsg(1)
 
         log.debug("the data is: >%s<" % data)
 
@@ -63,6 +76,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with invalid type"""
 
         self.client.sendmsg("WIZ 0 0 . 0 0\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -71,6 +86,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with negative channel number"""
 
         self.client.sendmsg("MSG -5 0 . 0 0\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -79,6 +96,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with too large channel number"""
 
         self.client.sendmsg("MSG 5564748837473643 0 . 0 0\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -87,6 +106,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with non-numeric channel number"""
 
         self.client.sendmsg("MSG fred 0 . 0 0\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -95,6 +116,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with unstarted channel number"""
 
         self.client.sendmsg("MSG 55 0 . 0 0\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -103,6 +126,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with negative message number"""
 
         self.client.sendmsg("MSG 0 -6 . 0 0\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -111,6 +136,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with too large message number"""
 
         self.client.sendmsg("MSG 0 6575488457584834 . 0 0\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -119,6 +146,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with non-numeric message number"""
 
         self.client.sendmsg("MSG 0 fred . 0 0\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -127,6 +156,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with invalid more type"""
 
         self.client.sendmsg("MSG 0 0 g 0 0\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -135,6 +166,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with negative seqno"""
 
         self.client.sendmsg("MSG 0 0 . -84 0\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -143,6 +176,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with too large seqno"""
 
         self.client.sendmsg("MSG 0 0 . 75747465674373643 0\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -151,6 +186,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with non-numeric seqno"""
 
         self.client.sendmsg("MSG 0 0 . fred 0\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -159,14 +196,19 @@ class FramingTest(unittest.TestCase):
         """Test frame with out of sequence seqno"""
 
         self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
+        reactor.iterate()
 
         self.client.sendmsg("MSG 0 0 . 0 13\r\n<greeting/>\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
     def test_FR015(self):
         """Test frame with negative size"""
 
         self.client.sendmsg("MSG 0 0 . 0 -15\r\nhere's some stuff\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -175,6 +217,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with too large size"""
 
         self.client.sendmsg("MSG 0 0 . 0 574857345839457\r\nhere's some stuff\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -183,6 +227,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with non-numeric size"""
 
         self.client.sendmsg("MSG 0 0 . 0 fred\r\nhere's some stuff\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -191,6 +237,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with incorrect size"""
 
         self.client.sendmsg("MSG 0 0 . 0 5\r\nhere's some stuff\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -199,6 +247,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with negative ansno"""
 
         self.client.sendmsg("ANS 0 0 . 0 0 -65\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -207,6 +257,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with too large ansno"""
 
         self.client.sendmsg("ANS 0 0 . 0 0 5857483575747\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -215,6 +267,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with non-numeric ansno"""
 
         self.client.sendmsg("ANS 0 0 . 0 0 fred\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -223,6 +277,8 @@ class FramingTest(unittest.TestCase):
         """Test frame with missing ansno"""
 
         self.client.sendmsg("ANS 0 0 . 0 0\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -231,6 +287,8 @@ class FramingTest(unittest.TestCase):
         """Test frame ansno in non-ANS frame"""
 
         self.client.sendmsg("RPY 0 0 . 0 0 15\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -239,6 +297,8 @@ class FramingTest(unittest.TestCase):
         """Test frame NUL as intermediate"""
 
         self.client.sendmsg("NUL 0 0 * 0 0\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -247,6 +307,8 @@ class FramingTest(unittest.TestCase):
         """Test frame NUL with non-zero size"""
 
         self.client.sendmsg("NUL 0 0 . 0 5\r\nhi!\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         data = self.client.getmsg()
 
         self.assertEqual( data, '' )
@@ -255,7 +317,11 @@ class FramingTest(unittest.TestCase):
         """Test frame response to MSG never sent"""
 
         self.client.sendmsg("RPY 0 0 . 0 51\r\nContent-Type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
         self.client.sendmsg("RPY 0 71 . 51 8\r\nHello!\r\nEND\r\n")
+        reactor.iterate()
+        reactor.iterate()        
 
         data = self.client.getmsg()
 

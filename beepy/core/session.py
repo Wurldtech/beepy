@@ -1,5 +1,5 @@
-# $Id: session.py,v 1.11 2003/12/23 04:36:40 jpwarren Exp $
-# $Revision: 1.11 $
+# $Id: session.py,v 1.12 2004/01/06 04:18:07 jpwarren Exp $
+# $Revision: 1.12 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -68,6 +68,17 @@ class Session:
 
         self.inbound = util.DataQueue(constants.MAX_INPUT_QUEUE_SIZE)
         self.outbound = util.DataQueue(constants.MAX_INPUT_QUEUE_SIZE)
+
+        self.setStartingChannelNum()
+
+    def setStartingChannelNum(self):
+        print "Called as a", self
+        if isinstance(self, Listener):
+            print "I am a listener"
+        else:
+            print "I am not a listener"
+        
+        raise NotImplementedError
 
     def setID(self, sessId):
         self.ID = sessId
@@ -169,6 +180,7 @@ class Session:
         self.deleteAllChannels()
         self.startTLS()
         self.state = PRE_GREETING
+        self.setStartingChannelNum()
         self.createChannelZero()
 
     def deleteChannel(self, channelnum):
@@ -504,11 +516,9 @@ class Listener(Session):
     of a client/server connection. An Initiator would
     form the client side.
     """
+    def setStartingChannelNum(self):
 
-    def __init__(self):
-        Session.__init__(self) 
-
-        # Listeners use only even numbered channels for allocation
+        log.debug('setting server starting number...')
         self.nextChannelNum = 2
 
 class InitiatorManager(SessionManager):
@@ -521,11 +531,9 @@ class Initiator(Session):
     Listener. It forms the client side of a client/server
     connection.
     """
-    def __init__(self):
-        log.debug('Initialising an Initiator')
-        Session.__init__(self)
-
-        # Initiators use only odd numbered channels for allocation
+    
+    def setStartingChannelNum(self):
+        log.debug('Setting client starting number')
         self.nextChannelNum = 1
 
 # Exception classes

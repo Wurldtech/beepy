@@ -1,5 +1,5 @@
-# $Id: test_echoprofile.py,v 1.8 2003/12/08 03:25:30 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: test_echoprofile.py,v 1.9 2004/01/06 04:18:08 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -32,6 +32,10 @@ log.setLevel(logging.DEBUG)
 
 import dummyclient
 
+from beepy.transports.twistedsession import BeepServerFactory
+from twisted.internet import reactor
+from beepy.profiles import echoprofile
+
 class EchoProfileTest(unittest.TestCase):
 
     def my_callback(self, profile):
@@ -40,32 +44,39 @@ class EchoProfileTest(unittest.TestCase):
         print "I am a callback from object: %s" % profile
 
     def setUp(self):
-        """ Set up for each test
-	"""
-        self.client = dummyclient.DummyClient()
 
+        factory = BeepServerFactory()
+        factory.addProfile(echoprofile)
+        reactor.listenTCP(1976, factory, interface='127.0.0.1')
+        self.client = dummyclient.DummyClient()
+        reactor.iterate()
+        
     def tearDown(self):
         self.client.terminate()
+        reactor.iterate()
+        reactor.stop()
+        reactor.iterate()
 
     def test_createEchoChannel(self):
         """Test creation of a channel with the Echo profile"""
 
         # send a greeting msg
         self.client.sendmsg('RPY 0 0 . 0 51\r\nContent-type: application/beep+xml\r\n\r\n<greeting/>\r\nEND\r\n')
-        log.debug("Client sent greeting.")
+        reactor.iterate()
         data = self.client.getmsg(1)
 
         # create a channel with the ECHO profile
         self.client.sendmsg('MSG 0 0 . 51 120\r\nContent-type: application/beep+xml\r\n\r\n<start number="1">\r\n<profile uri="http://www.eigenmagic.com/beep/ECHO"/>\r\n</start>END\r\n')
+        reactor.iterate()
         data = self.client.getmsg(1)
-	log.debug('After starting channel: %s' % data)
 
-        log.debug("sending echo frame...")
         self.client.sendmsg('MSG 1 0 . 0 8\r\nHello!\r\nEND\r\n')
+        reactor.iterate()
         data = self.client.getmsg(1)
         self.assertEqual(data, 'RPY 1 0 . 0 8\r\nHello!\r\nEND\r\n')
 
         self.client.sendmsg('MSG 1 1 . 8 8\r\nHello!\r\nEND\r\n')
+        reactor.iterate()
         data = self.client.getmsg(1)
         self.assertEqual(data, 'RPY 1 1 . 8 8\r\nHello!\r\nEND\r\n')
 

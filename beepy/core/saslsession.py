@@ -1,5 +1,5 @@
-# $Id: saslsession.py,v 1.3 2003/12/09 02:37:30 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: saslsession.py,v 1.4 2004/01/06 04:18:07 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -19,22 +19,25 @@
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 
-from beepy.core.session import Session, SessionException
+from beepy.core.session import Session, Listener, Initiator, SessionException
 
 import logging
 from beepy.core import debug
 log = logging.getLogger('SASLSession')
 
 class SASLSession(Session):
+    userid = None
+    authentid = None
 
-    def __init__(self):
-        self.userid = None
-        self.authentid = None
-        
-        Session.__init__(self)
+#    def __init__(self):
+#        self.userid = None
+#        self.authentid = None
+#        
+#        Session.__init__(self)
 
     def authenticationSucceeded(self):
-        log.info('Authentication succeeded')
+        log.info('Server authentication succeeded')
+        log.info('my credentials: authentid: %s, userid: %s' % (self.authentid, self.userid))
 
     def authenticationFailed(self, errorCode, errorReason):
         log.error('Authentication failed: [%s] %s' % (errorCode, errorReason) )
@@ -53,3 +56,11 @@ class SASLSession(Session):
         """
         log.debug('authentid requested')
         raise NotImplementedError('authentidRequested must be defined')
+
+class SASLListener(Listener, SASLSession):
+    """ A SASL Listener
+    """
+
+class SASLInitiator(Initiator, SASLSession):
+    """ A SASL Initiator
+    """

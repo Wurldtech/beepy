@@ -1,5 +1,5 @@
-# $Id: testall.py,v 1.2 2003/01/01 23:37:39 jpwarren Exp $
-# $Revision: 1.2 $
+# $Id: testall.py,v 1.3 2004/01/06 04:18:08 jpwarren Exp $
+# $Revision: 1.3 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -26,16 +26,24 @@
 
 import sys, os, re, unittest
 
+moduleNames = [ 'test_creator',
+                'test_parser',
+                'test_parser_creator',
+                'test_listener',
+                'test_framing',
+                'test_initiator',
+                'test_echoprofile',
+                'test_saslanonymousprofile',
+                'test_saslotpprofile',
+                'test_tlsprofile',
+              ]
+
 def unitTest():
-	path = os.path.abspath(os.path.split(sys.argv[0])[0])
-	testfiles = os.listdir(path)
-	test = re.compile("test_.*.py$", re.IGNORECASE)
-	files = filter(test.search, testfiles)
-	filenameToModuleName = lambda f: os.path.splitext(f)[0]
-	moduleNames = map(filenameToModuleName, files)
-	modules = map(__import__, moduleNames)
-	load = unittest.defaultTestLoader.loadTestsFromModule
-	return unittest.TestSuite(map(load, modules))
+    """ Load tests defined in modules above and execute them
+    """
+    modules = map(__import__, moduleNames)
+    load = unittest.defaultTestLoader.loadTestsFromModule
+    return unittest.TestSuite(map(load, modules))
 
 if __name__ == '__main__':
-	unittest.main(defaultTest='unitTest')
+    unittest.main(defaultTest='unitTest')

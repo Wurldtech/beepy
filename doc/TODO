@@ -1,5 +1,5 @@
-# $Id: TODO,v 1.17 2003/12/09 02:37:30 jpwarren Exp $
-# $Revision: 1.17 $
+# $Id: TODO,v 1.18 2004/01/06 04:18:08 jpwarren Exp $
+# $Revision: 1.18 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -47,5 +47,3 @@
 - Add a Stress and Volume test to the test suite to see how the library
   performs under load. This will probably have to wait a little while until
   the library is a little bit more stable.
-- Locate the cause of the intermittent Segment Violation when running
-  test_tlsprofile.

@@ -1,5 +1,5 @@
-# $Id: twistedsession.py,v 1.3 2003/12/23 04:36:40 jpwarren Exp $
-# $Revision: 1.3 $
+# $Id: twistedsession.py,v 1.4 2004/01/06 04:18:08 jpwarren Exp $
+# $Revision: 1.4 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -40,7 +40,7 @@ log = logging.getLogger('TwistedSession')
 log.setLevel(logging.DEBUG)
 
 # The BEEPy protocol as a twisted thingy
-class BeepProtocol(Session, basic.LineReceiver):
+class BeepProtocol(basic.LineReceiver):
 
     def __init__(self):
 
@@ -66,7 +66,12 @@ class BeepProtocol(Session, basic.LineReceiver):
         self.createChannelZero()
 
     def connectionLost(self, reason):
-        log.info( reason.getErrorMessage() )
+        why = reason.trap(ConnectionDone)
+        if not why:
+            log.error('connection lost: %s' % reason.getErrorMessage() )
+            self.lostReason = reason
+
+        pass
 
     def close(self):
         self.transport.loseConnection()
@@ -157,7 +162,6 @@ class BeepProtocol(Session, basic.LineReceiver):
                     self.newframe.payload += self.framebuffer
                     self.framebuffer = ''
 
-
     def sendFrame(self, theframe):
         data = str(theframe)
         self.transport.write(data)
@@ -167,17 +171,13 @@ class ProtocolError(errors.BEEPException):
         self.args = args
 
 class BeepServerProtocol(BeepProtocol, Listener):
-    def __init__(self):
-        BeepProtocol.__init__(self)
-        Listener.__init__(self)
+    """ Basic server protocol
+    """
 
 class BeepClientProtocol(BeepProtocol, Initiator):
     """ This class is mostly identical to the base class, but
     clients only use odd numbered channels
     """
-    def __init__(self):
-        BeepProtocol.__init__(self)
-        Initiator.__init__(self)
 
     def greetingReceived(self):
         log.debug('Client has received a greeting from the server')
@@ -187,8 +187,6 @@ class BeepServerFactory(protocol.ServerFactory):
     protocol = BeepServerProtocol
 
     def __init__(self):
-        """ A comment
-        """
         self.profileDict = profile.ProfileDict()
         pass
         
@@ -204,6 +202,9 @@ class BeepClientFactory(protocol.ClientFactory):
     build your application
     """
     protocol = BeepClientProtocol
+
+    reason = None
+    lostReason = None
     
     def __init__(self):
         """ startAction is a method defined by the application
@@ -220,11 +221,17 @@ class BeepClientFactory(protocol.ClientFactory):
         self.profileDict.addProfile(profileModule)
 
     def clientConnectionFailed(self, connector, reason):
-        log.info('connection failed: %s' % reason.getErrorMessage() )
+        self.reason = reason
+        log.error('connection failed: %s' % reason.getErrorMessage() )
         reactor.stop()
-
+    
     def clientConnectionLost(self, connector, reason):
-        log.info('connection lost: %s' % reason.getErrorMessage() )
+        why = reason.trap(ConnectionDone)
+        if not why:
+            log.error('connection lost: %s' % reason.getErrorMessage() )
+            self.lostReason = reason
+
+        log.debug('Client finished. Stopping reactor.')
         reactor.stop()
         pass
     pass
@@ -233,26 +240,15 @@ class BeepClientFactory(protocol.ClientFactory):
 ## SASL related code
 ##
 
-from beepy.core.saslsession import SASLSession
+from beepy.core.saslsession import SASLListener, SASLInitiator
 
-
-class SASLProtocol(BeepProtocol, SASLSession):
-    """ The SaslProtocol implements the SASL transport layer for
-    a SASLSession as a twisted class.
+class SASLServerProtocol(BeepProtocol, SASLListener):
+    """ SASL Server Protocol
     """
-    def __init__(self):
-        BeepProtocol.__init__(self)
-        SASLSession.__init__(self)
 
-class SASLServerProtocol(SASLProtocol, Listener):
-    def __init__(self):
-        SASLProtocol.__init__(self)
-        Listener.__init__(self)
-
-class SASLClientProtocol(SASLProtocol, Initiator):
-    def __init__(self):    
-        SASLProtocol.__init__(self)
-        Initiator.__init__(self)
+class SASLClientProtocol(BeepProtocol, SASLInitiator):
+    """ SASL Client Protocol
+    """
         
 class SASLServerFactory(BeepServerFactory):
     protocol = SASLServerProtocol
@@ -269,31 +265,29 @@ from OpenSSL import SSL
 
 #from POW import Ssl
 
-from beepy.core.tlssession import TLSSession
+from beepy.core.tlssession import TLSListener, TLSInitiator
 
 ## This code adds the TLS functionality to the base protocol
 ## classes
 
-class TLSProtocol(BeepProtocol, TLSSession):
+class TLSProtocol(BeepProtocol):
     """ The TLS Protocol implements the TLS transport layer
     """
     TLS = 0
     
-    def __init__(self):
-        BeepProtocol.__init__(self)
-        TLSSession.__init__(self)
-
     def startTLS(self):
         """ start the TLS layer
         """
         if self.factory.privateKeyFileName:
             keyfile = self.factory.privateKeyFileName
         else:
+            log.info('Private key filename not specified. Requesting it...')
             keyfile = self.factory.getPrivateKeyFilename()
 
         if self.factory.certificateFileName:
             certfile = self.factory.certificateFileName
         else:
+            log.info('Certificate filename not specified. Requesting it...')            
             certfile = self.factory.getCertificateFilename()
             
         log.debug('Starting server side TLS...')
@@ -303,15 +297,13 @@ class TLSProtocol(BeepProtocol, TLSSession):
         self.TLS = 1
         log.debug('Started server side TLS.')
 
-class TLSServerProtocol(TLSProtocol, Listener):
-    def __init__(self):
-        TLSProtocol.__init__(self)
-        Listener.__init__(self)
+class TLSServerProtocol(TLSProtocol, TLSListener):
+    """ A TLS Server Protocol
+    """
 
-class TLSClientProtocol(TLSProtocol, Initiator):
-    def __init__(self):    
-        TLSProtocol.__init__(self)
-        Initiator.__init__(self)
+class TLSClientProtocol(TLSProtocol, TLSInitiator):
+    """ A TLS Client Protocol
+    """
 
     def startTLS(self):
         log.debug('Starting TLS in TLSProtocol...')
@@ -333,7 +325,7 @@ class TLSServerFactory(BeepServerFactory):
         Override this method in your servers if you don't want
         to set the filename at compile time.
         """
-        raise NotImplementedError
+        raise NotImplementedError('Either set a key filename first, or implement this method.')
 
     def getCertificateFilename(self):
         """ This method will get called if the certificate
@@ -341,7 +333,7 @@ class TLSServerFactory(BeepServerFactory):
         Override this method in your servers if you don't want
         to set the filename at compile time.
         """
-        raise NotImplementedError
+        raise NotImplementedError('Either set a certificate filename first, or implement this method.')
 
 class TLSClientFactory(BeepClientFactory):
     protocol = TLSClientProtocol

@@ -7,7 +7,6 @@ from beepy.profiles import echoprofile
 from beepy.transports.twistedsession import BeepClientProtocol, BeepClientFactory
 
 from twisted.internet import reactor
-from twisted.application import internet, service
 
 import logging
 from beepy.core import debug

@@ -1,5 +1,5 @@
-# $Id: test_tlsprofile.py,v 1.8 2003/12/23 04:36:40 jpwarren Exp $
-# $Revision: 1.8 $
+# $Id: test_tlsprofile.py,v 1.9 2004/01/06 04:18:08 jpwarren Exp $
+# $Revision: 1.9 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -26,10 +26,11 @@ import unittest
 import sys
 sys.path.append('..')
 
+from beepy.transports.twistedsession import TLSServerFactory
 from beepy.transports.twistedsession import TLSClientProtocol
 from beepy.transports.twistedsession import TLSClientFactory
 
-from twisted.internet import reactor
+from twisted.internet import reactor, error
 from twisted.application import internet, service
 
 from beepy.profiles import echoprofile
@@ -83,7 +84,26 @@ class TLSEchoClientFactory(TLSClientFactory):
     """
     protocol = TLSEchoClientProtocol
 
+def serverLostConnection(self, reason):
+    log.info( reason.getErrorMessage() )
+    reactor.stop()
+
 class TLSProfileTest(unittest.TestCase):
+
+    def setUp(self):
+
+        factory = TLSServerFactory()
+        factory.addProfile(echoprofile)
+        factory.addProfile(tlsprofile)
+        factory.protocol.connectionLost = serverLostConnection
+        factory.privateKeyFileName = 'serverKey.pem'
+        factory.certificateFileName = 'serverCert.pem'
+        reactor.listenTCP(1976, factory, interface='127.0.0.1')
+        reactor.iterate()
+
+    def tearDown(self):
+        reactor.stop()
+        reactor.iterate()
 
     def test_TLSClient(self):
         factory = TLSEchoClientFactory()
@@ -91,8 +111,17 @@ class TLSProfileTest(unittest.TestCase):
         factory.addProfile(tlsprofile)
 
         reactor.connectTCP('localhost', 1976, factory)
+#        reactor.iterate()
         reactor.run()
 
+        if factory.reason:
+            log.debug('oh no! normal reason!')
+            raise Exception(factory.reason.getErrorMessage())
+
+        if factory.lostReason:
+            log.debug('abnormal reason! alas!')
+            raise Exception(factory.lostReason.getErrorMessage())
+        
 if __name__ == '__main__':
 
     unittest.main()

@@ -1,5 +1,5 @@
-# $Id: CHANGES,v 1.15 2003/12/09 02:37:30 jpwarren Exp $
-# $Revision: 1.15 $
+# $Id: CHANGES,v 1.16 2004/01/06 04:18:08 jpwarren Exp $
+# $Revision: 1.16 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -19,29 +19,18 @@
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 
-0.4 -> 0.5
+0.3 -> 0.4
 ----------
-- Migration to twisted framework as core engine. Code will be refactored
-  to support non-twisted implementations while taking advantage of new
-  asynchronous design features.
-- Threading removed, asynchronous event processing used instead. Much
-  improved performance.
+- Migrated to twisted framework as core engine.
+- TLS support!
 - SASL ANONYMOUS support refactored
 - SASL OTP support refactored
 - Many example clients and servers used in testing
-
-0.3 -> 0.4
-----------
-- TLS support!
 - Improved logging, now with customisable prefix format and shorter
   time output.
 - Asynchronous threading for greater efficiency.
 - Cleaner inheritance model
 - tracebacks appear in logfiles for ease in debugging.
-- SessionListeners can be tuned to deny connections of more than
-  a certain threshold of Sessions are currently connected. They
-  automatically start accepting connections again if the number
-  of connections drops below the threshold.
 - Added the capability to pass a callback to a profile that will
   get called last from the Profile.__init__() method.
 

@@ -1,5 +1,5 @@
-# $Id: saslotpprofile.py,v 1.5 2003/12/09 02:37:30 jpwarren Exp $
-# $Revision: 1.5 $
+# $Id: saslotpprofile.py,v 1.6 2004/01/06 04:18:08 jpwarren Exp $
+# $Revision: 1.6 $
 #
 #    BEEPy - A Python BEEP Library
 #    Copyright (C) 2002 Justin Warren <daedalus@eigenmagic.com>
@@ -110,6 +110,7 @@ class SASLOTPProfile(saslprofile.SASLProfile):
                                 data = '<blob status="complete"/>'
                                 self.channel.sendReply(theframe.msgno, data)
                                 log.debug("Queued success message.")
+                                self.session.authenticationSucceeded()
 
                             else:
                                 # Authentication failed, respond appropriately.

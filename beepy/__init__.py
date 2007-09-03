@@ -1,5 +1,5 @@
-# $Id: __init__.py,v 1.4 2007/07/28 01:45:22 jpwarren Exp $
-# $Revision: 1.4 $
+# $Id: __init__.py,v 1.5 2007/09/03 03:20:03 jpwarren Exp $
+# $Revision: 1.5 $
 #
 # BEEPy - A Python BEEP Library
 # Copyright (c) 2002-2007 Justin Warren <daedalus@eigenmagic.com>

@@ -1,5 +1,5 @@
-# $Id: echoprofile.py,v 1.11 2007/07/28 01:45:23 jpwarren Exp $
-# $Revision: 1.11 $
+# $Id: echoprofile.py,v 1.12 2007/09/03 03:20:12 jpwarren Exp $
+# $Revision: 1.12 $
 #
 # BEEPy - A Python BEEP Library
 # Copyright (c) 2002-2007 Justin Warren <daedalus@eigenmagic.com>

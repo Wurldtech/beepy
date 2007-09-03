@@ -1,5 +1,5 @@
-# $Id: message.py,v 1.6 2007/07/28 01:45:23 jpwarren Exp $
-# $Revision: 1.6 $
+# $Id: message.py,v 1.7 2007/09/03 03:20:12 jpwarren Exp $
+# $Revision: 1.7 $
 #
 # BEEPy - A Python BEEP Library
 # Copyright (c) 2002-2007 Justin Warren <daedalus@eigenmagic.com>
@@ -13,7 +13,7 @@ Channel 0 of all sessions.
 Management messages are XML formatted, so we use minidom
 to represent them.
 
-@version: $Revision: 1.6 $
+@version: $Revision: 1.7 $
 @author: Justin Warren
 """
 import logging

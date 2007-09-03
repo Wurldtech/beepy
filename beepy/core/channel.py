@@ -1,5 +1,5 @@
-# $Id: channel.py,v 1.14 2007/07/28 01:45:22 jpwarren Exp $
-# $Revision: 1.14 $
+# $Id: channel.py,v 1.15 2007/09/03 03:20:03 jpwarren Exp $
+# $Revision: 1.15 $
 #
 # BEEPy - A Python BEEP Library
 # Copyright (c) 2002-2007 Justin Warren <daedalus@eigenmagic.com>
@@ -8,7 +8,7 @@
 """
 Channel related code
 
-@version: $Revision: 1.14 $
+@version: $Revision: 1.15 $
 @author: Justin Warren
 """
 import logging

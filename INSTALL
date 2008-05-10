@@ -1,8 +1,8 @@
-# $Id: INSTALL,v 1.9 2007/07/28 01:45:22 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: INSTALL,v 1.10 2008/05/10 03:09:24 jpwarren Exp $
+# $Revision: 1.10 $
 #
 # BEEPy - A Python BEEP Library
-# Copyright (c) 2002-2007 Justin Warren <daedalus@eigenmagic.com>
+# Copyright (c) Justin Warren <daedalus@eigenmagic.com>
 #
 
 Installation
@@ -35,22 +35,14 @@ You won't need POW unless you use TLS in your clients or servers.
 
 Getting Started
 ---------------
-The best place to get started with BEEPy is to change into the test
-directory thus:
+The best place to start is to check that BEEPy has been correctly
+installed, and is working properly. You can do this by running
+twisted's trial utility to run all the unittests.
 
-$ cd beep/test
+Change into the directory you extracted the BEEPy source into,
+and then run:
 
-From here, you can run the unittest suite to check that everything is
-working. This should work if you've installed the library or not.
-
-$ python testall.py
-
-or, for more verbose testing:
-
-$ python testall.py -v
-
-By default, debug output is sent to a file in the working directory:
-beepy-debug.log.
+$ trial test
 
 Using It
 --------

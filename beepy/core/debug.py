@@ -1,5 +1,5 @@
-# $Id: debug.py,v 1.9 2007/09/03 03:20:03 jpwarren Exp $
-# $Revision: 1.9 $
+# $Id: debug.py,v 1.10 2008/05/10 03:04:12 jpwarren Exp $
+# $Revision: 1.10 $
 #
 # BEEPy - A Python BEEP Library
 # Copyright (c) 2002-2007 Justin Warren <daedalus@eigenmagic.com>
@@ -7,7 +7,7 @@
 """
 Customised debugging code.
 
-@version: $Revision: 1.9 $
+@version: $Revision: 1.10 $
 @author: Justin Warren
 """
 
@@ -39,8 +39,8 @@ class MyLogger(logging.Logger):
 #            FORMAT = "%(asctime)s [" + str(pid) + "] %(levelname)8s: %(name)s: %(message)s"
             FORMAT = "%(asctime)s [" + str(pid) + "] %(module)15s %(levelname)7s: %(message)s"
 
-        #level = logging.DEBUG
-        level = logging.INFO
+        level = logging.DEBUG
+        #level = logging.INFO
         logging.Logger.__init__(self, name, level)
 
 #        handler = logging.StreamHandler()

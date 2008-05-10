@@ -1,5 +1,5 @@
-# $Id: reverbprofile.py,v 1.10 2007/09/03 03:20:13 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: reverbprofile.py,v 1.11 2008/05/10 03:04:12 jpwarren Exp $
+# $Revision: 1.11 $
 #
 # BEEPy - A Python BEEP Library
 # Copyright (c) 2002-2007 Justin Warren <daedalus@eigenmagic.com>
@@ -79,7 +79,7 @@ class ReverbProfile(profile.Profile):
         try:
             number, delay, content = string.split(msg.payload, ' ', 2)
             number = int(number)
-            delay = int(delay)
+            delay = float(delay)
             log.debug("number: %d" % number)
             log.debug("delay: %d" % delay)
             log.debug("content: %s" % content)
@@ -95,7 +95,7 @@ class ReverbProfile(profile.Profile):
         except ValueError, e:
             # A ValueError means the payload format is wrong.
             log.error('Payload format incorrect: %s' % e)
-            self.channel.sendError(msg.msgno, 'Payload format incorrect\n')
+            self.channel.sendError(msg.msgno, 'Payload format incorrect\nUsage: <num> <secdelay> <content>' )
 
     def sendReverb(self, msgno):
         """

@@ -1,13 +1,13 @@
-# $Id: tcp.py,v 1.10 2007/09/03 03:20:13 jpwarren Exp $
-# $Revision: 1.10 $
+# $Id: tcp.py,v 1.11 2008/05/10 03:04:12 jpwarren Exp $
+# $Revision: 1.11 $
 #
 # BEEPy - A Python BEEP Library
 # Copyright (c) 2002-2007 Justin Warren <daedalus@eigenmagic.com>
 #
 
-#import logging
-from beepy.core.debug import log
-#log = logging.getLogger('beepy')
+import logging
+#from beepy.core.debug import log
+log = logging.getLogger()
 
 from twisted.internet import reactor
 from twisted.internet.protocol import ClientFactory, ServerFactory
@@ -511,8 +511,6 @@ class BeepClientFactory(BeepFactory, ClientFactory):
             log.error('connection lost: %s' % reason.getErrorMessage() )
             self.lostReason = reason
             self.reason = None
-
-        log.debug('Client finished. Stopping reactor.')
         pass
     pass
 

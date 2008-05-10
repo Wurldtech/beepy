@@ -1,15 +1,30 @@
-# $Id: test_saslotpprofile.py,v 1.17 2007/07/28 01:45:24 jpwarren Exp $
-# $Revision: 1.17 $
+# $Id: test_saslotpprofile.py,v 1.18 2008/05/10 03:04:12 jpwarren Exp $
+# $Revision: 1.18 $
 #
-# BEEPy - A Python BEEP Library
-# Copyright (c) 2002-2007 Justin Warren <daedalus@eigenmagic.com>
+#    BEEPy - A Python BEEP Library
+#    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
+#
+#    This library is free software; you can redistribute it and/or
+#    modify it under the terms of the GNU Lesser General Public
+#    License as published by the Free Software Foundation; either
+#    version 2.1 of the License, or (at your option) any later version.
+#
+#    This library is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#    Lesser General Public License for more details.
+#
+#    You should have received a copy of the GNU Lesser General Public
+#    License along with this library; if not, write to the Free Software
+#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 
-import unittest
 import sys
 import time
 
-sys.path.append('..')
+from twisted.trial import unittest
+from twisted.internet import reactor, defer
+from twisted.internet.protocol import ClientCreator
 
 from beepy.core.debug import log
 
@@ -18,10 +33,11 @@ from beepy.transports.tcp import SASLServerFactory
 from beepy.transports.tcp import SASLClientProtocol
 from beepy.transports.tcp import SASLClientFactory
 
-from beepy.transports.tcp import reactor
-
 from beepy.profiles import saslotpprofile
 from beepy.profiles import echoprofile
+
+TESTIP = '127.0.0.1'
+TESTPORT = 1976
 
 class SASLOTPClientProtocol(SASLClientProtocol):
     """ We subclass from SASLClientProtocol to define
@@ -40,7 +56,6 @@ class SASLOTPClientProtocol(SASLClientProtocol):
         log.debug('started channel %d', channelnum)
         if channelnum == self.authchannel:
             log.debug('Authentication channel started successfully.')
-            
 
             channel = self.getChannel(channelnum)
             msgno = channel.profile.sendAuth(self.passphrase, self.username)
@@ -69,7 +84,8 @@ class SASLOTPClientFactory(SASLClientFactory):
 class SASLOTPServerProtocol(SASLServerProtocol):
 
     def connectionLost(self, reason):
-        reactor.stop()
+        #print "server connection lost"
+        pass
 
 class SASLOTPServerFactory(SASLServerFactory):
   
@@ -81,7 +97,7 @@ class SASLOTPProfileTest(unittest.TestCase):
         factory = SASLOTPServerFactory()
         factory.addProfile(echoprofile)
         factory.addProfile(saslotpprofile)
-        reactor.listenTCP(1976, factory, interface='127.0.0.1')
+        self.serverport = reactor.listenTCP(TESTPORT, factory, interface=TESTIP)
 
         ## We create a new testing OTP database for
         ## testing the library. This assumes the server
@@ -95,23 +111,37 @@ class SASLOTPProfileTest(unittest.TestCase):
 
         passhash = generator.createOTP(username, algo, seed, passphrase, sequence)
 
+    def tearDown(self):
+        self.serverport.loseConnection()
+
     def test_createSASLOTPSession(self):
         """Test SASL OTP with no CDATA init"""
+        def isconnected(d=None):
+            if d is None:
+                d = defer.Deferred()
+                
+            if self.conn.state == 'connecting':
+                #print "not yet connected."
+                reactor.callLater(0.1, isconnected, d)
+            elif self.conn.state == 'connected':
+                #print "connected"
+                d.callback(None)
+                pass
+            elif self.conn.state == 'disconnected':
+                d.errback(ValueError("Client disconnected before we detected it connecting. Test is broken."))
+                pass
+            return d
+
+        def connected(ignored):
+            #print "connected! yay!"
+            self.conn.disconnect()
 
         factory = SASLOTPClientFactory()
         factory.addProfile(echoprofile)
         factory.addProfile(saslotpprofile)
 
-#        log.debug("Reactor state: %s" % reactor.removeAll())
-
-        reactor.connectTCP('localhost', 1976, factory)
-        reactor.run()
-
-        if factory.reason:
-            log.error("Error occurred in factory: %s" % factory.reason)
-            raise Exception(factory.reason.getErrorMessage())
-
-if __name__ == '__main__':
-
-    unittest.main()
+        self.conn = reactor.connectTCP(TESTIP, TESTPORT, factory)
+        d = isconnected()
+        d.addCallback(connected)
+        return d
 

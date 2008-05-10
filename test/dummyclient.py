@@ -1,8 +1,22 @@
-# $Id: dummyclient.py,v 1.13 2007/07/28 01:45:23 jpwarren Exp $
-# $Revision: 1.13 $
+# $Id: dummyclient.py,v 1.14 2008/05/10 03:04:12 jpwarren Exp $
+# $Revision: 1.14 $
 #
-# BEEPy - A Python BEEP Library
-# Copyright (c) 2002-2007 Justin Warren <daedalus@eigenmagic.com>
+#    BEEPy - A Python BEEP Library
+#    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
+#
+#    This library is free software; you can redistribute it and/or
+#    modify it under the terms of the GNU Lesser General Public
+#    License as published by the Free Software Foundation; either
+#    version 2.1 of the License, or (at your option) any later version.
+#
+#    This library is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#    Lesser General Public License for more details.
+#
+#    You should have received a copy of the GNU Lesser General Public
+#    License along with this library; if not, write to the Free Software
+#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Dummy client code to simulate a BEEP client connecting to a server
 # for testing the server
@@ -11,7 +25,8 @@ import sys
 import socket, select
 import re
 
-sys.path.append('..')
+from twisted.internet.protocol import ClientFactory, Protocol
+from twisted.internet import reactor, defer, error
 
 from beepy.core import frame
 from beepy.transports import tcp
@@ -19,16 +34,13 @@ from beepy.transports import tcp
 import logging
 log = logging.getLogger('dummyclient')
 
-class DummyClient:
+class DummyProtocol(Protocol):
     """
-    A dummy client that uses almost raw frames to test a remote server.
+    A raw data transport protocol for talking to BEEP servers
     """
 
-    sock = None
-    wfile = None
-    server = ("localhost", 1976)
-    bufsize = 8096
-    framebuffer = ''
+    servername = 'localhost'
+    serverport = 1976
 
     frameHeaderPattern = re.compile('.*\r\n')
     dataFrameTrailer = re.compile(frame.DataFrame.TRAILER)
@@ -42,67 +54,57 @@ class DummyClient:
     SEQFramePattern = re.compile(SEQFrameRE)
     DataFramePattern = re.compile(DataFrameRE)
 
-    def __init__(self):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    def connectionMade(self):
+        self.framebuffer = ''
+        self.d = None
+        self.later_call = None
 
-        self.numDataFrames = 0
+    def connectionLost(self, reason):
+        if self.d is not None:
+            try:
+                self.d.callback('')
+            except defer.AlreadyCalledError:
+                pass
 
-        self.sock.connect(self.server)
-        self.sock.setblocking(0)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        
+        if self.later_call:
+            self.later_call.cancel()
+            self.later_call = None
+    
+    def dataReceived(self, data):
+        #print "got some data:", data
+        self.framebuffer += data
+
     def sendmsg(self, msg):
-        self.sock.send(msg)
+        """
+        Grab the message, and send it to the remote host.
+        """
+        self.transport.write(msg)
 	pass
 
-    def getmsg(self, blocking=1, ignoreSEQ=True):
+    def getmsg(self, d=None, ignored=None, ignoreSEQ=True):
         """
-        This method needs to be smarter now that we're using SEQ frames.
-        It needs to differentiate between the two frame types and only
-        return data for non-SEQ frames.
-
-        Simple pattern matching should do the trick.
+        Get data from the protocol.
         """
-        try:
-            if blocking:
-                while 1:                
-                    self.sock.setblocking(1)
-                    data = self.sock.recv(self.bufsize)
-                    
-                    self.framebuffer += data
-                    theframe = self.findFrame()
-                    if isinstance(theframe, frame.SEQFrame):
-#                        print "Found SEQ frame: %s" % theframe
-                        ## Only return SEQ frames if told to
-                        if ignoreSEQ:
-                            pass
-                        else:
-                            return theframe
-
-                    else:
-#                        print "Non SEQ frame found: %s" % theframe
-                        if theframe is None:
-                            return ''
-                        else:
-#                            if theframe.dataFrameType == 'ERR':
-#                                print "Error from BEEP peer: %s" % theframe
-#                            self.numDataFrames += 1
-#                            log.debug('Data frame %d found: %s' % (self.numDataFrames, theframe))
-                            return '%s' % theframe
-                    
+        if d is None:
+            self.d = defer.Deferred()
+            
+        frame = self.findFrame()
+        if frame:
+            #print "got frame"
+            if frame.dataFrameType == 'SEQ' and ignoreSEQ:
+                #print "ignoring seq frame"
+                self.later_call = reactor.callLater(0.1, self.getmsg, self.d)
             else:
-                self.sock.setblocking(0)
-                data = self._getdata()
+                #print "returning frame"
+                self.later_call = None
+                self.d.callback(str(frame))
+                pass
+            pass
 
-        except Exception, e:
-            print "Exception occurred in dummyclient: %s: %s" % (e.__class__, e)
-            raise
+        else:
+            self.later_call = reactor.callLater(0.1, self.getmsg, self.d)
 
-    def _getdata(self):
-        inbit, outbit, oobit = select.select([self.sock], [], [], 0.25)
-        if inbit:
-            data = self.sock.recv(self.bufsize)
-            return data
+        return self.d
 
     def findFrame(self):
         """
@@ -124,7 +126,18 @@ class DummyClient:
             self.framebuffer = self.framebuffer[match.end():]
             return frame.DataFrame(databuffer=data)
 
-    def terminate(self):
-#        self.sock.shutdown(2)
-        self.sock.close()
+
+class DummyClient:
+    """
+    A wrapper class to make testing easier to code.
+    Basically used to connect to a server, and send and receive data
+    """
+
+    def __init__(self):
+        """
+        Initialising the client will connect it to the server.
+        Returns a deferred that will fire when the connection has
+        completed successfully.
+        """
+        self.factory = DummyFactory()
 

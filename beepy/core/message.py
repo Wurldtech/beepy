@@ -55,6 +55,7 @@ class Message(message.Message):
         self.args = args
         self.start_index = 0
         self._splitre = re.compile("^\n|\n\n")
+        self.__text = ""
         message.Message.__init__(self)
         
         if payload != None:
@@ -122,20 +123,29 @@ class Message(message.Message):
         """ Obtain the string representation of this BEEP message """
         return str(self)
     
-    def content_as_string(self):
+    def content_as_string(self, amount=None):
         """ Obtain the string representation of the contained MIME message """
         
-        fp = StringIO()
-        g = Generator(fp, mangle_from_=False)
-        g.flatten(self)
-        text = fp.getvalue()
-        header, payload = self._splitre.split(text, 1)
-        if len(header) < 1:
-            text = "\r\n" + payload
+        # Caching
+        if self.__text:
+            text = self.__text
         else:
-            text = utils.fix_eols(header) + "\r\n\r\n" + payload
-    
-        return text[self.start_index:]
+            fp = StringIO()
+            g = Generator(fp, mangle_from_=False)
+            g.flatten(self)
+            text = fp.getvalue()
+            header, payload = self._splitre.split(text, 1)
+            if len(header) < 1:
+                text = "\r\n" + payload
+            else:
+                text = utils.fix_eols(header) + "\r\n\r\n" + payload
+            
+            self.__text = text
+        
+        if amount:
+            return text[self.start_index:self.start_index + amount]
+        else:
+            return text[self.start_index:]
     
     def __str__(self):
         if self.isANS():

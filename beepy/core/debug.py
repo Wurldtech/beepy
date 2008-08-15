@@ -90,17 +90,22 @@ import twisted.python
 #            o = self.observers.pop(i)
 #        exceptions.IndexError: pop index out of range
 import sys
+import logging
 #twisted.python.log.startLogging(sys.stdout)
 
 class Log:
-	def debug(self, fmt, *msg):
-		twisted.python.log.msg("dbg: " + fmt % msg)
-	def warning(self, fmt, *msg):
-		twisted.python.log.msg("wrn: " + fmt % msg)
-	def error(self, fmt, *msg):
-		twisted.python.log.err("err: " + fmt % msg)
-	def info(self, fmt, *msg):
-		twisted.python.log.err("inf: " + fmt % msg)
-	
+    def debug(self, fmt, *msg):
+        #logging.debug(fmt % msg)
+        twisted.python.log.msg("dbg: " + fmt % msg)
+    def warning(self, fmt, *msg):
+        #logging.warning(fmt % msg)
+        twisted.python.log.msg("wrn: " + fmt % msg)
+    def error(self, fmt, *msg):
+        #logging.error(fmt % msg)
+        twisted.python.log.err("err: " + fmt % msg)
+    def info(self, fmt, *msg):
+        #logging.info(fmt % msg)
+        twisted.python.log.err("inf: " + fmt % msg)
+
 log = Log()
 

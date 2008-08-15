@@ -292,7 +292,7 @@ class BeepSession(LineReceiver, Session):
         for the frame.
         """
         #log.debug('sending message fragment: %s' % msg)
-        payload = msg.content_as_string()[:amount]
+        payload = msg.content_as_string(amount)
         size = len(payload)
         seqno = self.channels[channelnum].allocateLocalSeqno(size)
         theframe = frame.DataFrame(channelnum, msg.msgno, seqno, size, msg.msgType, constants.MoreTypes['*'])

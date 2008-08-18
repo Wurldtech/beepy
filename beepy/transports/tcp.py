@@ -224,18 +224,20 @@ class BeepSession(LineReceiver, Session):
         ## This is Good Enough(tm) for now.
         
         ## Look for a SEQ frame
-        match = self.SEQFramePattern.search(self.framebuffer)
-        if match:
-            ## Found a SEQ frame
-            data = self.framebuffer[:match.end()]
-            self.framebuffer = self.framebuffer[match.end():]
-            return frame.SEQFrame(databuffer=data)
+        if self.framebuffer.startswith(frame.SEQFrame.dataFrameType):
+            end = self.framebuffer.find(frame.SEQFrame.TRAILER)
+            if end >= 0:
+                end += len(frame.SEQFrame.TRAILER)
+                data = self.framebuffer[:end]
+                self.framebuffer = self.framebuffer[end:]
+                return frame.SEQFrame(databuffer=data)
         
         ## Look for a Data frame
-        match = self.DataFramePattern.search(self.framebuffer)
-        if match:
-            data = self.framebuffer[:match.end()]
-            self.framebuffer = self.framebuffer[match.end():]
+        end = self.framebuffer.find(frame.DataFrame.TRAILER)
+        if end >= 0:
+            end += len(frame.DataFrame.TRAILER)
+            data = self.framebuffer[:end]
+            self.framebuffer = self.framebuffer[end:]
             return frame.DataFrame(databuffer=data)
     
     def sendMessage(self, msg, channelnum):

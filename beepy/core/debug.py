@@ -96,7 +96,9 @@ import logging
 class Log:
     def debug(self, fmt, *msg):
         #logging.debug(fmt % msg)
-        twisted.python.log.msg("dbg: " + fmt % msg)
+        #twisted.python.log.msg("dbg: " + fmt % msg)
+        pass
+    
     def warning(self, fmt, *msg):
         #logging.warning(fmt % msg)
         twisted.python.log.msg("wrn: " + fmt % msg)

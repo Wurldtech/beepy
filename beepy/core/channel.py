@@ -407,6 +407,9 @@ class Channel:
             raise ChannelMsgnoInvalid('Attempt to reply to msgno not received')
 
         msg = Message(constants.MessageType['RPY'], msgno, data, cb=cb, args=args)
+        self.prepReply(msg, headers)
+        
+    def prepReply(self, msg, headers):
         for k, v in headers:
             msg[k] = v
         self.send(msg)

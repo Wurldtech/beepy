@@ -134,12 +134,6 @@ class BeepSession(LineReceiver, Session):
     def rawDataReceived(self, data):
         try:
             self.framebuffer += data
-            if len(self.framebuffer) > (constants.MAX_FRAME_SIZE + constants.MAX_INBUF):
-                log.error('Frame too large')
-                self.framebuffer = ''
-                # You can't just do this! If you are going to throw the peers
-                # data away because of protocol violation, close the session at
-                # the tcp level.
             
             while 1:
 #                log.debug('fb: %s' % self.framebuffer)
@@ -165,7 +159,7 @@ class BeepSession(LineReceiver, Session):
                         ## reset, as that can stuff the protocol setup.
                         if self.state != TUNING:
 #                            log.debug('Not tuning. sending SEQ frame...')
-                            self.sendSEQFrame(theframe.channelnum, theframe.seqno)
+                            self.sendSEQFrame(theframe.channelnum)
 #                        else:
 #                            log.debug('Currently tuning. No SEQ frames.')
                         
@@ -265,7 +259,7 @@ class BeepSession(LineReceiver, Session):
 
             chbuf = self.channelbuf[channelnum]
     
-            log.debug('Channel %d: process outgoing windowsize=%d queued messages=%d' %
+            log.debug('Channel %d: process outgoing availspace=%d queued messages=%d' %
                 (channelnum, chbuf.availspace, len(chbuf.databuf)))
     
             if len(chbuf.databuf) == 0:
@@ -391,8 +385,8 @@ class BeepSession(LineReceiver, Session):
         except Exception, e:
             log.debug('exception %s' % e)
             traceback.print_exc()
-    
-    def sendSEQFrame(self, channelnum, seqno):
+   
+    def sendSEQFrame(self, channelnum):
         """
         This is the simplest tuning. We simply reset the
         window to max, allowing the remote peer to send
@@ -444,6 +438,28 @@ class BeepSession(LineReceiver, Session):
             ## any more. Only really occurs for channel 0
             pass
     
+    def setWindowSize(self, channelnum, windowsize):
+        """
+        Set the window size for a specific channel.
+
+        Silently ignored if new window size is smaller than old.
+
+        Currently only allows the windowsize to be increased - if it was decreased
+        we'd have to be careful to not retract windowsize we've already advertised
+        as being available in a SEQ message. Not time or need for that now.
+        """
+        if channelnum not in self.channelbuf:
+            return
+
+        if windowsize <= self.channelbuf[channelnum].windowsize:
+            return
+
+        self.channelbuf[channelnum].windowsize = windowsize
+
+        # Tell the peer that our window size has increased.
+        self.sendSEQFrame(channelnum)
+
+
     def processQueuedData(self):
         """
         This method examines the local data queues to see
@@ -483,7 +499,8 @@ class BeepSession(LineReceiver, Session):
         try:
             while(1):
                 msg = self.channelbuf[channelnum].databuf.pop(0)
-                self.sendMessage(msg)
+                # FIXME channelnum was missing in original source, is this method dead code?
+                self.sendMessage(msg, channelnum)
         
         except IndexError:
             pass

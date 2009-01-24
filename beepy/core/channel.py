@@ -94,6 +94,14 @@ class Channel:
         except AssertionError:
             raise ChannelException('Channel number %s out of bounds' % channelnum)
 
+    def setWindowSize(self, windowsize):
+        """
+        Increase channels window size.
+
+        If windowsize is smaller than current, this is ignored.
+        """
+        self.session.setWindowSize(self.channelnum, windowsize)
+
     def send(self, msg):
         """
         Used to send a frame over this channel. Predominantly used by
@@ -307,14 +315,14 @@ class Channel:
             # Not sure what should happen. Probably terminate
             # the channel immediately.
             if msgno > constants.MAX_MSGNO:
-                raise ChannelException('No available msgnos on channel', self.channelnum)
+                raise ChannelException('No available msgnos on channel' % (self.channelnum))
         # If we got here, then we've found the lowest
         # available msgno, so allocate it
         self.allocatedMsgnos.append(msgno)
         #log.debug("Channel %d: Allocated msgno: %s" % (self.channelnum, msgno) )
         self.nextMsgno += 1
         if self.nextMsgno > constants.MAX_MSGNO:
-            self.nextMsgno = constants.MINX_MSGNO
+            self.nextMsgno = constants.MIN_MSGNO
         return msgno
 
 
@@ -423,6 +431,10 @@ class Channel:
         the first frame sent.
 
         @param data: the greeting frame payload
+
+        FIXME - this is NOT for general use! It can only be sent for the initial
+        RPY sent on channel zero when a BEEP connection is established. Should be
+        internal!
         
         """
         msg = Message(constants.MessageType['RPY'], 0, data)

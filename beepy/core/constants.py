@@ -63,24 +63,10 @@ MIN_ACKNO = 0
 MAX_ACKNO = 4294967295L
 MIN_WINDOWSIZE = 1
 MAX_WINDOWSIZE = 2147483647
-START_WINDOWSIZE = 4096
 
 MIN_CHANNEL_WINDOW = 1
-# These sizing values should be tuned to something reasonable.
 
-MAX_INBUF = 1024			# Maximum input bytes at a time
-MAX_OUTBUF = 1024			# Maximum output bytes at a time
-
-MAX_INPUT_QUEUE_SIZE = 1024		# Max inbound queue size
-MAX_OUTPUT_QUEUE_SIZE = 1024		# Max outbound queue size
-
-MAX_FRAME_SIZE = 1024 * 16			# Upper bound for size of frames accepted
-FRAGMENT_FRAME_SIZE = MAX_FRAME_SIZE		# Size frames may get to before payload is fragmented
-MAX_HEADER_SIZE = 62		# Calculated maximum header size
-TRAILER_SIZE = 5
-MAX_PAYLOAD_SIZE = MAX_FRAME_SIZE - MAX_HEADER_SIZE - TRAILER_SIZE
-
-ReplyCodes = { '200' : 'Success',
+ReplyCodes = {  '200' : 'Success',
 		'421' : 'Service Not Available',
 		'450' : 'Requested Action Not Taken',
 		'451' : 'Requested Action Aborted',

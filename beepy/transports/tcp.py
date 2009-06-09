@@ -267,6 +267,8 @@ class BeepSession(LineReceiver, Session):
                 return
             
             if chbuf.availspace < constants.MIN_CHANNEL_WINDOW:
+                #FIXME: This is broken!!!
+                # If this condition holds, flushDatabuf will enter into an infinite loop!
                 # No window space available, nothing to do right now.
                 return
             

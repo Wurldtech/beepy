@@ -39,7 +39,7 @@ from beepy.core.debug import log
 
 import types
 import xml.dom.minidom
-import xml.parsers.expat
+from xml.parsers import expat
 import re
 
 from beepy.core import errors
@@ -55,7 +55,7 @@ class Parser:
         Sets up an XML document parser.
         """
         self.doc = None
-        self.parser = xml.parsers.expat.ParserCreate()
+        self.parser = expat.ParserCreate()
         self.parser.StartElementHandler = self.startElementHandler
         self.parser.EndElementHandler = self.endElementHandler
         self.parser.CharacterDataHandler = self.dataHandler
@@ -87,7 +87,7 @@ class Parser:
         if self.parser:
             self.parser.Parse('',1)
             del self.parser
-        self.parser = xml.parsers.expat.ParserCreate()
+        self.parser = expat.ParserCreate()
         self.parser.StartElementHandler = self.startElementHandler
         self.parser.EndElementHandler = self.endElementHandler
         self.parser.CharacterDataHandler = self.dataHandler

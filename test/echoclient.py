@@ -1,3 +1,4 @@
+#!/usr/bin/twistd -ny
 # $Id: echoclient.py,v 1.8 2004/09/28 01:19:21 jpwarren Exp $
 # $Revision: 1.8 $
 #
@@ -20,16 +21,16 @@
 #
 
 import sys
-sys.path.append('..')
+
+sys.path.insert(0, '..')
+
+from twisted.python import log
 
 from beepy.profiles import echoprofile
 from beepy.transports.tcp import BeepClientProtocol, BeepClientFactory
 from beepy.transports.tcp import reactor
 
-import logging
-from beepy.core import debug
-
-log = logging.getLogger('echoclient')
+log.startLogging(sys.stdout)
 
 ## Ok, let's define our client application
 
@@ -39,20 +40,20 @@ class EchoClientProtocol(BeepClientProtocol):
     occur.
     """
     def greetingReceived(self):
-        log.debug('echo protocol client has greeting')
-        self.newChannel(echoprofile)
+        log.msg('echo protocol client has greeting')
+        self.newChannel(echoprofile.EchoProfile)
 
     def channelStarted(self, channelnum, uri):
-        log.debug('started channel %d', channelnum)
+        log.msg('started channel %d', channelnum)
         
         channel = self.getChannel(channelnum)
         msgno = channel.sendMessage('Hello World!')
-        log.debug('Sent message with id: %s' % msgno)
+        log.msg('Sent message with id: %s' % msgno)
         msgno = channel.sendMessage('Hello World 1!')
-#        msgno = channel.sendMessage('Hello World 2!')
-#        msgno = channel.sendMessage('Hello World 3!')
-#        msgno = channel.sendMessage('Hello World 4!')
-#        msgno = channel.sendMessage('Hello World 5!')
+        msgno = channel.sendMessage('Hello World 2!')
+        msgno = channel.sendMessage('Hello World 3!')
+        msgno = channel.sendMessage('Hello World 4!')
+        msgno = channel.sendMessage('Hello World 5!')
         self.shutdown()
 
 class EchoClientFactory(BeepClientFactory):
@@ -66,7 +67,7 @@ class EchoClientFactory(BeepClientFactory):
 
 if __name__ == '__main__':
     factory = EchoClientFactory()
-    factory.addProfile(echoprofile)
+    factory.addProfile(echoprofile.EchoProfile)
 
     reactor.connectTCP('localhost', 1976, factory)
     reactor.run()

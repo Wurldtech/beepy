@@ -35,7 +35,7 @@ makes use of SASL authentication.
 from debug import log
 #log = logging.getLogger('beepy')
 
-from beepy.core.session import Session, Listener, Initiator, SessionException
+from beepy.core.session import Session, SessionException
 
 class SASLSession(Session):
     """

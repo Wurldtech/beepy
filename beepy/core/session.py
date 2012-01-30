@@ -31,9 +31,9 @@ import threading
 import Queue
 import traceback
 
-#import logging
+import logging
 from debug import log
-#log = logging.getLogger('beepy')
+#log = logging.getLogger('')
 
 import constants
 import errors
@@ -56,8 +56,8 @@ class Session:
     session represents a single connection to a remote peer and can contain
     numerous channels for processing.
     """
-
-    def __init__(self):
+    
+    def __init__(self, listener):
         """
         Create a new Session.
         """
@@ -66,24 +66,40 @@ class Session:
         self.localSeqno = {}
         self.remoteSeqno = {}
         self.ID = 0
-
-        self.profileDict = profile.ProfileDict()
+        self.listener = listener
 
         self.setStartingChannelNum()
-
+    
     def setStartingChannelNum(self):
         """
         Sets the channel number of the first channel that should be
         created. This is used to differentiate between Listener channels
         and Initiator channels.
-
-        Is overridden in subclasses.
         """
-        raise NotImplementedError
-
+        if self.listener:
+            self.nextChannelNum = 2
+        else:
+            self.nextChannelNum = 1
+    
     def _setID(self, sessId):
         self.ID = sessId
+    
+    def validateFrame(self, theframe):
+        if self.channels.has_key(theframe.channelnum):
+            try:
+                #import nice
+                #logging.debug('Received frame: \n' + nice.hex_dump(str(theframe), 24, '    '))
+                self.channels[theframe.channelnum].validateFrame(theframe)
 
+            except TerminateException, e:
+                self.close()
+                
+            except Exception, e:
+                raise
+        else:
+            log.info('Attempt to send to non-existant channel: %d' % theframe.channelnum)
+            raise SessionException('Invalid Channel Number')
+    
     def processFrame(self, theframe):
         """
         Allocate a given frame to the channel it belongs to
@@ -96,6 +112,8 @@ class Session:
 
         if self.channels.has_key(theframe.channelnum):
             try:
+                #import nice
+                #logging.debug('Received frame: \n' + nice.hex_dump(str(theframe), 24, '    '))
                 self.channels[theframe.channelnum].processFrame(theframe)
 
             except TerminateException, e:
@@ -106,7 +124,7 @@ class Session:
         else:
             log.info('Attempt to send to non-existant channel: %d' % theframe.channelnum)
             raise SessionException('Invalid Channel Number')
-
+    
     def createChannel(self, channelnum, profile):
         """
         Creates a new channel with the given channel number
@@ -121,10 +139,8 @@ class Session:
         self.createTransportChannel(channelnum)        
         newchan = channel.Channel(channelnum, profile, self)
         self.channels[channelnum] = newchan
-
-        if channelnum == 0:
-            self.channels[channelnum].profile.sendGreeting()
-
+        return newchan
+    
     def createTransportChannel(self, channelnum):
         """
         This method should be overridden at the transport
@@ -133,57 +149,25 @@ class Session:
         """
         log.debug('session creating transport channel')
         pass
-
-    def createChannelFromURIList(self, channelnum, uriList, profileInit=None):
+    
+    def channelRequested(self, channelnum, profiles):
         """
-        Attempts to create a channel given a list of possible profiles
-        to bind to the channel. Searches the Session's ProfileDict for
-        the first supported profile and then creates a channel bound to
-        that profile.
-
-        This is used on the Listener side of a connection.
-
-        @param channelnum: the channel number of the channel to create
-        @param uriList: a list of URIs in order of preference
-        @param profileInit: a method to use for create time initialisation
-        of the channel's profile
-
-        @return: the URI of the profile used to create the channel
+        Called when the other peer attempts to open a new channel.
         
+        @param channelnum: the channel number of the channel to create
+        @param profiles: a dictionary of {uri: (cdata, encoding)} items
+        
+        @return: a tuple: (chosen uri, profile object, response cdata)
         """
-        if not self.profileDict:
-            log.critical("Session's profileDict is undefined!")
-            raise SessionException("Session's profileDict is undefined!")
-
-        # First, check requested profile(s) are available
-        myURIList = self.profileDict.getURIList()
-        if not myURIList:
-            log.critical("Session's profileDict is empty!")
-            raise SessionException("Session's profileDict is empty!")
-        # Now, find a supported URI in our list
-        for uri in uriList:
-            if uri in myURIList:
-
-                # Attempt to instanciate the profile
-                profileClassName = self.profileDict[uri].__profileClass__
-                if profileClassName in self.profileDict[uri].__dict__.keys():
-                    callback = self.profileDict.getCallback(uri)
-                    profile = self.profileDict[uri].__dict__[profileClassName](self, profileInit, callback)
-                else:
-                    log.error("__profileClass__ doesn't contain the name of the Class to instanciate for uri: %s" % uri)
-                    raise SessionException("__profileClass__ doesn't contain correct Class name")
-
-                # And create a channel, at long last.
-                self.createChannel(channelnum, profile)
-
-                # Inform caller of uri used
-                return uri
-
-            # If we get here, then no supported profile URI was found
-            #log.warning("%s: uri not found in profileDict: %s" % (self, self.profileDict))
-
-        raise SessionException("Profile not supported by Session")
-
+        # Find a supported URI in our list
+        for uri in profiles:
+            if uri in self.profiles:
+                # Instantiate the profile
+                profile, cdata, encoding = self.profiles[uri].createProfile()
+                # (uri, profile object, response cdata, encoding)
+                return (uri, profile, cdata, encoding)
+        raise NoSuitableProfiles('No suitable profiles')
+    
     def closeAllChannels(self):
         """
         Attempts to close all channels on this Session
@@ -191,18 +175,19 @@ class Session:
         try:
             for channelnum in self.channels.keys():
                 if channelnum != 0:
-                    doneEvent = threading.Event()
                     self.closeChannel(channelnum)
                     log.debug("Finished queueing closure of %d" % channelnum)
             ## Close channel 0 last
-            self.closeChannel(0)
-            
+            # FIXME: We DO NOT close channel 0 to avoid race condition because
+            # the client should close it
+            #self.closeChannel(0)
+        
         except Exception, e:
             # If we can't close a channel, we must remain active
             # FIXME: more detailed error handling required here
             log.error("Unable to close Session: %s" % e)
             traceback.print_exc()
-
+    
     def shutdown(self):
         """
         Attempts to close all the channels in a session
@@ -211,13 +196,13 @@ class Session:
         log.debug('shutdown() started...')
         self.state = CLOSING
         self.closeAllChannels()
-
-    def shutdownComplete(self):
+    
+    def sessionClosed(self):
         """
         Called when the Session has completed its shutdown
         """
         pass
-
+    
     def tuningBegin(self):
         """
         Called by a profile when a tuning reset process begins. This
@@ -226,7 +211,7 @@ class Session:
         """
 #        log.debug('changing state to TUNING')
         self.state = TUNING
-
+    
     def tuningReset(self):
         """
         A tuning reset causes all channels, including channel
@@ -240,18 +225,18 @@ class Session:
         self.setStartingChannelNum()
         self.createChannelZero()
         self.state = PRE_GREETING
-
+    
     def deleteChannel(self, channelnum):
         """
         Delete a single channel from the Session
-
+        
         @param channelnum: the channel number to delete
         @type channelnum: integer
         """
         self.deleteTransportChannel(channelnum)
         del self.channels[channelnum]
         log.debug("Channel %d deleted." % channelnum )
-
+    
     def deleteAllChannels(self):
         """
         Attempt to delete all channels on the session
@@ -259,7 +244,7 @@ class Session:
         chanlist = self.channels.keys()
         for channelnum in chanlist:
             self.deleteChannel(channelnum)
-
+    
     def createChannelZero(self):
         """
         Create the Channel 0 for the Session.
@@ -271,16 +256,17 @@ class Session:
         if self.channels.has_key(0):
             log.error("Attempted to create a Channel 0 when one already exists!")
             raise SessionException("Can't create more than one Channel 0")
-
+        
         else:
-            profile = beepmgmtprofile.BEEPManagementProfile(self)
-            self.createChannel(0, profile)
-
+            profile = beepmgmtprofile.BEEPManagementProfile()
+            channel = self.createChannel(0, profile)
+            profile.channelStarted(channel, '', '')
+    
     def isChannelActive(self, channelnum):
         """
         This method provides a way of figuring out if a channel is
         running.
-
+        
         @param channelnum: the channel number to check
         @type channelnum: int
         """
@@ -288,33 +274,33 @@ class Session:
             return 1
         else:
             return 0
-
+    
     def _getActiveChannel(self, channelnum):
         """
         This method provides a way of getting the channel object
         by number.
-
+        
         Deprecated
         """
         if self.isChannelActive(channelnum):
             return self.channels[channelnum]
         return None
-
+    
     def _isChannelError(self, channelnum):
         """
         Checks to see if the channel has encountered an error condition.
-
+        
         Deprecated.
         """
         return self.channels[0].profile.isChannelError(channelnum)
-
+    
     def _flushChannelOutbound(self):
         """
         This method gets all pending messages from all channels
         one at a time and places them on the Session Outbound Queue.
         This should probably only be used in Tuning Resets, but you
         never know when it might come in handy.
-
+        
         Deprecated.
         """
         chanlist = self.channels.keys()
@@ -324,7 +310,7 @@ class Session:
             if( theframe ):
                 self.sendFrame(theframe)
                 del theframe
-
+    
     def _handleGreeting(self):
         """
         A greeting may be received in two circumstances:
@@ -337,9 +323,9 @@ class Session:
 #            log.debug('changing state to ACTIVE')
             self.state = ACTIVE
 #            log.debug('Greeting received')
-            self.greetingReceived()
-
-    def greetingReceived(self):
+            self.sessionStarted()
+    
+    def sessionStarted(self):
         """
         This is a callback from the management profile
         to trigger processing once the connection greeting
@@ -349,115 +335,96 @@ class Session:
         """
         ## Do nothing by default
         pass
-
-    def getProfileDict(self):
-        """
-        Returns this session's profile dictionary.
-        """
-        return self.profileDict
-
+    
     def _getChannelZeroProfile(self):
         """ Deprecated.
         """
         return self.channels[0].profile
-
+    
     def _reset(self):
         """
         reset() does a tuning reset which closes all channels and
         terminates the session.
-
+        
         Deprecated.
         """
         self.transition('reset')
-
+    
     def getChannelState(self, channelnum):
         """
         Get the state of a particular channel.
-
+        
         """
         return self.channels[0].profile.getChannelState(channelnum)
-
-    def newChannel(self, profile, chardata=None, encoding=None):
+    
+    def newChannel(self, uri, handler_obj, cdata=None, encoding=None):
         """
         Attempt to start a new Channel with a given profile.
         This method is used by a peer to request a BEEP peer to start a
         new channel with the given profile.
-
+        
         This is mostly a convenience function for the common case of
         starting a simple channel with a single profile. For more complex
         start scenarios, use startChannel().
-
+        
         @param profile: the profile to bind to the channel
         @param chardata: initialisation data to send as part of the
         channel start request.
         """
-        return self.startChannel([[profile.uri, encoding, chardata]])
-
-    def startChannel(self, profileList):
+        return self.startChannel({uri: (cdata, encoding)}, handler_obj)
+    
+    def startChannel(self, profiles, handler_obj):
         """
         startChannel() attempts to start a new channel for communication.
         It uses a more complex profileList to determine what to send to
         the remote peer as part of the start request.
-
+        
         the profileList is a list of lists with the following structure:
-
+        
         [ uri, encoding, chardata ]
-
+        
         where uri is a string URI of the profile to request,
         encoding is an optional encoding to use and chardata is any
         initialisation data to send as part of the start message.
-
+        
         To start a channel with the echoprofile and no special requirements,
         you would use a list like this:
-
+        
         [ [echoprofile.uri, None, None] ]
-
+        
         To try to start a channel first using SASL/OTP, then SASL/ANONYMOUS,
         you would use a list like this:
-
+        
         [ [saslotpprofile.uri, None, None], [saslanonymousprofile.uri, None, None] ]
-
+        
         More complex scenarios are possible.
         """
-
+        
         ## We can only start channels if we're in the ACTIVE state
         if self.state == ACTIVE:
             # Attempt to get the remote end to start the Channel
             channelnum = self.nextChannelNum
-            self.channels[0].profile.startChannel( channelnum, profileList, self.channelStarted, self.channelStartedError )
+            self.channels[0].profile.startChannel(channelnum, profiles, \
+                handler_obj)
             # Increment nextChannelNum appropriately.
             self.nextChannelNum += 2
             # Return channelnum we asked to start
             return channelnum
-        
+            
         else:
             log.debug('startChannel received in state %s' % self.state)
             raise SessionException('Attempt to start channel when not ACTIVE')
-
-    def channelStarted(self, channelnum, uri):
-        """
-        Action to take when a positive RPY to a channel
-        start message is received.
-        Default is to do nothing, so override this in your subclass
-        if you want anything to happen at this event.
-
-        @param channelnum: The channel number that was started.
-        @param uri: The URI of the profile that was started on the channel.
-        """
-        pass
-
-    def channelStartedError(self, channelnum):
+    
+    def channelStartingError(self, channelnum, code, desc):
         """
         Action to take when a negative RPY to a channel
         start message is received.
 
         @param channelnum: the channel number that failed to start
         """
-        state, code, desc = self.getChannelState(channelnum)
         log.error('Failed to start channel: %d %s' % (code, desc) )
         self.shutdown()
-        pass
-
+    
     def closeChannel(self, channelnum):
         """
         requestCloseChannel() attempts to close a channel.
@@ -465,10 +432,10 @@ class Session:
         """
         log.debug("Attempting to close channel %s..." % channelnum)
         if self.channels.has_key(channelnum):
-            self.channels[0].profile.closeChannel(channelnum, self._channelClosedSuccess, self._channelClosedError)
+            self.channels[0].profile.closeChannel(channelnum)
         else:
             raise KeyError("Channel number invalid")
-
+    
     def _channelClosedSuccess(self, channelnum):
         """
         Internal channel closure method.
@@ -476,43 +443,40 @@ class Session:
         log.debug('Channel %d closed.' % channelnum)
         if len(self.channels) == 0:
             self.close()
-        self.channelClosedSuccess(channelnum)
-        if channelnum == 0 and self.state == CLOSING:
-            self.shutdownComplete()
-
-    def channelClosedSuccess(self, channelnum):
+        self.channelClosed(channelnum)
+        if channelnum == 0:
+            self.sessionClosed()
+    
+    def channelClosed(self, channelnum):
         """
         Override this method to receive notification of channel closure
         """
         pass
-
+    
     def _channelClosedError(self, channelnum, code, desc):
         """
         Internal channel closure error handling
         """
         ## does nothing but call api method at this stage
         self.channelClosedError(channelnum, code, desc)
-
+    
     def channelClosedError(self, channelnum, code, desc):
         """ What to do if a channel close fails
         """
         log.info('close of channel %d failed: %s: %s' % (channelnum, code, desc) )
         pass
-
+    
     def getChannel(self, channelnum):
         """ Get the channel object associated with a given channelnum
         """
         if self.channels.has_key(channelnum):
             return self.channels[channelnum]
-
-    def close(self):
-        raise NotImplementedError
-
+    
     def _showInternalState(self):
         log.debug("Current internal state of %s" % self)
         for var in self.__dict__.keys():
             log.debug("%s: %s" % (var, self.__dict__[var]))
-
+    
     ##
     ## Callback hooks for application programs
     ##
@@ -529,33 +493,7 @@ class Session:
         with your apps when an ANS frame is received.
         """
         pass
-
-class Listener(Session):
-    """
-    A Listener is a Session that is the result of
-    a connection to a ListenerManager. It is the server side
-    of a client/server connection. An Initiator would
-    form the client side.
-    """
-    def setStartingChannelNum(self):
-        """
-        Listeners only start even numbered channels.
-        """
-        self.nextChannelNum = 2
-
-class Initiator(Session):
-    """
-    An Initiator is a Session that initiates a connection
-    to a ListenerManager and then communicates with the resulting
-    Listener. It forms the client side of a client/server
-    connection.
-    """
     
-    def setStartingChannelNum(self):
-        """
-        Initiators only start odd numbered channels.
-        """
-        self.nextChannelNum = 1
 
 # Exception classes
 class SessionException(errors.BEEPException):
@@ -588,10 +526,13 @@ class ChannelZeroOutOfSequence(SessionException):
     def __init__(self, args=None):
         self.args = args
 
+class NoSuitableProfiles(SessionException):
+    pass
+
 class SessionInboundQueueFull(SessionException):
     """
     Used when the session's inbound message queue is full.
-
+    
     @depreciated: Was used in the old threading model. No
     longer used and will be removed.
     """
@@ -601,9 +542,10 @@ class SessionInboundQueueFull(SessionException):
 class SessionOutboundQueueFull(SessionException):
     """
     Used when the session's outbound message queue is full.
-
+    
     @depreciated: Was used in the old threading model. No
     longer used and will be removed.
     """
     def __init__(self, args=None):
         self.args = args
+

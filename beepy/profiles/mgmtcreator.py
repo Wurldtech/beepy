@@ -156,14 +156,14 @@ class Creator:
         # Build a list of profiles as children to the start node
         # A start message must have at least one, so we don't check
         # for the list as in createGreetingMessage() above
-        for profiledesc in profileList:
+        for uri in profileList:
             try:
                 profile = self.doc.createElement('profile')
-                profile.setAttribute('uri', profiledesc[0])
-                if profiledesc[1]:
-                    profile.setAttribute('encoding', profiledesc[1])
-                if profiledesc[2]:
-                    data = self.doc.createCDATASection(profiledesc[2])
+                profile.setAttribute('uri', uri)
+                if profileList[uri][0]:
+                    profile.setAttribute('encoding', profileList[uri][0])
+                if profileList[uri][1]:
+                    data = self.doc.createCDATASection(profileList[uri][1])
                     profile.appendChild(data)
 
             except IndexError, e:
@@ -179,7 +179,7 @@ class Creator:
             raise
 #            raise CreatorException('Exception Converting to XML')
 
-    def createStartReplyMessage(self, profileURI):
+    def createStartReplyMessage(self, uri, cdata, encoding):
         """
         Creates a positive reply message to a start message,
         which will be a <profile> message.
@@ -197,8 +197,15 @@ class Creator:
         element = self.doc.createElement('profile')
 #        if type(profileURI) != types.StringType:
 #            raise CreatorException('profileURI is supposed to be a string, dude.')
-        element.setAttribute('uri', profileURI)
-
+        element.setAttribute('uri', uri)
+        
+        if cdata:
+            if encoding:
+                element.setAttribute('encoding', encoding)
+            cdataElement = xml.dom.minidom.CDATASection()
+            cdataElement.data = cdata
+            element.appendChild(cdataElement)
+        
         self.doc.appendChild(element)
 
         # write pretty printed xml, using 2 spaces for indentation

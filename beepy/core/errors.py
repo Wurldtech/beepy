@@ -32,8 +32,10 @@ in BEEPy to inherit from a common superclass.
 import exceptions
 
 class BEEPException(exceptions.Exception):
-	def __init__(self, args=None):
-		self.args = args
+    def __init__(self, args=None):
+        self.args = args
+    
+    def __str__(self):
+        return str(self.args)
 
-	def __repr__(self):
-		return `self.args`
+

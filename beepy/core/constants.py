@@ -97,9 +97,6 @@ ReplyCodes = { '200' : 'Success',
 		'553' : 'Parameter Invalid',
 		'554' : 'Transaction Failed' }
 
-DEFAULT_MIME_CONTENT_TYPE = "application/octet-stream"
-DEFAULT_MIME_TRANSFER_ENCODING = "binary"
-
 # The Channel finite state machine
 CHANNEL_STOPPED = 0
 CHANNEL_STARTING = 1

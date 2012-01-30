@@ -1,3 +1,4 @@
+#!/usr/bin/twistd -ny
 # $Id: echoserver.py,v 1.5 2004/11/16 00:38:29 jpwarren Exp $
 # $Revision: 1.5 $
 #
@@ -18,20 +19,17 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-
 import sys
-sys.path.append('..')
+
+sys.path.insert(0, '..')
 
 from beepy.profiles import echoprofile
 from beepy.transports.tcp import BeepServerFactory
 from twisted.application import internet, service
 
-# Put this here so we override twisted's logging
-import logging
-from beepy.core import debug
 
 factory = BeepServerFactory()
-factory.addProfile(echoprofile)
+factory.addProfile(echoprofile.EchoProfile)
 
 application = service.Application('echobeep')
 serviceCollection = service.IServiceCollection(application)

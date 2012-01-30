@@ -185,11 +185,11 @@ class Message:
         if self.isError():
             return self.doc.childNodes[0].childNodes[0].nodeValue
 
-# FIXME: getProfileURI and getProfileURIList may be broken
-# It depends on how getElementsByTagName processes the DOM structure I've
-# hacked together to get around the lack of CDATA functionality in minidom.
-# This appears to work so far.. but it isn't guaranteed to work all the
-# time.
+    # FIXME: getProfileURI and getProfileURIList may be broken
+    # It depends on how getElementsByTagName processes the DOM structure I've
+    # hacked together to get around the lack of CDATA functionality in minidom.
+    # This appears to work so far.. but it isn't guaranteed to work all the
+    # time.
     def getProfileURI(self):
         """
         Returns the uri attribute of the first
@@ -206,43 +206,50 @@ class Message:
         nodelist = self.doc.getElementsByTagName('profile')
         uri = nodelist[0].getAttribute('uri')
         return uri
-
-    def getProfileURIList(self):
+    
+    def getProfileList(self):
         """
-        Finds all the uri attributes of any profile elements and places
-        them in a sequence, which is returned.
+        Finds all the profiles in the given start message
 
-        @return: a sequence of uri strings
+        @return: a dictionary of {uri: (cdata, encoding)} items
 
-        @warning: getProfileURIList may be broken. It depends on how
+        @warning: getProfileList may be broken. It depends on how
         getElementsByTagName processes the DOM structure I've
         hacked together to get around the lack of CDATA
         functionality in minidom. It appears to work so far,
         but there are no guarantees.
         """
         nodelist = self.doc.getElementsByTagName('profile')
-#        nodelist = self.doc.childNodes[0].getElementsByTagName('profile')
-#        print "DEBUG: nodelist: %s" % nodelist
-        uriList = []
+        uriList = {}
         for node in nodelist:
-            uriList.append(node.getAttribute('uri'))
+            if node.hasChildNodes():
+                cdata = node.childNodes[0].nodeValue
+            else:
+                cdata = ''
+            uriList[node.getAttribute('uri')] = \
+                (cdata, node.getAttribute('encoding'))
         return uriList
-
-    def getStartProfileBlob(self):
+    
+    def getProfileCdata(self):
         """
-        getStartProfileBlob() gets the contents of the CDATA
-        element within a <start> message profile, which should
-        be a <blob></blob> section to be passed to the profile.
+        Returns the uri attribute of the first
+        profile element found.
 
-        @return: a string containing the CDATA
+        @return: a string containing the URI for the profile
+
+        @warning: getProfileURI may be broken. It depends on how
+        getElementsByTagName processes the DOM structure I've
+        hacked together to get around the lack of CDATA
+        functionality in minidom. It appears to work so far,
+        but there are no guarantees.
         """
-        if not self.isStart():
-            raise MessageException("Message isn't a start message")
-
-        nodelist = self.doc.childNodes[0].getElementsByTagName('*')
+        nodelist = self.doc.getElementsByTagName('profile')
         if nodelist[0].hasChildNodes():
-            return nodelist[0].childNodes[0].nodeValue
-
+            cdata_node = nodelist[0].childNodes[0]
+            return cdata_node.nodeValue
+        else:
+            return ''
+    
     def validate(self):
         """
         This is a hack because I can't be bothered integrating

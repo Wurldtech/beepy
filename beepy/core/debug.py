@@ -18,6 +18,11 @@
 #    License along with this library; if not, write to the Free Software
 #    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+'''
+
+This is lame! There are at least 3 different ways this code base does logging,
+I'm redirecting debug.log back to twisted.
+
 """
 Customised debugging code.
 
@@ -70,3 +75,32 @@ class MyLogger(logging.Logger):
 
 logging.setLoggerClass(MyLogger)
 log = logging.getLogger('default')
+'''
+
+import twisted.python
+
+# This doesn't work... it causes:
+#          File "./echoserver.py", line 26, in <module>
+#            twisted.python.log.startLogging(sys.stdout)
+#          File "/usr/lib/python2.5/site-packages/twisted/python/log.py", line 397, in startLogging
+#            startLoggingWithObserver(flo.emit, *a, **kw)
+#          File "/usr/lib/python2.5/site-packages/twisted/python/log.py", line 412, in startLoggingWithObserver
+#            msg("Log opened.")
+#          File "/usr/lib/python2.5/site-packages/twisted/python/log.py", line 231, in msg
+#            o = self.observers.pop(i)
+#        exceptions.IndexError: pop index out of range
+import sys
+#twisted.python.log.startLogging(sys.stdout)
+
+class Log:
+	def debug(self, fmt, *msg):
+		twisted.python.log.msg("dbg: " + fmt % msg)
+	def warning(self, fmt, *msg):
+		twisted.python.log.msg("wrn: " + fmt % msg)
+	def error(self, fmt, *msg):
+		twisted.python.log.err("err: " + fmt % msg)
+	def info(self, fmt, *msg):
+		twisted.python.log.err("inf: " + fmt % msg)
+	
+log = Log()
+

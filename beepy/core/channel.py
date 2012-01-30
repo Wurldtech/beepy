@@ -26,14 +26,12 @@ Channel related code
 @author: Justin Warren
 """
 import logging
-from debug import log
-#log = logging.getLogger('beepy')
+
+#from debug import log
+log = logging.getLogger('')
 
 import constants
 import errors
-import logging
-import frame
-import traceback
 
 from message import Message
 
@@ -91,7 +89,7 @@ class Channel:
             self.msgStatus = {}
 
             # This binds the profile to this channel, readying it for operation.
-            self.profile.setChannel(self)
+            self.profile.channel = self
 
         except AssertionError:
             raise ChannelException('Channel number %s out of bounds' % channelnum)
@@ -159,13 +157,13 @@ class Channel:
 
         # check the frametype is the right one if we're expecting More frames
         if self.moreFrameType:
-            if theframe.dataFrameType is not self.moreFrameType:
+            if theframe.dataFrameType != self.moreFrameType:
                 raise ChannelException("Frametype incorrect. Expecting more %s frames" % self.moreFrameType)
             # Then check the msgno is the right one
-            if theframe.msgno is not self.moreFrameMsgno:
+            if theframe.msgno != self.moreFrameMsgno:
                 raise ChannelException("Msgno incorrect. Expecting more frames for msgno: %i" % self.moreFrameMsgno)
         # if Frame has the more flag set, set our expected MoreType and Msgno
-        if theframe.more is constants.MoreTypes['*']:
+        if theframe.more == constants.MoreTypes['*']:
             self.moreFrameType = theframe.dataFrameType
             self.moreFrameMsgno = theframe.msgno
         else:
@@ -182,7 +180,9 @@ class Channel:
         else:
             
             # Allow first frame received for the greeting on management channel
-            if not ( theframe.dataFrameType == constants.DataFrameTypes['RPY'] and theframe.msgno == 0 and self.channelnum == 0 ):
+            if not ( theframe.dataFrameType == constants.DataFrameTypes['RPY'] \
+                or theframe.dataFrameType == constants.DataFrameTypes['ERR'] \
+                and theframe.msgno == 0 and self.channelnum == 0 ):
                 if theframe.msgno not in self.allocatedMsgnos:
                     if self.channelnum == 0:
                         raise ChannelMsgnoInvalid('msgno %i not valid for %s' % (theframe.msgno, theframe) )
@@ -196,8 +196,7 @@ class Channel:
 
         @type theframe: DataFrame
         @param theframe: the DataFrame to process
-	"""
-	self.validateFrame(theframe)
+        """
 
         ## Special rules apply to ANS Frames
         if theframe.isANS():
@@ -207,7 +206,7 @@ class Channel:
                 self.ansbuf[theframe.ansno].append(theframe.payload)
 
             else:
-                self.ansbuf[theframe.ansno] = Message(dataframe=theframe)
+                self.ansbuf[theframe.ansno] = Message.from_frame(theframe)
                 
             ## Check to see if this is the last Frame for the message.
             ## If it is, pass it to the profile for processing.
@@ -220,10 +219,11 @@ class Channel:
         ## to the existing message.
         else:
             if self.msgbuf.has_key(theframe.msgno):
-                self.msgbuf[theframe.msgno].append(theframe.payload)
-
+                payload = self.msgbuf[theframe.msgno].get_payload()
+                payload += theframe.payload
+                self.msgbuf[theframe.msgno].set_payload(payload)
             else:
-                self.msgbuf[theframe.msgno] = Message(dataframe=theframe)
+                self.msgbuf[theframe.msgno] = Message.from_frame(theframe)
                 
             ## Check to see if this is the last Frame for the message.
             ## If it is, pass it to the profile for processing.
@@ -239,7 +239,6 @@ class Channel:
                     self.deallocateMsgno(theframe.msgno)
 
                 del self.msgbuf[theframe.msgno]
-        pass
 
     def allocateLocalSeqno(self, msgsize):
         """
@@ -312,7 +311,7 @@ class Channel:
         # If we got here, then we've found the lowest
         # available msgno, so allocate it
         self.allocatedMsgnos.append(msgno)
-        log.debug("Channel %d: Allocated msgno: %s" % (self.channelnum, msgno) )
+        #log.debug("Channel %d: Allocated msgno: %s" % (self.channelnum, msgno) )
         self.nextMsgno += 1
         if self.nextMsgno > constants.MAX_MSGNO:
             self.nextMsgno = constants.MINX_MSGNO
@@ -334,7 +333,7 @@ class Channel:
 
         if msgno in self.allocatedMsgnos:
             self.allocatedMsgnos.remove(msgno)
-            log.debug("Channel %d: Deallocated msgno: %s" % (self.channelnum, msgno) )
+            #log.debug("Channel %d: Deallocated msgno: %s" % (self.channelnum, msgno) )
 
     def allocateLocalAnsno(self, msgno):
         """
@@ -374,23 +373,24 @@ class Channel:
             return 1
         return 0
 
-    # Send a Message of type MSG
-    def sendMessage(self, data, cb=None, errback=None):
+    def sendMessage(self, payload, headers=[]):
         """
         sendMessage() is used for sending a Message of type MSG
 
-        @param data: the payload of the message
+        @param payload: the payload of the message
+        @param headers: a dictionary of MIME headers to prepend to the message
 
         @return: integer, the msgno of the message that was sent
         """
         msgno = self.allocateMsgno()
-        msg = Message(None, constants.MessageType['MSG'], msgno, data)
-
+        msg = Message(constants.MessageType['MSG'], msgno, payload)
+        for k, v in headers:
+            msg[k] = v
         self.send(msg)
+        
         return msgno
 
-    # msgno here is the msgno to which this a reply
-    def sendReply(self, msgno, data, cb=None, errback=None, *args ):
+    def sendReply(self, msgno, data, headers=[], cb=None, errback=None, *args):
         """
         sendReply() is used for sending a frame of type RPY
         
@@ -406,10 +406,12 @@ class Channel:
         if msgno not in self.receivedMsgnos:
             raise ChannelMsgnoInvalid('Attempt to reply to msgno not received')
 
-        msg = Message(None, constants.MessageType['RPY'], msgno, data, cb=cb, args=args)
+        msg = Message(constants.MessageType['RPY'], msgno, data, cb=cb, args=args)
+        for k, v in headers:
+            msg[k] = v
         self.send(msg)
 
-    def sendGreetingReply(self, data):
+    def sendGreetingReply(self, data, headers=[]):
         """
         sendGreetingReply() is used to send the initial greeting message
         when a peer connects. It is identical to sendReply except that
@@ -420,12 +422,14 @@ class Channel:
         @param data: the greeting frame payload
         
         """
-        msg = Message(None, constants.MessageType['RPY'], 0, data)
+        msg = Message(constants.MessageType['RPY'], 0, data)
+        for k, v in headers:
+            msg[k] = v
         self.send(msg)
 
     # seqno and more are not required for ERR frames
     # msgno is the MSG to which this error is a reply
-    def sendError(self, msgno, data):
+    def sendError(self, msgno, data, headers=[]):
         """
         sendError() is used for sending a frame of type ERR
 
@@ -433,11 +437,13 @@ class Channel:
         @param data: the payload of the ERR frame
         
         """
-        msg = Message(None, constants.MessageType['ERR'], msgno, data)
+        msg = Message(constants.MessageType['ERR'], msgno, data)
+        for k, v in headers:
+            msg[k] = v
         self.send(msg)
 
     # msgno here is the msgno to which this an answer
-    def sendAnswer(self, msgno, data):
+    def sendAnswer(self, msgno, data, headers=[]):
         """
         sendAnswer() is used for sending a frame of type ANS
 
@@ -445,10 +451,12 @@ class Channel:
         @param data: the payload of the ANS frame
         """
         ansno = self.allocateLocalAnsno(msgno)
-        msg = Message(None, constants.MessageType['ANS'], msgno, data, ansno)
+        msg = Message(constants.MessageType['ANS'], msgno, data, ansno)
+        for k, v in headers:
+            msg[k] = v
         self.send(msg)
 
-    def sendNul(self, msgno):
+    def sendNul(self, msgno, data, headers=[]):
         """
         sendNul() is used for sending a frame of type NUL
 
@@ -459,7 +467,9 @@ class Channel:
         @param msgno: the msgno all previous ANS frames have been in
         response to, and to which this is the final response frame.
         """
-        msg = Message(None, constants.MessageType['NUL'], msgno)
+        msg = Message(constants.MessageType['NUL'], msgno, data)
+        for k, v in headers:
+            msg[k] = v
         self.send(msg)
         # Once we've sent a NUL, we don't need to maintain a list of
         # ansno's for this msgno any more.
@@ -507,3 +517,5 @@ class ChannelNotStarted(ChannelException):
 class ChannelMessagesOutstanding(ChannelException):
     def __init__(self, args=None):
         self.args = args
+
+# vim:expandtab:

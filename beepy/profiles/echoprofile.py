@@ -23,8 +23,6 @@ EchoProfile implements an example profile that simply
 echoes back whatever the content of a frame is.
 It sends a Reply to each Message it receives.
 """
-__profileClass__ = "EchoProfile"
-uri = "http://www.eigenmagic.com/beep/ECHO"
 
 #import logging
 from beepy.core.debug import log
@@ -36,6 +34,9 @@ class EchoProfile(profile.Profile):
     """
     A very basic example profile that just echos frames.
     """
+
+    #uri = "http://www.eigenmagic.com/beep/ECHO"
+    uri = "http://xml.resource.org/profiles/NULL/ECHO"
 
     def __init__(self, session, profileInit=None, init_callback=None):
         profile.Profile.__init__(self, session)

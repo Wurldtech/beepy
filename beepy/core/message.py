@@ -34,115 +34,119 @@ Profiles and applications deal with Messages, not directly with Frames.
 @author: Justin Warren
 
 """
-#import logging
-from debug import log
-#log = logging.getLogger('beepy')
 
-import errors
-import constants
-import string
+import logging
+import re
 
-## Defines possible Message types
-TYPE_MSG = 0
-TYPE_RPY = 1
-TYPE_ANS = 2
-TYPE_ERR = 3
-TYPE_NUL = 4
+import email
+from email import message
+from email import utils
+from email.generator import Generator
 
-class Message:
-    """
-    A Message is the base unit of application data that is used
-    by Channels and Profiles.
-    """
+from cStringIO import StringIO
+
+class Message(message.Message):
     
-    def __init__(self, dataframe=None, msgType=None, msgno=None, payload='', ansno=None, cb=None, args=None):
-        """
-        @type dataframe: DataFrame
-        @param dataframe: a raw dataFrame
-        """
-        ## Create directly from a dataframe
-        if dataframe:
-            self.msgType = dataframe.dataFrameType
-            self.msgno = dataframe.msgno
-            self.payload = dataframe.payload
-            if dataframe.isANS():
-                self.ansno = dataframe.ansno
-                pass
-
-        else:
-            self.msgType = msgType
-            self.msgno = msgno
-            self.payload = payload
-            self.ansno = ansno
-
-        ## Callback to use when message is completely sent
+    def __init__(self, msgType, msgno, payload=None, ansno=None, cb=None, args=None):
+        self.msgType = msgType
+        self.msgno = msgno
+        self.ansno = ansno
         self.cb = cb
         self.args = args
-
-    def __str__(self):
-        if self.isANS():
-            return "%s %d %d:\n%s" % (self.msgType, self.msgno, self.ansno, self.payload)
-        else:
-            return "%s %d:\n%s" % (self.msgType, self.msgno, self.payload)
-
-    def __repr__(self):
-        return "<%s instance at %s>" % (self.__class__, hex(id(self)))
-
-    def __len__(self):
-        return len(self.payload)
-
-    def __copy__(self):
-        return Message(None, self.msgType, self.msgno, self.payload, self.ansno)
-
-    def append(self, data):
-        """
-        Appends data to the Message payload
-        """
-        self.payload += data
+        self.start_index = 0
+        self._splitre = re.compile("^\n|\n\n")
+        message.Message.__init__(self)
+        
+        if payload != None:
+            self.set_payload(payload)
+    
+    @classmethod
+    def from_frame(cls, dataframe):
+        """ Create a Message object from a dataframe """
+        
+        def newmsg():
+            return cls(dataframe.dataFrameType, dataframe.msgno)
+        
+        obj = email.message_from_string(dataframe.payload, newmsg)
+        return obj
+        
+    def set_payload(self, payload, charset=None):
+        self._payload = payload
     
     def isMSG(self):
         """
         Check to see if this is a MSG frame
-
+        
         @return: 1 if true
         """
         if self.msgType == 'MSG':
-            return 1
-
+            return True
+    
     def isRPY(self):
         """
         Check to see if this is a RPY frame
-
+        
         @return: 1 if true
         """
         if self.msgType == 'RPY':
-            return 1
-
+            return True
+    
     def isANS(self):
         """
         Check to see if this is an ANS frame
-
+        
         @return: 1 if true
         """
         if self.msgType == 'ANS':
-            return 1
-
+            return True
+    
     def isERR(self):
         """
         Check to see if this is an ERR frame
-
+        
         @return: 1 if true
         """
         if self.msgType == 'ERR':
-            return 1
-
+            return True
+    
     def isNUL(self):
         """
         Check to see if this is a NUL frame
-
+        
         @return: 1 if true
         """
         if self.msgType == 'NUL':
-            return 1
+            return True
+    
+    def as_string(self):
+        """ Obtain the string representation of this BEEP message """
+        return str(self)
+    
+    def content_as_string(self):
+        """ Obtain the string representation of the contained MIME message """
+        
+        fp = StringIO()
+        g = Generator(fp, mangle_from_=False)
+        g.flatten(self)
+        text = fp.getvalue()
+        header, payload = self._splitre.split(text, 1)
+        if len(header) < 1:
+            text = "\r\n" + payload
+        else:
+            text = utils.fix_eols(header) + "\r\n\r\n" + payload
+    
+        return text[self.start_index:]
+    
+    def __str__(self):
+        if self.isANS():
+            return "%s %d %d:\r\n%s" % (self.msgType, self.msgno, self.ansno,
+                self.content_as_string())
+        else:
+            return "%s %d:\r\n%s" % (self.msgType, self.msgno,
+                self.content_as_string())
+    
+    def __len__(self):
+        return len(self.content_as_string())
 
 
+# vim:expandtab:

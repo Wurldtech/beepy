@@ -1,23 +1,14 @@
-# $Id: README,v 1.9 2004/09/28 01:19:19 jpwarren Exp $
-# $Revision: 1.9 $
-#
-#    BEEPy - A Python BEEP Library
-#    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
-#
-#    This library is free software; you can redistribute it and/or
-#    modify it under the terms of the GNU Lesser General Public
-#    License as published by the Free Software Foundation; either
-#    version 2.1 of the License, or (at your option) any later version.
-#
-#    This library is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-#    Lesser General Public License for more details.
-#
-#    You should have received a copy of the GNU Lesser General Public
-#    License along with this library; if not, write to the Free Software
-#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-#
+Beepy is the only BEEP protocol implementation for twisted <http://http://twistedmatrix.com>.
+
+It appears to have been developed and tested only against itself, not against
+any other conformant BEEP implementations, and it didn't interoperate.
+
+We hacked it to interoperate with beep4j, and to perform adequately for our
+needs. We're pushing the code in the hopes it will be of use, but with
+ABSOLUTELY NO GUARANTEES.
+
+Sam Roberts <sroberts@wurldtech.com>
+
 
 Overview
 --------
@@ -74,3 +65,25 @@ Instructions for installation can be found in the INSTALL file.
 
 Further documentation is found in the doc/ directory. The FAQ and
 HOWTO files are probably a good place to start.
+
+# $Id: README,v 1.9 2004/09/28 01:19:19 jpwarren Exp $
+# $Revision: 1.9 $
+#
+#    BEEPy - A Python BEEP Library
+#    Copyright (c) 2002-2004 Justin Warren <daedalus@eigenmagic.com>
+#
+#    This library is free software; you can redistribute it and/or
+#    modify it under the terms of the GNU Lesser General Public
+#    License as published by the Free Software Foundation; either
+#    version 2.1 of the License, or (at your option) any later version.
+#
+#    This library is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+#    Lesser General Public License for more details.
+#
+#    You should have received a copy of the GNU Lesser General Public
+#    License along with this library; if not, write to the Free Software
+#    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+
